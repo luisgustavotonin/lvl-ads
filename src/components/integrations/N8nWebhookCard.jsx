@@ -139,23 +139,44 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
           </div>
         </div>
 
-        {/* Base44 Receiver URL */}
-        <div className="p-3 bg-white rounded-lg border border-gray-200">
-          <p className="text-xs font-medium text-gray-700 mb-1.5">URL para N8n enviar dados (POST):</p>
+        {/* Base44 Receiver URL - Produção */}
+        <div className="p-3 bg-white rounded-lg border border-green-200 bg-green-50">
+          <p className="text-xs font-medium text-green-900 mb-1.5">✅ URL PRODUÇÃO (use este no N8n):</p>
           <div className="flex gap-2">
-            <code className="flex-1 text-xs bg-gray-50 px-2 py-1.5 rounded border break-all">
-              {webhookUrl}
+            <code className="flex-1 text-xs bg-white px-2 py-1.5 rounded border break-all">
+              {productionWebhookUrl}
             </code>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => copyToClipboard(webhookUrl, 'URL')}
+              onClick={() => copyToClipboard(productionWebhookUrl, 'URL Produção')}
               className="shrink-0"
             >
               <Copy className="w-3 h-3" />
             </Button>
           </div>
+          <p className="text-xs text-green-700 mt-1">Esta URL funciona em produção e preview</p>
         </div>
+
+        {/* Base44 Receiver URL - Preview (opcional) */}
+        <details className="p-3 bg-white rounded-lg border border-gray-200">
+          <summary className="text-xs font-medium text-gray-700 cursor-pointer">
+            🔧 URL Preview (apenas para testes no preview)
+          </summary>
+          <div className="flex gap-2 mt-2">
+            <code className="flex-1 text-xs bg-gray-50 px-2 py-1.5 rounded border break-all">
+              {previewWebhookUrl}
+            </code>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => copyToClipboard(previewWebhookUrl, 'URL Preview')}
+              className="shrink-0"
+            >
+              <Copy className="w-3 h-3" />
+            </Button>
+          </div>
+        </details>
 
         {/* Integration ID */}
         <div className="p-3 bg-white rounded-lg border border-gray-200">
