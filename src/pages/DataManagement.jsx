@@ -203,7 +203,7 @@ export default function DataManagement() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start text-left">
                     <Calendar className="w-4 h-4 mr-2" />
-                    {dateRange.from && dateRange.to ? (
+                    {dateRange?.from && dateRange?.to ? (
                       `${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`
                     ) : (
                       'Selecionar período'
@@ -214,7 +214,13 @@ export default function DataManagement() {
                   <CalendarComponent
                     mode="range"
                     selected={dateRange}
-                    onSelect={(range) => range && setDateRange(range)}
+                    onSelect={(range) => {
+                      if (range?.from && range?.to) {
+                        setDateRange(range);
+                      } else if (range?.from) {
+                        setDateRange({ from: range.from, to: range.from });
+                      }
+                    }}
                     numberOfMonths={2}
                     locale={ptBR}
                   />
