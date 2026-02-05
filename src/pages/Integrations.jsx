@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import DataFetchModal from '../components/integrations/DataFetchModal';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ export default function Integrations() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState(null);
+  const [fetchDataModal, setFetchDataModal] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState('all');
   const [formData, setFormData] = useState({
     unit_id: '',
@@ -160,6 +162,20 @@ export default function Integrations() {
       refetch();
     } catch (error) {
       alert(`❌ Erro ao testar conexão: ${error.message}`);
+    }
+  };
+
+  const handleFetchData = async (params) => {
+    try {
+      const response = await base44.functions.invoke('fetchMetaAdsMetrics', params);
+      if (response.data.success) {
+        alert(`✅ ${response.data.message}`);
+        refetch();
+      } else {
+        alert(`❌ ${response.data.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Erro: ${error.message}`);
     }
   };
 
@@ -318,22 +334,7 @@ export default function Integrations() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={async () => {
-                                try {
-                                  const response = await base44.functions.invoke('fetchMetaAdsMetrics', {
-                                    integration_id: integration.id,
-                                    date_preset: 'yesterday'
-                                  });
-                                  if (response.data.success) {
-                                    alert(`✅ ${response.data.message}`);
-                                    refetch();
-                                  } else {
-                                    alert(`❌ ${response.data.error}`);
-                                  }
-                                } catch (error) {
-                                  alert(`❌ Erro: ${error.message}`);
-                                }
-                              }}
+                              onClick={() => setFetchDataModal(integration)}
                               className="text-xs"
                             >
                               Buscar Dados
@@ -620,6 +621,16 @@ export default function Integrations() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Data Fetch Modal */}
+      {fetchDataModal && (
+        <DataFetchModal
+          open={!!fetchDataModal}
+          onClose={() => setFetchDataModal(null)}
+          integration={fetchDataModal}
+          onFetch={handleFetchData}
+        />
+      )}
     </div>
   );
 }
