@@ -7,7 +7,25 @@ import { cn } from '@/lib/utils';
 
 export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
   const [isTesting, setIsTesting] = useState(false);
-  const webhookUrl = `${window.location.origin}/api/functions/receiveN8nData`;
+  
+  // Gera a URL correta do sandbox para functions
+  const getWebhookUrl = () => {
+    const currentUrl = window.location.hostname;
+    // Se estiver em preview, usa preview-sandbox
+    if (currentUrl.includes('preview--')) {
+      const appId = currentUrl.split('--')[1].split('.')[0];
+      return `https://preview-sandbox--${appId}.base44.app/api/functions/receiveN8nData`;
+    }
+    // Se estiver em produção
+    if (currentUrl.includes('.base44.app') && !currentUrl.includes('preview')) {
+      const appId = currentUrl.split('.')[0];
+      return `https://${appId}.base44.app/api/functions/receiveN8nData`;
+    }
+    // Fallback - usa o origin atual
+    return `${window.location.origin}/api/functions/receiveN8nData`;
+  };
+  
+  const webhookUrl = getWebhookUrl();
   const secretToken = integration.settings?.n8n_secret_token || 'NÃO CONFIGURADO';
   
   const copyToClipboard = (text, label) => {
