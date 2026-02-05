@@ -374,24 +374,39 @@ export default function DataManagement() {
             <CardTitle className="text-lg flex items-center gap-2">
               📡 Webhooks Recebidos (Últimos 20)
             </CardTitle>
-            {selectedWebhooks.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">{selectedWebhooks.length} selecionado(s)</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm(`Excluir ${selectedWebhooks.length} webhook(s)?`)) {
-                      deleteWebhooksMutation.mutate(selectedWebhooks);
-                    }
-                  }}
-                  disabled={deleteWebhooksMutation.isPending}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Excluir Selecionados
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedWebhooks.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-600">{selectedWebhooks.length} selecionado(s)</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Excluir ${selectedWebhooks.length} webhook(s)?`)) {
+                        deleteWebhooksMutation.mutate(selectedWebhooks);
+                      }
+                    }}
+                    disabled={deleteWebhooksMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Excluir Selecionados
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`⚠️ ATENÇÃO: Excluir TODOS os ${webhookLogs.length} webhooks da base?\n\nEsta ação é IRREVERSÍVEL!`)) {
+                    deleteWebhooksMutation.mutate(webhookLogs.map(w => w.id));
+                  }
+                }}
+                disabled={deleteWebhooksMutation.isPending || webhookLogs.length === 0}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Excluir TUDO ({webhookLogs.length})
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -588,24 +603,39 @@ export default function DataManagement() {
             <CardTitle className="text-lg flex items-center gap-2">
               🎯 Debug - Campanhas Recebidas (Últimas 50)
             </CardTitle>
-            {selectedCampaigns.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">{selectedCampaigns.length} selecionado(s)</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm(`Excluir ${selectedCampaigns.length} campanha(s)?`)) {
-                      deleteCampaignsMutation.mutate(selectedCampaigns);
-                    }
-                  }}
-                  disabled={deleteCampaignsMutation.isPending}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Excluir Selecionados
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedCampaigns.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-600">{selectedCampaigns.length} selecionado(s)</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Excluir ${selectedCampaigns.length} campanha(s)?`)) {
+                        deleteCampaignsMutation.mutate(selectedCampaigns);
+                      }
+                    }}
+                    disabled={deleteCampaignsMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Excluir Selecionados
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`⚠️ ATENÇÃO: Excluir TODAS as ${allCampaigns.length} campanhas da base?\n\nEsta ação é IRREVERSÍVEL!`)) {
+                    deleteCampaignsMutation.mutate(allCampaigns.map(c => c.id));
+                  }
+                }}
+                disabled={deleteCampaignsMutation.isPending || allCampaigns.length === 0}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Excluir TUDO ({allCampaigns.length})
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
