@@ -49,6 +49,8 @@ export default function DataManagement() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
   const [selectedWebhooks, setSelectedWebhooks] = useState([]);
+  const [selectedMetrics, setSelectedMetrics] = useState([]);
+  const [selectedCampaigns, setSelectedCampaigns] = useState([]);
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -80,6 +82,32 @@ export default function DataManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhookLogs'] });
       setSelectedWebhooks([]);
+    },
+  });
+
+  const deleteMetricsMutation = useMutation({
+    mutationFn: async (metricIds) => {
+      for (const id of metricIds) {
+        await base44.entities.MetricsDaily.delete(id);
+      }
+      return metricIds.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allMetrics'] });
+      setSelectedMetrics([]);
+    },
+  });
+
+  const deleteCampaignsMutation = useMutation({
+    mutationFn: async (campaignIds) => {
+      for (const id of campaignIds) {
+        await base44.entities.MetricsEntity.delete(id);
+      }
+      return campaignIds.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allCampaigns'] });
+      setSelectedCampaigns([]);
     },
   });
 
@@ -334,7 +362,7 @@ export default function DataManagement() {
           }}
           className="gap-2"
         >
-          <Loader2 className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" />
           Atualizar Dados
         </Button>
       </div>
@@ -556,9 +584,29 @@ export default function DataManagement() {
       {/* Debug - Campanhas */}
       <Card className="border-purple-200 bg-purple-50/30">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            🎯 Debug - Campanhas Recebidas (Últimas 50)
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              🎯 Debug - Campanhas Recebidas (Últimas 50)
+            </CardTitle>
+            {selectedCampaigns.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">{selectedCampaigns.length} selecionado(s)</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`Excluir ${selectedCampaigns.length} campanha(s)?`)) {
+                      deleteCampaignsMutation.mutate(selectedCampaigns);
+                    }
+                  }}
+                  disabled={deleteCampaignsMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Excluir Selecionados
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -566,6 +614,20 @@ export default function DataManagement() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b sticky top-0">
                   <tr>
+                    <th className="px-3 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allCampaigns.length > 0 && selectedCampaigns.length === allCampaigns.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCampaigns(allCampaigns.map(c => c.id));
+                          } else {
+                            setSelectedCampaigns([]);
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                    </th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Campanha ID</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Nome</th>
@@ -578,13 +640,27 @@ export default function DataManagement() {
                 <tbody className="divide-y divide-gray-100">
                   {allCampaigns.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-3 py-8 text-center text-gray-500">
+                      <td colSpan="8" className="px-3 py-8 text-center text-gray-500">
                         Nenhuma campanha encontrada. Envie dados com campaign_data do N8n.
                       </td>
                     </tr>
                   ) : (
                     allCampaigns.map((campaign) => (
                       <tr key={campaign.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedCampaigns.includes(campaign.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCampaigns([...selectedCampaigns, campaign.id]);
+                              } else {
+                                setSelectedCampaigns(selectedCampaigns.filter(id => id !== campaign.id));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                        </td>
                         <td className="px-3 py-2 text-gray-900 font-medium">
                           {format(new Date(campaign.date), 'dd/MM/yyyy')}
                         </td>
