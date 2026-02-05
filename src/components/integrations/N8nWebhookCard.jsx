@@ -8,24 +8,17 @@ import { cn } from '@/lib/utils';
 export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
   const [isTesting, setIsTesting] = useState(false);
   
-  // Gera a URL correta do sandbox para functions
-  const getWebhookUrl = () => {
-    const currentUrl = window.location.hostname;
-    // Se estiver em preview, usa preview-sandbox
-    if (currentUrl.includes('preview--')) {
-      const appId = currentUrl.split('--')[1].split('.')[0];
-      return `https://preview-sandbox--${appId}.base44.app/api/functions/receiveN8nData`;
-    }
-    // Se estiver em produção
-    if (currentUrl.includes('.base44.app') && !currentUrl.includes('preview')) {
-      const appId = currentUrl.split('.')[0];
-      return `https://${appId}.base44.app/api/functions/receiveN8nData`;
-    }
-    // Fallback - usa o origin atual
-    return `${window.location.origin}/api/functions/receiveN8nData`;
-  };
+  // URL para ambiente de produção (use este no N8n)
+  const productionWebhookUrl = `https://6984a13af76359c5c3583c42.base44.app/api/functions/receiveN8nData`;
   
-  const webhookUrl = getWebhookUrl();
+  // URL para ambiente de preview (apenas para testes durante desenvolvimento)
+  const previewWebhookUrl = `https://preview-sandbox--6984a13af76359c5c3583c42.base44.app/api/functions/receiveN8nData`;
+  
+  // Detecta o ambiente atual
+  const isPreview = window.location.hostname.includes('preview--');
+  
+  // Usa a URL apropriada dependendo do ambiente
+  const webhookUrl = isPreview ? previewWebhookUrl : productionWebhookUrl;
   const secretToken = integration.settings?.n8n_secret_token || 'NÃO CONFIGURADO';
   
   const copyToClipboard = (text, label) => {
