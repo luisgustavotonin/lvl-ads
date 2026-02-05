@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
 export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
   const [isTesting, setIsTesting] = useState(false);
   
-  // URL correta para chamar a função backend via API REST do Base44
-  const webhookUrl = `https://app.base44.com/api/apps/6984a13af76359c5c3583c42/functions/receiveN8nData`;
+  // URL correta para chamar a função backend externamente (via N8n)
+  const webhookUrl = `https://sandbox--6984a13af76359c5c3583c42.base44.app/api/functions/receiveN8nData`;
   
   const secretToken = integration.settings?.n8n_secret_token || 'NÃO CONFIGURADO';
   
@@ -148,7 +148,7 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
             </Button>
           </div>
           <p className="text-xs text-green-700 mt-1.5">
-            ⚠️ Use exatamente esta URL no N8n (domínio sandbox)
+            ⚠️ Use esta URL no N8n para enviar dados para o Base44
           </p>
         </div>
 
