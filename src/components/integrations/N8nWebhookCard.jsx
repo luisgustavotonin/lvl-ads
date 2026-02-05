@@ -1,17 +1,78 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Settings, Trash2, Webhook } from 'lucide-react';
+import { Copy, Settings, Trash2, Webhook, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
+  const [isTesting, setIsTesting] = useState(false);
   const webhookUrl = `${window.location.origin}/api/functions/receiveN8nData`;
   const secretToken = integration.settings?.n8n_secret_token || 'NÃO CONFIGURADO';
   
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
     alert(`${label} copiado!`);
+  };
+
+  const handleTestWebhook = async () => {
+    if (secretToken === 'NÃO CONFIGURADO') {
+      alert('⚠️ Configure o secret_token antes de testar!');
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      const testPayload = {
+        integration_id: integration.id,
+        secret_token: secretToken,
+        data: [
+          {
+            date: new Date().toISOString().split('T')[0],
+            metrics: {
+              spend: 100.50,
+              impressions: 5000,
+              clicks: 250,
+              link_clicks: 200,
+              conversions: 10,
+              leads: 8,
+              purchases: 2
+            },
+            campaign_data: [
+              {
+                id: "test_campaign_001",
+                name: "Campanha de Teste",
+                status: "active",
+                spend: 100.50,
+                impressions: 5000,
+                clicks: 250,
+                results: 10
+              }
+            ]
+          }
+        ]
+      };
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testPayload)
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        alert(`✅ Teste realizado com sucesso!\n\n${result.message}`);
+      } else {
+        alert(`❌ Erro no teste:\n\n${result.error || 'Erro desconhecido'}`);
+      }
+    } catch (error) {
+      alert(`❌ Erro ao enviar teste:\n\n${error.message}`);
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const getStatusBadge = () => {
@@ -153,11 +214,28 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={onEdit}
-            className="flex-1"
+            onClick={handleTestWebhook}
+            disabled={isTesting || secretToken === 'NÃO CONFIGURADO'}
+            className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
           >
-            <Settings className="w-4 h-4 mr-1" />
-            Configurar
+            {isTesting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                Testando...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 mr-1" />
+                Testar Webhook
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onEdit}
+          >
+            <Settings className="w-4 h-4" />
           </Button>
           <Button
             variant="outline"
