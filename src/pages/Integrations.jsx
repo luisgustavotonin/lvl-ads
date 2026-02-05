@@ -45,6 +45,7 @@ const PLATFORMS = [
 export default function Integrations() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialog, setEditDialog] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState('all');
   const [formData, setFormData] = useState({
@@ -53,6 +54,18 @@ export default function Integrations() {
     account_reference: '',
     account_name: '',
     auth_type: 'token',
+  });
+  const [editFormData, setEditFormData] = useState({
+    account_name: '',
+    account_reference: '',
+    auth_type: 'token',
+    settings: {
+      access_token: '',
+      api_key: '',
+      client_id: '',
+      client_secret: '',
+      refresh_token: '',
+    }
   });
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
@@ -101,6 +114,34 @@ export default function Integrations() {
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+  };
+
+  const handleOpenEditDialog = (integration) => {
+    setEditFormData({
+      account_name: integration.account_name || '',
+      account_reference: integration.account_reference || '',
+      auth_type: integration.auth_type || 'token',
+      settings: {
+        access_token: integration.settings?.access_token || '',
+        api_key: integration.settings?.api_key || '',
+        client_id: integration.settings?.client_id || '',
+        client_secret: integration.settings?.client_secret || '',
+        refresh_token: integration.settings?.refresh_token || '',
+      }
+    });
+    setEditDialog(integration);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialog(null);
+  };
+
+  const handleSaveEdit = () => {
+    updateMutation.mutate({
+      id: editDialog.id,
+      data: editFormData
+    });
+    handleCloseEditDialog();
   };
 
   const handleTestConnection = async (integration) => {
@@ -253,6 +294,14 @@ export default function Integrations() {
                           <Button 
                             variant="ghost" 
                             size="icon"
+                            onClick={() => handleOpenEditDialog(integration)}
+                            title="Configurar credenciais"
+                          >
+                            <Settings className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
                             onClick={() => handleTestConnection(integration)}
                           >
                             <RefreshCw className="w-4 h-4" />
@@ -359,6 +408,160 @@ export default function Integrations() {
               className="bg-blue-600 hover:bg-blue-700"
             >
               Criar Integração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editDialog} onOpenChange={() => setEditDialog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Configurar Integração</DialogTitle>
+            <DialogDescription>
+              Configure as credenciais de acesso para {getPlatformInfo(editDialog?.platform_id).name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_account_name">Nome da Conta</Label>
+              <Input
+                id="edit_account_name"
+                value={editFormData.account_name}
+                onChange={(e) => setEditFormData({ ...editFormData, account_name: e.target.value })}
+                placeholder="Ex: Conta Principal"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_account_reference">ID da Conta</Label>
+              <Input
+                id="edit_account_reference"
+                value={editFormData.account_reference}
+                onChange={(e) => setEditFormData({ ...editFormData, account_reference: e.target.value })}
+                placeholder="Ex: act_123456789"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Autenticação</Label>
+              <Select
+                value={editFormData.auth_type}
+                onValueChange={(value) => setEditFormData({ ...editFormData, auth_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="token">Access Token</SelectItem>
+                  <SelectItem value="oauth">OAuth 2.0</SelectItem>
+                  <SelectItem value="api_key">API Key</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h4 className="font-medium mb-3 text-gray-900">Credenciais</h4>
+              
+              {editFormData.auth_type === 'token' && (
+                <div className="space-y-2">
+                  <Label htmlFor="access_token">Access Token *</Label>
+                  <Input
+                    id="access_token"
+                    type="password"
+                    value={editFormData.settings.access_token}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      settings: { ...editFormData.settings, access_token: e.target.value }
+                    })}
+                    placeholder="Cole seu token de acesso aqui"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Token gerado no painel da plataforma
+                  </p>
+                </div>
+              )}
+
+              {editFormData.auth_type === 'api_key' && (
+                <div className="space-y-2">
+                  <Label htmlFor="api_key">API Key *</Label>
+                  <Input
+                    id="api_key"
+                    type="password"
+                    value={editFormData.settings.api_key}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      settings: { ...editFormData.settings, api_key: e.target.value }
+                    })}
+                    placeholder="Cole sua chave de API aqui"
+                  />
+                </div>
+              )}
+
+              {editFormData.auth_type === 'oauth' && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="client_id">Client ID *</Label>
+                    <Input
+                      id="client_id"
+                      value={editFormData.settings.client_id}
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        settings: { ...editFormData.settings, client_id: e.target.value }
+                      })}
+                      placeholder="Client ID do app OAuth"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="client_secret">Client Secret *</Label>
+                    <Input
+                      id="client_secret"
+                      type="password"
+                      value={editFormData.settings.client_secret}
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        settings: { ...editFormData.settings, client_secret: e.target.value }
+                      })}
+                      placeholder="Client Secret do app OAuth"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="refresh_token">Refresh Token</Label>
+                    <Input
+                      id="refresh_token"
+                      type="password"
+                      value={editFormData.settings.refresh_token}
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        settings: { ...editFormData.settings, refresh_token: e.target.value }
+                      })}
+                      placeholder="Token de atualização (opcional)"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs text-blue-800">
+                  <strong>Onde encontrar:</strong> Acesse o painel da plataforma e gere as credenciais de desenvolvedor/API.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseEditDialog}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSaveEdit}
+              disabled={updateMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Salvar Configuração
             </Button>
           </DialogFooter>
         </DialogContent>
