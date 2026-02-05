@@ -300,6 +300,81 @@ export default function DataManagement() {
         </Card>
       )}
 
+      {/* Debug - Dados Recebidos */}
+      <Card className="border-blue-200 bg-blue-50/30">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            🐛 Debug - Dados Recebidos (Últimos 50)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Unidade</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Plataforma</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Investimento</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Impressões</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Cliques</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Conversões</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-700">Criado em</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {allMetrics.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className="px-3 py-8 text-center text-gray-500">
+                        Nenhum dado encontrado na base. Envie dados do N8n para popular.
+                      </td>
+                    </tr>
+                  ) : (
+                    allMetrics
+                      .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+                      .slice(0, 50)
+                      .map((metric) => (
+                        <tr key={metric.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 text-gray-900 font-medium">
+                            {format(new Date(metric.date), 'dd/MM/yyyy')}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">
+                            {getUnitName(metric.unit_id)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge className="text-xs">
+                              {PLATFORMS.find(p => p.id === metric.platform_id)?.icon || ''} {metric.platform_id}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-900 font-medium">
+                            {formatCurrency(metric.spend)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600">
+                            {(metric.impressions || 0).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600">
+                            {(metric.clicks || 0).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600">
+                            {(metric.conversions || 0).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs text-gray-500">
+                            {format(new Date(metric.created_date), 'dd/MM HH:mm')}
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Mostrando os 50 registros mais recentes ordenados por data de criação
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Stats Overview */}
       <Card className="border-gray-100">
         <CardHeader>
