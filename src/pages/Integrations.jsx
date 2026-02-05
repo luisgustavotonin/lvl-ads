@@ -278,39 +278,13 @@ export default function Integrations() {
         </CardContent>
       </Card>
 
-      {/* N8n Webhooks Section */}
-      {filteredIntegrations.filter(i => i.auth_type === 'n8n_webhook').length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Link2 className="w-4 h-4 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Webhooks N8n</h2>
-              <p className="text-sm text-gray-500">Configure múltiplas integrações para diferentes propósitos</p>
-            </div>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-4">
-            {filteredIntegrations
-              .filter(i => i.auth_type === 'n8n_webhook')
-              .map((integration) => (
-                <N8nWebhookCard
-                  key={integration.id}
-                  integration={integration}
-                  onEdit={() => handleOpenEditDialog(integration)}
-                  onDelete={() => setDeleteDialog(integration)}
-                />
-              ))}
-          </div>
-        </div>
-      )}
+
 
       {/* Platform Cards */}
       <div className="grid gap-6">
         {PLATFORMS.map((platform) => {
           const platformIntegrations = filteredIntegrations.filter(i => 
-            i.platform_id === platform.id && i.auth_type !== 'n8n_webhook'
+            i.platform_id === platform.id
           );
           
           return (
@@ -343,57 +317,66 @@ export default function Integrations() {
                 ) : (
                   <div className="space-y-3">
                     {platformIntegrations.map((integration) => (
-                      <div 
-                        key={integration.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {integration.account_name || integration.account_reference}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {getUnitName(integration.unit_id)} • ID: {integration.account_reference}
-                            </p>
+                      integration.auth_type === 'n8n_webhook' ? (
+                        <N8nWebhookCard
+                          key={integration.id}
+                          integration={integration}
+                          onEdit={() => handleOpenEditDialog(integration)}
+                          onDelete={() => setDeleteDialog(integration)}
+                        />
+                      ) : (
+                        <div 
+                          key={integration.id}
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {integration.account_name || integration.account_reference}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {getUnitName(integration.unit_id)} • ID: {integration.account_reference}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {getStatusBadge(integration.connection_status)}
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleOpenEditDialog(integration)}
-                            title="Configurar credenciais"
-                          >
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleTestConnection(integration)}
-                            title="Testar conexão"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </Button>
-                          {integration.connection_status === 'connected' && integration.platform_id === 'META' && (
+                          <div className="flex items-center gap-3">
+                            {getStatusBadge(integration.connection_status)}
                             <Button 
                               variant="ghost" 
-                              size="sm"
-                              onClick={() => setFetchDataModal(integration)}
-                              className="text-xs"
+                              size="icon"
+                              onClick={() => handleOpenEditDialog(integration)}
+                              title="Configurar credenciais"
                             >
-                              Buscar Dados
+                              <Settings className="w-4 h-4" />
                             </Button>
-                          )}
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => setDeleteDialog(integration)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleTestConnection(integration)}
+                              title="Testar conexão"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            {integration.connection_status === 'connected' && integration.platform_id === 'META' && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setFetchDataModal(integration)}
+                                className="text-xs"
+                              >
+                                Buscar Dados
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => setDeleteDialog(integration)}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
+                      )
                     ))}
                   </div>
                 )}
@@ -555,6 +538,24 @@ export default function Integrations() {
                 placeholder="Ex: act_123456789"
               />
             </div>
+
+            {editDialog?.auth_type === 'n8n_webhook' && (
+              <div className="space-y-2">
+                <Label htmlFor="edit_n8n_webhook_url">URL do Webhook N8n</Label>
+                <Input
+                  id="edit_n8n_webhook_url"
+                  value={editFormData.settings.n8n_webhook_url}
+                  onChange={(e) => setEditFormData({ 
+                    ...editFormData, 
+                    settings: { ...editFormData.settings, n8n_webhook_url: e.target.value }
+                  })}
+                  placeholder="https://seu-n8n.com/webhook/..."
+                />
+                <p className="text-xs text-gray-500">
+                  URL do webhook do N8n que o Base44 vai chamar para testar
+                </p>
+              </div>
+            )}
 
             {editDialog?.auth_type === 'n8n_webhook' && (
               <div className="space-y-2">
