@@ -67,8 +67,11 @@ export default function Integrations() {
       client_id: '',
       client_secret: '',
       refresh_token: '',
+      n8n_webhook_url: '',
+      n8n_secret_token: '',
     }
   });
+  const [webhookUrl, setWebhookUrl] = useState('');
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -129,9 +132,16 @@ export default function Integrations() {
         client_id: integration.settings?.client_id || '',
         client_secret: integration.settings?.client_secret || '',
         refresh_token: integration.settings?.refresh_token || '',
+        n8n_webhook_url: integration.settings?.n8n_webhook_url || '',
+        n8n_secret_token: integration.settings?.n8n_secret_token || '',
       }
     });
     setEditDialog(integration);
+    
+    // Generate webhook URL for this integration
+    const baseUrl = window.location.origin;
+    const webhookPath = `/api/functions/receiveN8nData`;
+    setWebhookUrl(`${baseUrl}${webhookPath}`);
   };
 
   const handleCloseEditDialog = () => {
@@ -491,6 +501,7 @@ export default function Integrations() {
                   <SelectItem value="token">Access Token</SelectItem>
                   <SelectItem value="oauth">OAuth 2.0</SelectItem>
                   <SelectItem value="api_key">API Key</SelectItem>
+                  <SelectItem value="n8n_webhook">N8n Webhook</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -578,11 +589,95 @@ export default function Integrations() {
                 </div>
               )}
 
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-800">
-                  <strong>Onde encontrar:</strong> Acesse o painel da plataforma e gere as credenciais de desenvolvedor/API.
-                </p>
-              </div>
+              {editFormData.auth_type === 'n8n_webhook' && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>URL do Webhook Base44 (use esta no N8n)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={webhookUrl}
+                        readOnly
+                        className="font-mono text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(webhookUrl);
+                          alert('URL copiada!');
+                        }}
+                      >
+                        Copiar
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Use esta URL como destino do HTTP Request no seu workflow N8n
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="n8n_secret_token">Token de Segurança *</Label>
+                    <Input
+                      id="n8n_secret_token"
+                      type="password"
+                      value={editFormData.settings.n8n_secret_token}
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        settings: { ...editFormData.settings, n8n_secret_token: e.target.value }
+                      })}
+                      placeholder="Gere um token único (ex: abc123xyz)"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Crie um token único e envie-o no corpo do POST do N8n
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="integration_id_display">ID da Integração</Label>
+                    <Input
+                      id="integration_id_display"
+                      value={editDialog?.id || 'Salve primeiro para gerar'}
+                      readOnly
+                      className="font-mono text-xs bg-gray-50"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Use este ID no campo "integration_id" do JSON enviado pelo N8n
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-800 font-medium mb-2">📋 Estrutura do JSON para enviar do N8n:</p>
+                    <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">
+{`{
+  "integration_id": "${editDialog?.id || 'ID_DA_INTEGRACAO'}",
+  "secret_token": "SEU_TOKEN_AQUI",
+  "data": [
+    {
+      "date": "2024-01-15",
+      "metrics": {
+        "spend": 1500.50,
+        "impressions": 50000,
+        "clicks": 1200,
+        "conversions": 45
+      },
+      "campaign_data": [...],
+      "adset_data": [...],
+      "ad_data": [...]
+    }
+  ]
+}`}
+                    </pre>
+                  </div>
+                </div>
+              )}
+
+              {editFormData.auth_type !== 'n8n_webhook' && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-800">
+                    <strong>Onde encontrar:</strong> Acesse o painel da plataforma e gere as credenciais de desenvolvedor/API.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

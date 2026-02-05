@@ -48,27 +48,27 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import Dashboard from './pages/Dashboard';
-import Reports from './pages/Reports';
-import Units from './pages/Units';
-import Integrations from './pages/Integrations';
-import Schedules from './pages/Schedules';
-import Profiles from './pages/Profiles';
-import Users from './pages/Users';
 import DataManagement from './pages/DataManagement';
+import Integrations from './pages/Integrations';
+import Profiles from './pages/Profiles';
+import Reports from './pages/Reports';
+import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
+import Units from './pages/Units';
+import Users from './pages/Users';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "Dashboard": Dashboard,
-    "Reports": Reports,
-    "Units": Units,
-    "Integrations": Integrations,
-    "Schedules": Schedules,
-    "Profiles": Profiles,
-    "Users": Users,
     "DataManagement": DataManagement,
+    "Integrations": Integrations,
+    "Profiles": Profiles,
+    "Reports": Reports,
+    "Schedules": Schedules,
     "Settings": Settings,
+    "Units": Units,
+    "Users": Users,
 }
 
 export const pagesConfig = {
