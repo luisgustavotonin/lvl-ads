@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import DataFetchModal from '../components/integrations/DataFetchModal';
+import N8nWebhookCard from '../components/integrations/N8nWebhookCard';
 import {
   Dialog,
   DialogContent,
@@ -56,11 +57,13 @@ export default function Integrations() {
     account_reference: '',
     account_name: '',
     auth_type: 'token',
+    integration_purpose: '',
   });
   const [editFormData, setEditFormData] = useState({
     account_name: '',
     account_reference: '',
     auth_type: 'token',
+    integration_purpose: '',
     settings: {
       access_token: '',
       api_key: '',
@@ -113,6 +116,7 @@ export default function Integrations() {
       account_reference: '',
       account_name: '',
       auth_type: 'token',
+      integration_purpose: '',
     });
     setDialogOpen(true);
   };
@@ -126,6 +130,7 @@ export default function Integrations() {
       account_name: integration.account_name || '',
       account_reference: integration.account_reference || '',
       auth_type: integration.auth_type || 'token',
+      integration_purpose: integration.integration_purpose || '',
       settings: {
         access_token: integration.settings?.access_token || '',
         api_key: integration.settings?.api_key || '',
@@ -273,10 +278,40 @@ export default function Integrations() {
         </CardContent>
       </Card>
 
+      {/* N8n Webhooks Section */}
+      {filteredIntegrations.filter(i => i.auth_type === 'n8n_webhook').length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+              <Link2 className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Webhooks N8n</h2>
+              <p className="text-sm text-gray-500">Configure múltiplas integrações para diferentes propósitos</p>
+            </div>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            {filteredIntegrations
+              .filter(i => i.auth_type === 'n8n_webhook')
+              .map((integration) => (
+                <N8nWebhookCard
+                  key={integration.id}
+                  integration={integration}
+                  onEdit={() => handleOpenEditDialog(integration)}
+                  onDelete={() => setDeleteDialog(integration)}
+                />
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Platform Cards */}
       <div className="grid gap-6">
         {PLATFORMS.map((platform) => {
-          const platformIntegrations = filteredIntegrations.filter(i => i.platform_id === platform.id);
+          const platformIntegrations = filteredIntegrations.filter(i => 
+            i.platform_id === platform.id && i.auth_type !== 'n8n_webhook'
+          );
           
           return (
             <Card key={platform.id} className="border-gray-100">
@@ -440,6 +475,39 @@ export default function Integrations() {
                 O ID da conta de anúncios da plataforma selecionada.
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Autenticação *</Label>
+              <Select
+                value={formData.auth_type}
+                onValueChange={(value) => setFormData({ ...formData, auth_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="token">Access Token</SelectItem>
+                  <SelectItem value="oauth">OAuth 2.0</SelectItem>
+                  <SelectItem value="api_key">API Key</SelectItem>
+                  <SelectItem value="n8n_webhook">N8n Webhook</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.auth_type === 'n8n_webhook' && (
+              <div className="space-y-2">
+                <Label htmlFor="integration_purpose">Propósito da Integração *</Label>
+                <Input
+                  id="integration_purpose"
+                  value={formData.integration_purpose}
+                  onChange={(e) => setFormData({ ...formData, integration_purpose: e.target.value })}
+                  placeholder="Ex: Dados Gerais, Criativos, Imagens de Anúncios"
+                />
+                <p className="text-xs text-gray-500">
+                  Defina o propósito para diferenciar múltiplas integrações N8n
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -487,6 +555,18 @@ export default function Integrations() {
                 placeholder="Ex: act_123456789"
               />
             </div>
+
+            {editDialog?.auth_type === 'n8n_webhook' && (
+              <div className="space-y-2">
+                <Label htmlFor="edit_integration_purpose">Propósito da Integração</Label>
+                <Input
+                  id="edit_integration_purpose"
+                  value={editFormData.integration_purpose}
+                  onChange={(e) => setEditFormData({ ...editFormData, integration_purpose: e.target.value })}
+                  placeholder="Ex: Dados Gerais, Criativos, Imagens"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Tipo de Autenticação</Label>
