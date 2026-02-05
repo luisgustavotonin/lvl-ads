@@ -48,6 +48,7 @@ export default function DataManagement() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
+  const [selectedWebhooks, setSelectedWebhooks] = useState([]);
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -67,6 +68,19 @@ export default function DataManagement() {
   const { data: allCampaigns = [] } = useQuery({
     queryKey: ['allCampaigns'],
     queryFn: () => base44.entities.MetricsEntity.filter({ entity_level: 'campaign' }, '-created_date', 50),
+  });
+
+  const deleteWebhooksMutation = useMutation({
+    mutationFn: async (webhookIds) => {
+      for (const id of webhookIds) {
+        await base44.entities.WebhookLog.delete(id);
+      }
+      return webhookIds.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhookLogs'] });
+      setSelectedWebhooks([]);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -328,9 +342,29 @@ export default function DataManagement() {
       {/* Webhook Logs */}
       <Card className="border-green-200 bg-green-50/30">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            📡 Webhooks Recebidos (Últimos 20)
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              📡 Webhooks Recebidos (Últimos 20)
+            </CardTitle>
+            {selectedWebhooks.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">{selectedWebhooks.length} selecionado(s)</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`Excluir ${selectedWebhooks.length} webhook(s)?`)) {
+                      deleteWebhooksMutation.mutate(selectedWebhooks);
+                    }
+                  }}
+                  disabled={deleteWebhooksMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Excluir Selecionados
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -338,6 +372,20 @@ export default function DataManagement() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b sticky top-0">
                   <tr>
+                    <th className="px-3 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={webhookLogs.length > 0 && selectedWebhooks.length === webhookLogs.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedWebhooks(webhookLogs.map(w => w.id));
+                          } else {
+                            setSelectedWebhooks([]);
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                    </th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Data/Hora</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Status</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Integration ID</th>
@@ -356,6 +404,20 @@ export default function DataManagement() {
                   ) : (
                     webhookLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedWebhooks.includes(log.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedWebhooks([...selectedWebhooks, log.id]);
+                              } else {
+                                setSelectedWebhooks(selectedWebhooks.filter(id => id !== log.id));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                        </td>
                         <td className="px-3 py-2 text-xs text-gray-900">
                           {format(new Date(log.created_date), 'dd/MM/yyyy HH:mm:ss')}
                         </td>
@@ -384,6 +446,15 @@ export default function DataManagement() {
                             <pre className="mt-2 p-2 bg-gray-50 rounded text-xs overflow-x-auto max-h-40">
                               {JSON.stringify(log.payload_received, null, 2)}
                             </pre>
+                            {log.payload_received?.data?.[0]?.date && (
+                              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                <p className="text-yellow-800 font-medium">⚠️ Data no payload:</p>
+                                <p className="text-yellow-700">{log.payload_received.data[0].date}</p>
+                                <p className="text-xs text-yellow-600 mt-1">
+                                  Se essa data está errada (ex: 2026 ao invés de 2024), corrija no N8n!
+                                </p>
+                              </div>
+                            )}
                           </details>
                         </td>
                         <td className="px-3 py-2 text-xs text-red-600">
@@ -396,9 +467,14 @@ export default function DataManagement() {
               </table>
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            💡 Esta tabela mostra TODOS os webhooks recebidos do N8n, com o payload completo
-          </p>
+          <div className="flex items-start gap-2 mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
+            <div className="text-xs text-yellow-800">
+              <p className="font-medium">⚠️ Problema de Data Detectado!</p>
+              <p className="mt-1">Os dados estão sendo salvos com datas erradas (ex: 2026-01-06 ao invés de 2024-02-05).</p>
+              <p className="mt-1 font-medium">Solução: Verifique no N8n o campo "date" que está sendo enviado. Ele deve ser a data REAL da métrica (formato: YYYY-MM-DD).</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
