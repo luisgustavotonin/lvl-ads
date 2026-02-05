@@ -51,12 +51,16 @@ export default function Schedules() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(null);
+  const [editingSchedule, setEditingSchedule] = useState(null);
   const [formData, setFormData] = useState({
     unit_id: '',
     platform_id: '',
     frequency: 'daily',
     times: ['09:00'],
     is_active: true,
+    start_date: '',
+    end_date: '',
+    date_range_mode: 'auto', // 'auto' (últimos 7 dias) ou 'manual'
   });
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
@@ -92,19 +96,38 @@ export default function Schedules() {
     },
   });
 
-  const handleOpenDialog = () => {
-    setFormData({
-      unit_id: units[0]?.id || '',
-      platform_id: '',
-      frequency: 'daily',
-      times: ['09:00'],
-      is_active: true,
-    });
+  const handleOpenDialog = (schedule = null) => {
+    if (schedule) {
+      setEditingSchedule(schedule);
+      setFormData({
+        unit_id: schedule.unit_id,
+        platform_id: schedule.platform_id,
+        frequency: schedule.frequency,
+        times: schedule.times || ['09:00'],
+        is_active: schedule.is_active,
+        start_date: schedule.start_date || '',
+        end_date: schedule.end_date || '',
+        date_range_mode: schedule.start_date ? 'manual' : 'auto',
+      });
+    } else {
+      setEditingSchedule(null);
+      setFormData({
+        unit_id: units[0]?.id || '',
+        platform_id: '',
+        frequency: 'daily',
+        times: ['09:00'],
+        is_active: true,
+        start_date: '',
+        end_date: '',
+        date_range_mode: 'auto',
+      });
+    }
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+    setEditingSchedule(null);
   };
 
   const handleToggleActive = (schedule) => {
@@ -232,17 +255,24 @@ export default function Schedules() {
                       {getStatusBadge(schedule)}
 
                       <div className="flex items-center gap-2">
-                        <Switch
-                          checked={schedule.is_active}
-                          onCheckedChange={() => handleToggleActive(schedule)}
-                        />
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => setDeleteDialog(schedule)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
+                       <Switch
+                         checked={schedule.is_active}
+                         onCheckedChange={() => handleToggleActive(schedule)}
+                       />
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => handleOpenDialog(schedule)}
+                       >
+                         Editar
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="icon"
+                         onClick={() => setDeleteDialog(schedule)}
+                       >
+                         <Trash2 className="w-4 h-4 text-red-500" />
+                       </Button>
                       </div>
                     </div>
                   </div>
@@ -253,11 +283,11 @@ export default function Schedules() {
         </div>
       )}
 
-      {/* Create Dialog */}
+      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Novo Agendamento</DialogTitle>
+            <DialogTitle>{editingSchedule ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
             <DialogDescription>
               Configure a importação automática de dados.
             </DialogDescription>
@@ -343,6 +373,65 @@ export default function Schedules() {
                 ))}
               </div>
             </div>
+
+            <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <Label className="text-base font-medium">Período de Importação</Label>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="auto-mode"
+                    checked={formData.date_range_mode === 'auto'}
+                    onChange={() => setFormData({ ...formData, date_range_mode: 'auto' })}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="auto-mode" className="text-sm cursor-pointer">
+                    Automático - últimos 7 dias (recomendado para rotina diária)
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="manual-mode"
+                    checked={formData.date_range_mode === 'manual'}
+                    onChange={() => setFormData({ ...formData, date_range_mode: 'manual' })}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="manual-mode" className="text-sm cursor-pointer">
+                    Manual - definir período específico (para primeira carga)
+                  </label>
+                </div>
+              </div>
+
+              {formData.date_range_mode === 'manual' && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Data Inicial</Label>
+                    <input
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Data Final</Label>
+                    <input
+                      type="date"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-blue-700 mt-2">
+                💡 Use o modo manual apenas na primeira vez para carregar histórico. Depois ajuste para automático.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -350,11 +439,18 @@ export default function Schedules() {
               Cancelar
             </Button>
             <Button 
-              onClick={() => createMutation.mutate(formData)}
-              disabled={!formData.unit_id || !formData.platform_id || createMutation.isPending}
+              onClick={() => {
+                if (editingSchedule) {
+                  updateMutation.mutate({ id: editingSchedule.id, data: formData });
+                  handleCloseDialog();
+                } else {
+                  createMutation.mutate(formData);
+                }
+              }}
+              disabled={!formData.unit_id || !formData.platform_id || createMutation.isPending || updateMutation.isPending}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Criar Agendamento
+              {editingSchedule ? 'Salvar Alterações' : 'Criar Agendamento'}
             </Button>
           </DialogFooter>
         </DialogContent>
