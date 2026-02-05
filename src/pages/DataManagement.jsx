@@ -522,11 +522,46 @@ export default function DataManagement() {
       </Card>
 
       {/* Debug - Dados Recebidos */}
-      <Card className="border-blue-200 bg-blue-50/30">
+      <Card className="border-orange-200 bg-orange-50/30">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            🐛 Debug - Dados Recebidos (Últimos 50)
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              🔍 Debug - Dados Recebidos (Últimos 100)
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {selectedMetrics.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-600">{selectedMetrics.length} selecionado(s)</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Excluir ${selectedMetrics.length} métrica(s)?`)) {
+                        deleteMetricsMutation.mutate(selectedMetrics);
+                      }
+                    }}
+                    disabled={deleteMetricsMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Excluir Selecionados
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`⚠️ ATENÇÃO: Excluir TODAS as ${allMetrics.length} métricas da base?\n\nEsta ação é IRREVERSÍVEL!`)) {
+                    deleteMetricsMutation.mutate(allMetrics.map(m => m.id));
+                  }
+                }}
+                disabled={deleteMetricsMutation.isPending || allMetrics.length === 0}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Excluir TUDO ({allMetrics.length})
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -534,6 +569,20 @@ export default function DataManagement() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b sticky top-0">
                   <tr>
+                    <th className="px-3 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allMetrics.length > 0 && selectedMetrics.length === allMetrics.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedMetrics(allMetrics.map(m => m.id));
+                          } else {
+                            setSelectedMetrics([]);
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                    </th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Unidade</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Plataforma</th>
@@ -547,16 +596,29 @@ export default function DataManagement() {
                 <tbody className="divide-y divide-gray-100">
                   {allMetrics.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="px-3 py-8 text-center text-gray-500">
+                      <td colSpan="9" className="px-3 py-8 text-center text-gray-500">
                         Nenhum dado encontrado na base. Envie dados do N8n para popular.
                       </td>
                     </tr>
                   ) : (
                     allMetrics
                       .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
-                      .slice(0, 50)
                       .map((metric) => (
                         <tr key={metric.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedMetrics.includes(metric.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedMetrics([...selectedMetrics, metric.id]);
+                                } else {
+                                  setSelectedMetrics(selectedMetrics.filter(id => id !== metric.id));
+                                }
+                              }}
+                              className="w-4 h-4"
+                            />
+                          </td>
                           <td className="px-3 py-2 text-gray-900 font-medium">
                             {format(new Date(metric.date), 'dd/MM/yyyy')}
                           </td>
@@ -591,7 +653,7 @@ export default function DataManagement() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            💡 Mostrando os 50 registros mais recentes ordenados por data de criação. Total: {allMetrics.length}
+            💡 Mostrando os 100 registros mais recentes ordenados por data de criação. Total: {allMetrics.length}
           </p>
         </CardContent>
       </Card>
