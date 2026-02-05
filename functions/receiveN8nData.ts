@@ -38,6 +38,10 @@ Deno.serve(async (req) => {
         // Espera-se um array de objetos com estrutura:
         // [{ date: "2024-01-01", metrics: {...}, campaign_data: [...], adset_data: [...], ad_data: [...] }]
         
+        // LOG: Ver estrutura dos dados recebidos
+        console.log('📦 Total de itens recebidos:', data.length);
+        console.log('📦 Primeiro item (amostra):', JSON.stringify(data[0], null, 2));
+        
         let processedDays = 0;
         let totalMetrics = 0;
         let totalEntities = 0;
@@ -52,6 +56,7 @@ Deno.serve(async (req) => {
 
             // 1. Salvar métricas diárias agregadas
             if (metrics) {
+                console.log(`📊 Processando métricas para ${date}:`, metrics);
                 const metricRecord = {
                     unit_id: integration.unit_id,
                     platform_id: integration.platform_id,
@@ -97,6 +102,7 @@ Deno.serve(async (req) => {
 
             for (const { level, data: entities } of entityLevels) {
                 if (!entities || !Array.isArray(entities)) continue;
+                console.log(`📈 Processando ${entities.length} ${level}(s) para ${date}`);
 
                 for (const entity of entities) {
                     const entityRecord = {
