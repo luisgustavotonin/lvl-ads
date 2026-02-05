@@ -16,8 +16,10 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
   };
 
   const handleTestWebhook = async () => {
-    if (secretToken === 'NÃO CONFIGURADO') {
-      alert('⚠️ Configure o secret_token antes de testar!');
+    const n8nUrl = integration.settings?.n8n_webhook_url;
+    
+    if (!n8nUrl) {
+      alert('⚠️ Configure a URL do webhook N8n antes de testar!');
       return;
     }
 
@@ -53,7 +55,7 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
         ]
       };
 
-      const response = await fetch(webhookUrl, {
+      const response = await fetch(n8nUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,10 +65,10 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
 
       const result = await response.json();
 
-      if (response.ok && result.success) {
-        alert(`✅ Teste realizado com sucesso!\n\n${result.message}`);
+      if (response.ok) {
+        alert(`✅ Teste enviado para N8n com sucesso!`);
       } else {
-        alert(`❌ Erro no teste:\n\n${result.error || 'Erro desconhecido'}`);
+        alert(`❌ Erro ao chamar N8n:\n\nStatus ${response.status}`);
       }
     } catch (error) {
       alert(`❌ Erro ao enviar teste:\n\n${error.message}`);
@@ -103,9 +105,32 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Webhook URL */}
+        {/* N8n Webhook URL */}
         <div className="p-3 bg-white rounded-lg border border-gray-200">
-          <p className="text-xs font-medium text-gray-700 mb-1.5">URL do Webhook:</p>
+          <p className="text-xs font-medium text-gray-700 mb-1.5">URL do Webhook N8n:</p>
+          <div className="flex gap-2">
+            <code className={cn(
+              "flex-1 text-xs px-2 py-1.5 rounded border break-all",
+              !integration.settings?.n8n_webhook_url ? 'bg-red-50 text-red-600' : 'bg-gray-50'
+            )}>
+              {integration.settings?.n8n_webhook_url || 'NÃO CONFIGURADO'}
+            </code>
+            {integration.settings?.n8n_webhook_url && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => copyToClipboard(integration.settings.n8n_webhook_url, 'URL N8n')}
+                className="shrink-0"
+              >
+                <Copy className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Base44 Receiver URL */}
+        <div className="p-3 bg-white rounded-lg border border-gray-200">
+          <p className="text-xs font-medium text-gray-700 mb-1.5">URL para N8n enviar dados (POST):</p>
           <div className="flex gap-2">
             <code className="flex-1 text-xs bg-gray-50 px-2 py-1.5 rounded border break-all">
               {webhookUrl}
@@ -215,7 +240,7 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
             variant="outline"
             size="sm"
             onClick={handleTestWebhook}
-            disabled={isTesting || secretToken === 'NÃO CONFIGURADO'}
+            disabled={isTesting || !integration.settings?.n8n_webhook_url}
             className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
           >
             {isTesting ? (
