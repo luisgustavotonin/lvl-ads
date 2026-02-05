@@ -9,7 +9,8 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
   const [isTesting, setIsTesting] = useState(false);
   
   // URL correta para chamar a função backend externamente (via N8n)
-  const webhookUrl = `https://sandbox--6984a13af76359c5c3583c42.base44.app/api/functions/receiveN8nData`;
+  // Formato: https://app--your-app-name.base44.app/api/apps/your-app-id/functions/functionName
+  const webhookUrl = `https://app--unified-ads-platform.base44.app/api/apps/6984a13af76359c5c3583c42/functions/receiveN8nData`;
   
   const secretToken = integration.settings?.n8n_secret_token || 'NÃO CONFIGURADO';
   
