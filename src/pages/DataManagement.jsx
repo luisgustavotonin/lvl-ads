@@ -1,0 +1,369 @@
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
+import { Database, Trash2, AlertTriangle, Calendar, Search, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+const PLATFORMS = [
+  { id: 'all', name: 'Todas as plataformas' },
+  { id: 'META', name: 'Meta Ads', icon: '📘' },
+  { id: 'GOOGLE_ADS', name: 'Google Ads', icon: '🔍' },
+  { id: 'TIKTOK_ADS', name: 'TikTok Ads', icon: '🎵' },
+  { id: 'YOUTUBE', name: 'YouTube', icon: '▶️' },
+];
+
+export default function DataManagement() {
+  const queryClient = useQueryClient();
+  const [selectedUnit, setSelectedUnit] = useState('all');
+  const [selectedPlatform, setSelectedPlatform] = useState('all');
+  const [dateRange, setDateRange] = useState({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
+
+  const { data: units = [], isLoading: unitsLoading } = useQuery({
+    queryKey: ['units'],
+    queryFn: () => base44.entities.Unit.list(),
+  });
+
+  const { data: allMetrics = [] } = useQuery({
+    queryKey: ['allMetrics'],
+    queryFn: () => base44.entities.MetricsDaily.list(),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      // Get metrics to delete based on filters
+      const metricsToDelete = allMetrics.filter(m => {
+        const matchUnit = selectedUnit === 'all' || m.unit_id === selectedUnit;
+        const matchPlatform = selectedPlatform === 'all' || m.platform_id === selectedPlatform;
+        const metricDate = new Date(m.date);
+        const matchDate = metricDate >= dateRange.from && metricDate <= dateRange.to;
+        return matchUnit && matchPlatform && matchDate;
+      });
+
+      // Delete in batches
+      for (const metric of metricsToDelete) {
+        await base44.entities.MetricsDaily.delete(metric.id);
+      }
+
+      return metricsToDelete.length;
+    },
+    onSuccess: (deletedCount) => {
+      queryClient.invalidateQueries({ queryKey: ['allMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['metricsDaily'] });
+      setConfirmDelete(false);
+      setSearchResults({ ...searchResults, deleted: deletedCount });
+    },
+  });
+
+  const handleSearch = () => {
+    setIsSearching(true);
+    
+    const filtered = allMetrics.filter(m => {
+      const matchUnit = selectedUnit === 'all' || m.unit_id === selectedUnit;
+      const matchPlatform = selectedPlatform === 'all' || m.platform_id === selectedPlatform;
+      const metricDate = new Date(m.date);
+      const matchDate = metricDate >= dateRange.from && metricDate <= dateRange.to;
+      return matchUnit && matchPlatform && matchDate;
+    });
+
+    const totalSpend = filtered.reduce((sum, m) => sum + (m.spend || 0), 0);
+    
+    setTimeout(() => {
+      setSearchResults({
+        count: filtered.length,
+        totalSpend,
+        deleted: null,
+      });
+      setIsSearching(false);
+    }, 500);
+  };
+
+  const getUnitName = (unitId) => {
+    if (unitId === 'all') return 'Todas as unidades';
+    return units.find(u => u.id === unitId)?.name || 'Unidade';
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', { 
+      style: 'currency', 
+      currency: 'BRL' 
+    }).format(value || 0);
+  };
+
+  if (unitsLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Gestão de Dados</h1>
+        <p className="text-gray-500 mt-1">Gerencie e limpe os dados do sistema</p>
+      </div>
+
+      {/* Warning Card */}
+      <Card className="bg-amber-50 border-amber-200">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-amber-900">Atenção</h3>
+              <p className="text-sm text-amber-700">
+                A exclusão de dados é permanente e não pode ser desfeita. 
+                Certifique-se de ter backups antes de realizar qualquer limpeza.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Filters */}
+      <Card className="border-gray-100">
+        <CardHeader>
+          <CardTitle className="text-lg">Filtros de Busca</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Unit */}
+            <div className="space-y-2">
+              <Label>Unidade</Label>
+              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as unidades</SelectItem>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Platform */}
+            <div className="space-y-2">
+              <Label>Plataforma</Label>
+              <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORMS.map((platform) => (
+                    <SelectItem key={platform.id} value={platform.id}>
+                      <div className="flex items-center gap-2">
+                        {platform.icon && <span>{platform.icon}</span>}
+                        {platform.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Range */}
+            <div className="space-y-2">
+              <Label>Período</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    {dateRange.from && dateRange.to ? (
+                      `${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`
+                    ) : (
+                      'Selecionar período'
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={(range) => range && setDateRange(range)}
+                    numberOfMonths={2}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button 
+              className="gap-2"
+              onClick={handleSearch}
+              disabled={isSearching}
+            >
+              {isSearching ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4" />
+              )}
+              Buscar Registros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Results */}
+      {searchResults && (
+        <Card className="border-gray-100">
+          <CardHeader>
+            <CardTitle className="text-lg">Resultado da Busca</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500">Registros Encontrados</p>
+                <p className="text-3xl font-bold text-gray-900">{searchResults.count}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500">Investimento Total</p>
+                <p className="text-3xl font-bold text-gray-900">{formatCurrency(searchResults.totalSpend)}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500">Período</p>
+                <p className="text-lg font-medium text-gray-900">
+                  {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}
+                </p>
+              </div>
+            </div>
+
+            {searchResults.deleted !== null ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700">
+                  ✓ {searchResults.deleted} registros foram excluídos com sucesso.
+                </p>
+              </div>
+            ) : searchResults.count > 0 ? (
+              <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div>
+                  <p className="font-medium text-red-900">Excluir {searchResults.count} registros?</p>
+                  <p className="text-sm text-red-700">Esta ação é irreversível.</p>
+                </div>
+                <Button 
+                  variant="destructive"
+                  className="gap-2"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir Registros
+                </Button>
+              </div>
+            ) : (
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center text-gray-500">
+                Nenhum registro encontrado com os filtros selecionados.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats Overview */}
+      <Card className="border-gray-100">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Database className="w-5 h-5 text-gray-400" />
+            Visão Geral do Banco de Dados
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-600">Total de Métricas</p>
+              <p className="text-2xl font-bold text-blue-900">{allMetrics.length}</p>
+            </div>
+            <div className="p-4 bg-green-50 rounded-lg">
+              <p className="text-sm text-green-600">Unidades</p>
+              <p className="text-2xl font-bold text-green-900">{units.length}</p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <p className="text-sm text-purple-600">Plataformas</p>
+              <p className="text-2xl font-bold text-purple-900">
+                {new Set(allMetrics.map(m => m.platform_id)).size}
+              </p>
+            </div>
+            <div className="p-4 bg-orange-50 rounded-lg">
+              <p className="text-sm text-orange-600">Investimento Total</p>
+              <p className="text-2xl font-bold text-orange-900">
+                {formatCurrency(allMetrics.reduce((sum, m) => sum + (m.spend || 0), 0))}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Você está prestes a excluir permanentemente:</p>
+              <ul className="list-disc list-inside text-sm space-y-1 mt-2">
+                <li><strong>{searchResults?.count}</strong> registros de métricas</li>
+                <li>Unidade: <strong>{getUnitName(selectedUnit)}</strong></li>
+                <li>Plataforma: <strong>{PLATFORMS.find(p => p.id === selectedPlatform)?.name}</strong></li>
+                <li>Período: <strong>{format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}</strong></li>
+              </ul>
+              <p className="mt-4 font-medium text-red-600">Esta ação não pode ser desfeita!</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Excluir Permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

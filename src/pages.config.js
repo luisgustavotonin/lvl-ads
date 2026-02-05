@@ -53,6 +53,9 @@ import Units from './pages/Units';
 import Integrations from './pages/Integrations';
 import Schedules from './pages/Schedules';
 import Profiles from './pages/Profiles';
+import Users from './pages/Users';
+import DataManagement from './pages/DataManagement';
+import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
 
@@ -63,6 +66,9 @@ export const PAGES = {
     "Integrations": Integrations,
     "Schedules": Schedules,
     "Profiles": Profiles,
+    "Users": Users,
+    "DataManagement": DataManagement,
+    "Settings": Settings,
 }
 
 export const pagesConfig = {
