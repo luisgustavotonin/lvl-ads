@@ -59,6 +59,11 @@ export default function DataManagement() {
     queryFn: () => base44.entities.MetricsDaily.list(),
   });
 
+  const { data: webhookLogs = [] } = useQuery({
+    queryKey: ['webhookLogs'],
+    queryFn: () => base44.entities.WebhookLog.list('-created_date', 20),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async () => {
       // Get metrics to delete based on filters
@@ -299,6 +304,83 @@ export default function DataManagement() {
           </CardContent>
         </Card>
       )}
+
+      {/* Webhook Logs */}
+      <Card className="border-green-200 bg-green-50/30">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            📡 Webhooks Recebidos (Últimos 20)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Data/Hora</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Status</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Integration ID</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-700">Processados</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Payload</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Erro</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {webhookLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-3 py-8 text-center text-gray-500">
+                        Nenhum webhook recebido ainda. Envie dados do N8n.
+                      </td>
+                    </tr>
+                  ) : (
+                    webhookLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-xs text-gray-900">
+                          {format(new Date(log.created_date), 'dd/MM/yyyy HH:mm:ss')}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge className={
+                            log.status === 'success' ? 'bg-green-100 text-green-700' :
+                            log.status === 'error' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }>
+                            {log.status}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-600 font-mono">
+                          {log.integration_id?.substring(0, 8)}...
+                        </td>
+                        <td className="px-3 py-2 text-center text-xs">
+                          {log.records_processed ? (
+                            <div className="text-gray-600">
+                              {log.records_processed.days || 0}d / {log.records_processed.metrics || 0}m / {log.records_processed.entities || 0}e
+                            </div>
+                          ) : '-'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-blue-600 hover:text-blue-700">Ver JSON</summary>
+                            <pre className="mt-2 p-2 bg-gray-50 rounded text-xs overflow-x-auto max-h-40">
+                              {JSON.stringify(log.payload_received, null, 2)}
+                            </pre>
+                          </details>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-red-600">
+                          {log.error_message || '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Esta tabela mostra TODOS os webhooks recebidos do N8n, com o payload completo
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Debug - Dados Recebidos */}
       <Card className="border-blue-200 bg-blue-50/30">
