@@ -1,17 +1,41 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
+    let webhookLogId = null;
     try {
         const base44 = createClientFromRequest(req);
         
-        // Webhook público - N8n envia sem autenticação de usuário
-        // Validamos com um secret token
-        const { data, secret_token, integration_id } = await req.json();
+        // Parse JSON body
+        const body = await req.json();
+        const { data, secret_token, integration_id } = body;
+        
+        // 🐛 LOG INICIAL - Salvar webhook recebido
+        const webhookLog = await base44.asServiceRole.entities.WebhookLog.create({
+            integration_id: integration_id || 'unknown',
+            source: 'n8n',
+            status: 'success',
+            payload_received: body,
+            records_processed: { days: 0, metrics: 0, entities: 0 }
+        });
+        webhookLogId = webhookLog.id;
+        
+        console.log('🔔 WEBHOOK RECEBIDO:', JSON.stringify({
+            integration_id,
+            has_data: !!data,
+            data_length: Array.isArray(data) ? data.length : 'not_array',
+            has_secret: !!secret_token,
+            body_keys: Object.keys(body)
+        }, null, 2));
 
         if (!data || !integration_id) {
+            const errorMsg = 'data e integration_id são obrigatórios';
+            await base44.asServiceRole.entities.WebhookLog.update(webhookLogId, {
+                status: 'error',
+                error_message: errorMsg
+            });
             return Response.json({ 
                 success: false, 
-                error: 'data e integration_id são obrigatórios' 
+                error: errorMsg 
             }, { status: 400 });
         }
 
@@ -19,26 +43,32 @@ Deno.serve(async (req) => {
         const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
         
         if (!integration) {
+            const errorMsg = 'Integração não encontrada';
+            await base44.asServiceRole.entities.WebhookLog.update(webhookLogId, {
+                status: 'error',
+                error_message: errorMsg
+            });
             return Response.json({ 
                 success: false, 
-                error: 'Integração não encontrada' 
+                error: errorMsg 
             }, { status: 404 });
         }
 
         // Validar secret token
         const expectedToken = integration.settings?.n8n_secret_token;
         if (!expectedToken || secret_token !== expectedToken) {
+            const errorMsg = 'Token de segurança inválido';
+            await base44.asServiceRole.entities.WebhookLog.update(webhookLogId, {
+                status: 'error',
+                error_message: errorMsg
+            });
             return Response.json({ 
                 success: false, 
-                error: 'Token de segurança inválido' 
+                error: errorMsg 
             }, { status: 403 });
         }
 
         // Processar os dados recebidos
-        // Espera-se um array de objetos com estrutura:
-        // [{ date: "2024-01-01", metrics: {...}, campaign_data: [...], adset_data: [...], ad_data: [...] }]
-        
-        // LOG: Ver estrutura dos dados recebidos
         console.log('📦 Total de itens recebidos:', data.length);
         console.log('📦 Primeiro item (amostra):', JSON.stringify(data[0], null, 2));
         
@@ -50,7 +80,7 @@ Deno.serve(async (req) => {
             const { date, metrics, campaign_data, adset_data, ad_data } = dayData;
 
             if (!date) {
-                console.warn('Data sem campo "date", pulando:', dayData);
+                console.warn('⚠️ Data sem campo "date", pulando:', dayData);
                 continue;
             }
 
@@ -142,18 +172,40 @@ Deno.serve(async (req) => {
             processedDays++;
         }
 
+        // Atualizar log com sucesso
+        await base44.asServiceRole.entities.WebhookLog.update(webhookLogId, {
+            records_processed: { days: processedDays, metrics: totalMetrics, entities: totalEntities }
+        });
+        
         return Response.json({
             success: true,
             message: `Dados processados com sucesso: ${processedDays} dia(s), ${totalMetrics} métricas, ${totalEntities} entidades`,
-            processed: {
-                days: processedDays,
-                metrics: totalMetrics,
-                entities: totalEntities
-            }
+            processed: { days: processedDays, metrics: totalMetrics, entities: totalEntities }
         });
 
     } catch (error) {
-        console.error('Erro ao processar dados do N8n:', error);
+        console.error('❌ ERRO ao processar webhook:', error);
+        
+        // Salvar erro no log
+        try {
+            const base44 = createClientFromRequest(req);
+            if (webhookLogId) {
+                await base44.asServiceRole.entities.WebhookLog.update(webhookLogId, {
+                    status: 'error',
+                    error_message: error.message
+                });
+            } else {
+                await base44.asServiceRole.entities.WebhookLog.create({
+                    source: 'n8n',
+                    status: 'error',
+                    error_message: error.message,
+                    payload_received: {}
+                });
+            }
+        } catch (logError) {
+            console.error('Erro ao salvar log:', logError);
+        }
+        
         return Response.json({ 
             success: false, 
             error: error.message 
