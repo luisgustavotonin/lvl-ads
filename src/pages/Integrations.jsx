@@ -145,15 +145,22 @@ export default function Integrations() {
   };
 
   const handleTestConnection = async (integration) => {
-    // Simulate connection test
-    updateMutation.mutate({
-      id: integration.id,
-      data: { 
-        connection_status: 'connected',
-        last_test: new Date().toISOString(),
-        error_message: null 
+    try {
+      const response = await base44.functions.invoke('testIntegrationConnection', {
+        integration_id: integration.id
+      });
+
+      if (response.data.success) {
+        alert(`✅ ${response.data.message}`);
+      } else {
+        alert(`❌ Erro: ${response.data.message || response.data.error}`);
       }
-    });
+
+      // Recarregar integrações para ver o novo status
+      refetch();
+    } catch (error) {
+      alert(`❌ Erro ao testar conexão: ${error.message}`);
+    }
   };
 
   const filteredIntegrations = selectedUnit === 'all' 
@@ -303,9 +310,35 @@ export default function Integrations() {
                             variant="ghost" 
                             size="icon"
                             onClick={() => handleTestConnection(integration)}
+                            title="Testar conexão"
                           >
                             <RefreshCw className="w-4 h-4" />
                           </Button>
+                          {integration.connection_status === 'connected' && integration.platform_id === 'META' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const response = await base44.functions.invoke('fetchMetaAdsMetrics', {
+                                    integration_id: integration.id,
+                                    date_preset: 'yesterday'
+                                  });
+                                  if (response.data.success) {
+                                    alert(`✅ ${response.data.message}`);
+                                    refetch();
+                                  } else {
+                                    alert(`❌ ${response.data.error}`);
+                                  }
+                                } catch (error) {
+                                  alert(`❌ Erro: ${error.message}`);
+                                }
+                              }}
+                              className="text-xs"
+                            >
+                              Buscar Dados
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="icon"
