@@ -8,17 +8,10 @@ import { cn } from '@/lib/utils';
 export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
   const [isTesting, setIsTesting] = useState(false);
   
-  // URL para ambiente de produção (use este no N8n)
-  const productionWebhookUrl = `https://6984a13af76359c5c3583c42.base44.app/api/functions/receiveN8nData`;
+  // IMPORTANTE: As funções backend rodam no domínio sandbox
+  // URL correta para chamar a função receiveN8nData
+  const webhookUrl = `https://sandbox--6984a13af76359c5c3583c42.base44.app/api/functions/receiveN8nData`;
   
-  // URL para ambiente de preview (apenas para testes durante desenvolvimento)
-  const previewWebhookUrl = `https://preview-sandbox--6984a13af76359c5c3583c42.base44.app/api/functions/receiveN8nData`;
-  
-  // Detecta o ambiente atual
-  const isPreview = window.location.hostname.includes('preview--');
-  
-  // Usa a URL apropriada dependendo do ambiente
-  const webhookUrl = isPreview ? previewWebhookUrl : productionWebhookUrl;
   const secretToken = integration.settings?.n8n_secret_token || 'NÃO CONFIGURADO';
   
   const copyToClipboard = (text, label) => {
