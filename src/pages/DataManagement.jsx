@@ -54,14 +54,19 @@ export default function DataManagement() {
     queryFn: () => base44.entities.Unit.list(),
   });
 
-  const { data: allMetrics = [] } = useQuery({
+  const { data: allMetrics = [], refetch: refetchMetrics } = useQuery({
     queryKey: ['allMetrics'],
-    queryFn: () => base44.entities.MetricsDaily.list(),
+    queryFn: () => base44.entities.MetricsDaily.list('-created_date', 100),
   });
 
-  const { data: webhookLogs = [] } = useQuery({
+  const { data: webhookLogs = [], refetch: refetchLogs } = useQuery({
     queryKey: ['webhookLogs'],
     queryFn: () => base44.entities.WebhookLog.list('-created_date', 20),
+  });
+
+  const { data: allCampaigns = [] } = useQuery({
+    queryKey: ['allCampaigns'],
+    queryFn: () => base44.entities.MetricsEntity.filter({ entity_level: 'campaign' }, '-created_date', 50),
   });
 
   const deleteMutation = useMutation({
@@ -305,6 +310,21 @@ export default function DataManagement() {
         </Card>
       )}
 
+      {/* Atualizar Dados */}
+      <div className="flex justify-end gap-2">
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            refetchMetrics();
+            refetchLogs();
+          }}
+          className="gap-2"
+        >
+          <Loader2 className="w-4 h-4" />
+          Atualizar Dados
+        </Button>
+      </div>
+
       {/* Webhook Logs */}
       <Card className="border-green-200 bg-green-50/30">
         <CardHeader>
@@ -452,7 +472,75 @@ export default function DataManagement() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            💡 Mostrando os 50 registros mais recentes ordenados por data de criação
+            💡 Mostrando os 50 registros mais recentes ordenados por data de criação. Total: {allMetrics.length}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Debug - Campanhas */}
+      <Card className="border-purple-200 bg-purple-50/30">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            🎯 Debug - Campanhas Recebidas (Últimas 50)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Campanha ID</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Nome</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Plataforma</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Investimento</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Impressões</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-700">Criado em</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {allCampaigns.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-3 py-8 text-center text-gray-500">
+                        Nenhuma campanha encontrada. Envie dados com campaign_data do N8n.
+                      </td>
+                    </tr>
+                  ) : (
+                    allCampaigns.map((campaign) => (
+                      <tr key={campaign.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-gray-900 font-medium">
+                          {format(new Date(campaign.date), 'dd/MM/yyyy')}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-600 font-mono">
+                          {campaign.entity_id}
+                        </td>
+                        <td className="px-3 py-2 text-gray-900">
+                          {campaign.entity_name}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge className="text-xs">
+                            {PLATFORMS.find(p => p.id === campaign.platform_id)?.icon || ''} {campaign.platform_id}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-900 font-medium">
+                          {formatCurrency(campaign.spend)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-600">
+                          {(campaign.impressions || 0).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-2 text-center text-xs text-gray-500">
+                          {format(new Date(campaign.created_date), 'dd/MM HH:mm')}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Campanhas extraídas do campaign_data do N8n. Total: {allCampaigns.length}
           </p>
         </CardContent>
       </Card>
