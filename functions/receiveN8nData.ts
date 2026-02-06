@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
         
         console.log('🔔 WEBHOOK RECEBIDO:', JSON.stringify({
             integration_id,
+            data_type,
             has_data: !!data,
             data_length: Array.isArray(data) ? data.length : 'not_array',
             has_secret: !!secret_token,
