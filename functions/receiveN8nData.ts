@@ -115,6 +115,12 @@ Deno.serve(async (req) => {
                     messages: 0,
                     leads: 0,
                     purchases: 0,
+                    whatsapp_conversations_started: 0,
+                    cost_per_whatsapp_conversation: 0,
+                    whatsapp_contacts: 0,
+                    cost_per_whatsapp_contact: 0,
+                    whatsapp_new_contacts: 0,
+                    cost_per_whatsapp_new_contact: 0,
                     extras: {}
                 };
 
@@ -125,17 +131,47 @@ Deno.serve(async (req) => {
                 dailyMetrics.clicks += parseInt(insight.clicks || 0);
                 dailyMetrics.link_clicks += parseInt(insight.inline_link_clicks || 0);
 
-                // Salvar ações do Meta no extras
-                if (insight.actions) {
+                // Processar actions[] para WhatsApp e outras conversões
+                if (Array.isArray(insight.actions)) {
                     for (const action of insight.actions) {
+                        const value = parseInt(action.value || 0);
+                        
+                        // WhatsApp - Conversas por mensagem iniciadas
+                        if (action.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
+                            dailyMetrics.whatsapp_conversations_started += value;
+                        }
+                        // WhatsApp - Contatos por mensagem
                         if (action.action_type === 'onsite_conversion.total_messaging_connection') {
-                            dailyMetrics.messages += parseInt(action.value || 0);
+                            dailyMetrics.whatsapp_contacts += value;
                         }
+                        // WhatsApp - Novos contatos de mensagem
+                        if (action.action_type === 'onsite_conversion.messaging_first_reply') {
+                            dailyMetrics.whatsapp_new_contacts += value;
+                        }
+                        // Leads genérico
                         if (action.action_type.includes('lead')) {
-                            dailyMetrics.leads += parseInt(action.value || 0);
+                            dailyMetrics.leads += value;
                         }
+                        // Compras
                         if (action.action_type.includes('purchase')) {
-                            dailyMetrics.purchases += parseInt(action.value || 0);
+                            dailyMetrics.purchases += value;
+                        }
+                    }
+                }
+
+                // Processar cost_per_action_type[] para custos do WhatsApp
+                if (Array.isArray(insight.cost_per_action_type)) {
+                    for (const cost of insight.cost_per_action_type) {
+                        const costValue = parseFloat(cost.value || 0);
+                        
+                        if (cost.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
+                            dailyMetrics.cost_per_whatsapp_conversation = costValue;
+                        }
+                        if (cost.action_type === 'onsite_conversion.total_messaging_connection') {
+                            dailyMetrics.cost_per_whatsapp_contact = costValue;
+                        }
+                        if (cost.action_type === 'onsite_conversion.messaging_first_reply') {
+                            dailyMetrics.cost_per_whatsapp_new_contact = costValue;
                         }
                     }
                 }

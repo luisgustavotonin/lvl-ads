@@ -7,14 +7,38 @@ import BrandLogo from './BrandLogo';
 import { format, subDays } from 'date-fns';
 
 const calculateTotals = (metrics) => {
-  return metrics.reduce((acc, m) => ({
+  const totals = metrics.reduce((acc, m) => ({
     spend: acc.spend + (m.spend || 0),
     impressions: acc.impressions + (m.impressions || 0),
-    reach: acc.reach + (m.reach || 0), // reach já vem correto do backend
+    reach: acc.reach + (m.reach || 0),
     clicks: acc.clicks + (m.clicks || 0),
     link_clicks: acc.link_clicks + (m.link_clicks || 0),
-    whatsapp: acc.whatsapp + (m.messages || 0) // TODO: definir métrica correta
-  }), { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, whatsapp: 0 });
+    whatsapp_conversations_started: acc.whatsapp_conversations_started + (m.whatsapp_conversations_started || 0),
+    whatsapp_contacts: acc.whatsapp_contacts + (m.whatsapp_contacts || 0),
+    whatsapp_new_contacts: acc.whatsapp_new_contacts + (m.whatsapp_new_contacts || 0)
+  }), { 
+    spend: 0, 
+    impressions: 0, 
+    reach: 0, 
+    clicks: 0, 
+    link_clicks: 0, 
+    whatsapp_conversations_started: 0,
+    whatsapp_contacts: 0,
+    whatsapp_new_contacts: 0
+  });
+
+  // Calcular custos médios
+  totals.cost_per_whatsapp_conversation = totals.whatsapp_conversations_started > 0 
+    ? totals.spend / totals.whatsapp_conversations_started 
+    : 0;
+  totals.cost_per_whatsapp_contact = totals.whatsapp_contacts > 0 
+    ? totals.spend / totals.whatsapp_contacts 
+    : 0;
+  totals.cost_per_whatsapp_new_contact = totals.whatsapp_new_contacts > 0 
+    ? totals.spend / totals.whatsapp_new_contacts 
+    : 0;
+
+  return totals;
 };
 
 export default function MetaFunnelSection({ unitId, period = 'last_7_days', customStartDate, customEndDate }) {
@@ -122,11 +146,11 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
             percentage={currentTotals.clicks > 0 ? (currentTotals.link_clicks / currentTotals.clicks * 100) : 0}
           />
           <FunnelCard 
-            title="Conversas iniciadas por mensagem"
-            value={currentTotals.whatsapp}
-            previousValue={previousTotals.whatsapp}
+            title="Conversas por mensagem iniciadas"
+            value={currentTotals.whatsapp_conversations_started}
+            previousValue={previousTotals.whatsapp_conversations_started}
             subtext="dos cliques no link"
-            percentage={currentTotals.link_clicks > 0 ? (currentTotals.whatsapp / currentTotals.link_clicks * 100) : 0}
+            percentage={currentTotals.link_clicks > 0 ? (currentTotals.whatsapp_conversations_started / currentTotals.link_clicks * 100) : 0}
           />
         </div>
       </div>
