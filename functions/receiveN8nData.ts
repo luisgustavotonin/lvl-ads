@@ -330,8 +330,8 @@ Deno.serve(async (req) => {
 
                 // 1. Salvar métricas diárias agregadas
                 if (metrics) {
-                console.log(`📊 Processando métricas para ${date}:`, metrics);
-                const metricRecord = {
+                    console.log(`📊 Processando métricas para ${date}:`, metrics);
+                    const metricRecord = {
                     unit_id: integration.unit_id,
                     platform_id: integration.platform_id,
                     date: date,
