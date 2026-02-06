@@ -6,41 +6,6 @@ import UnifiedWhatsAppCards from '../unified/UnifiedWhatsAppCards';
 import BrandLogo from './BrandLogo';
 import { format, subDays } from 'date-fns';
 
-const calculateTotals = (metrics) => {
-  const totals = metrics.reduce((acc, m) => ({
-    spend: acc.spend + (m.spend || 0),
-    impressions: acc.impressions + (m.impressions || 0),
-    reach: acc.reach + (m.reach || 0),
-    clicks: acc.clicks + (m.clicks || 0),
-    link_clicks: acc.link_clicks + (m.link_clicks || 0),
-    whatsapp_conversations_started: acc.whatsapp_conversations_started + (m.whatsapp_conversations_started || 0),
-    whatsapp_contacts: acc.whatsapp_contacts + (m.whatsapp_contacts || 0),
-    whatsapp_new_contacts: acc.whatsapp_new_contacts + (m.whatsapp_new_contacts || 0)
-  }), { 
-    spend: 0, 
-    impressions: 0, 
-    reach: 0, 
-    clicks: 0, 
-    link_clicks: 0, 
-    whatsapp_conversations_started: 0,
-    whatsapp_contacts: 0,
-    whatsapp_new_contacts: 0
-  });
-
-  // Calcular custos médios
-  totals.cost_per_whatsapp_conversation = totals.whatsapp_conversations_started > 0 
-    ? totals.spend / totals.whatsapp_conversations_started 
-    : 0;
-  totals.cost_per_whatsapp_contact = totals.whatsapp_contacts > 0 
-    ? totals.spend / totals.whatsapp_contacts 
-    : 0;
-  totals.cost_per_whatsapp_new_contact = totals.whatsapp_new_contacts > 0 
-    ? totals.spend / totals.whatsapp_new_contacts 
-    : 0;
-
-  return totals;
-};
-
 export default function MetaFunnelSection({ unitId, period = 'last_7_days', customStartDate, customEndDate }) {
   const { currentPeriod, previousPeriod } = useMemo(() => {
     let start, end;
@@ -95,7 +60,8 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
   });
 
   // Verificar se tem dados
-  const hasData = currentTotals.spend > 0 || currentTotals.impressions > 0;
+  if (!unifiedMetrics || !unifiedMetrics.totals) return null;
+  const hasData = unifiedMetrics.totals.spend > 0 || unifiedMetrics.totals.impressions > 0;
   if (!hasData) return null;
 
   return (
