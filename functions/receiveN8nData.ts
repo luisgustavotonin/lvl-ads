@@ -7,7 +7,7 @@ Deno.serve(async (req) => {
         
         // Parse JSON body
         const body = await req.json();
-        const { data, secret_token, integration_id } = body;
+        const { data, secret_token, integration_id, data_type = 'metrics' } = body;
         
         // 🐛 LOG INICIAL - Salvar webhook recebido
         const webhookLog = await base44.asServiceRole.entities.WebhookLog.create({
