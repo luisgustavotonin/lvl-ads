@@ -1,72 +1,23 @@
 import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 import FunnelCard from './FunnelCard';
 import FunnelSparkline from './FunnelSparkline';
 import BrandLogo from './BrandLogo';
 import { format, subDays } from 'date-fns';
 
-const processDailySummary = (rawData, startDate, endDate) => {
-  // Agrupar por dia
-  const dailyMap = new Map();
-
-  rawData.forEach(item => {
-    const date = item.date_start || item.date;
-    if (!date) return;
-
-    const dateObj = new Date(date);
-    if (dateObj < startDate || dateObj > endDate) return;
-
-    if (!dailyMap.has(date)) {
-      dailyMap.set(date, {
-        date,
-        spend_total: 0,
-        impressions_total: 0,
-        clicks_total: 0,
-        link_clicks_total: 0,
-        reach_total: 0,
-        whatsapp_conversations_started: 0,
-        whatsapp_contacts_total: 0,
-        whatsapp_new_contacts: 0
-      });
-    }
-
-    const day = dailyMap.get(date);
-    day.spend_total += parseFloat(item.spend || 0);
-    day.impressions_total += parseInt(item.impressions || 0);
-    day.clicks_total += parseInt(item.clicks || 0);
-    day.link_clicks_total += parseInt(item.inline_link_clicks || 0);
-
-    // Processar actions[] para WhatsApp
-    if (Array.isArray(item.actions)) {
-      item.actions.forEach(action => {
-        const value = parseInt(action.value || 0);
-        if (action.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
-          day.whatsapp_conversations_started += value;
-        }
-        if (action.action_type === 'onsite_conversion.total_messaging_connection') {
-          day.whatsapp_contacts_total += value;
-        }
-        if (action.action_type === 'onsite_conversion.messaging_first_reply') {
-          day.whatsapp_new_contacts += value;
-        }
-      });
-    }
-  });
-
-  return Array.from(dailyMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
-};
-
-const calculateTotals = (dailySummary) => {
-  return dailySummary.reduce((acc, day) => ({
-    spend: acc.spend + day.spend_total,
-    impressions: acc.impressions + day.impressions_total,
-    reach: Math.max(acc.reach, day.reach_total), // reach não soma
-    clicks: acc.clicks + day.clicks_total,
-    link_clicks: acc.link_clicks + day.link_clicks_total,
-    whatsapp: acc.whatsapp + day.whatsapp_conversations_started
+const calculateTotals = (metrics) => {
+  return metrics.reduce((acc, m) => ({
+    spend: acc.spend + (m.spend || 0),
+    impressions: acc.impressions + (m.impressions || 0),
+    reach: acc.reach + (m.reach || 0), // reach já vem correto do backend
+    clicks: acc.clicks + (m.clicks || 0),
+    link_clicks: acc.link_clicks + (m.link_clicks || 0),
+    whatsapp: acc.whatsapp + (m.messages || 0) // TODO: definir métrica correta
   }), { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, whatsapp: 0 });
 };
 
-export default function MetaFunnelSection({ rawData, period = 'last_7_days', customStartDate, customEndDate }) {
+export default function MetaFunnelSection({ unitId, period = 'last_7_days', customStartDate, customEndDate }) {
   const { currentPeriod, previousPeriod } = useMemo(() => {
     let start, end;
     
@@ -87,24 +38,42 @@ export default function MetaFunnelSection({ rawData, period = 'last_7_days', cus
     const prevStart = subDays(prevEnd, daysDiff - 1);
 
     return {
-      currentPeriod: { start, end },
-      previousPeriod: { start: prevStart, end: prevEnd }
+      currentPeriod: { start: format(start, 'yyyy-MM-dd'), end: format(end, 'yyyy-MM-dd') },
+      previousPeriod: { start: format(prevStart, 'yyyy-MM-dd'), end: format(prevEnd, 'yyyy-MM-dd') }
     };
   }, [period, customStartDate, customEndDate]);
 
-  const currentData = useMemo(() => {
-    return processDailySummary(rawData, currentPeriod.start, currentPeriod.end);
-  }, [rawData, currentPeriod]);
+  // Buscar métricas do período atual
+  const { data: currentMetrics = [] } = useQuery({
+    queryKey: ['metaMetricsCurrent', unitId, currentPeriod],
+    queryFn: async () => {
+      const metrics = await base44.entities.MetricsDaily.filter({
+        platform_id: 'META',
+        ...(unitId && { unit_id: unitId })
+      });
+      return metrics.filter(m => m.date >= currentPeriod.start && m.date <= currentPeriod.end);
+    },
+  });
 
-  const previousData = useMemo(() => {
-    return processDailySummary(rawData, previousPeriod.start, previousPeriod.end);
-  }, [rawData, previousPeriod]);
+  // Buscar métricas do período anterior
+  const { data: previousMetrics = [] } = useQuery({
+    queryKey: ['metaMetricsPrevious', unitId, previousPeriod],
+    queryFn: async () => {
+      const metrics = await base44.entities.MetricsDaily.filter({
+        platform_id: 'META',
+        ...(unitId && { unit_id: unitId })
+      });
+      return metrics.filter(m => m.date >= previousPeriod.start && m.date <= previousPeriod.end);
+    },
+  });
 
-  const currentTotals = calculateTotals(currentData);
-  const previousTotals = calculateTotals(previousData);
+  const currentTotals = calculateTotals(currentMetrics);
+  const previousTotals = calculateTotals(previousMetrics);
 
   // Sparkline data (impressions)
-  const sparklineData = currentData.map(d => ({ value: d.impressions_total }));
+  const sparklineData = currentMetrics
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map(m => ({ value: m.impressions }));
 
   // Verificar se tem dados
   const hasData = currentTotals.spend > 0 || currentTotals.impressions > 0;

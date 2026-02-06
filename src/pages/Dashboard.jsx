@@ -56,15 +56,7 @@ export default function Dashboard() {
     queryFn: () => base44.entities.MetricsDaily.filter({}, '-date', 30),
   });
 
-  // Raw data do webhook (mock - substituir por dados reais do webhook)
-  const { data: rawWebhookData = [] } = useQuery({
-    queryKey: ['rawWebhookData'],
-    queryFn: async () => {
-      // TODO: Substituir por query real dos dados brutos recebidos do webhook
-      // Por enquanto, retorna array vazio
-      return [];
-    },
-  });
+
 
   // Calculate totals
   const totalSpend = metrics.reduce((sum, m) => sum + (m.spend || 0), 0);
@@ -182,7 +174,7 @@ export default function Dashboard() {
 
       {/* Meta Funnel Section */}
       <MetaFunnelSection 
-        rawData={rawWebhookData}
+        unitId={null}
         period={selectedPeriod}
       />
 
