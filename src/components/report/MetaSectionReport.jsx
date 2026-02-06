@@ -4,10 +4,13 @@ import SpendChart from './SpendChart';
 import FunnelChart from './FunnelChart';
 import CampaignTable from './CampaignTable';
 import CreativeGallery from './CreativeGallery';
+import WhatsAppMetricsCards from '../dashboard/WhatsAppMetricsCards';
+import FunnelChartWithLines from '../dashboard/FunnelChartWithLines';
 import { DollarSign, Eye, MousePointer, Users, MessageCircle, ShoppingCart, Target, TrendingUp } from 'lucide-react';
 
 export default function MetaSectionReport({ 
   metrics, 
+  previousMetrics,
   dailyData, 
   campaigns, 
   ads, 
@@ -15,6 +18,38 @@ export default function MetaSectionReport({
   config 
 }) {
   const totals = metrics || {};
+  const previousTotals = previousMetrics || {};
+
+  // Calcular totais de WhatsApp
+  const calculateWhatsAppTotals = (metricsData) => {
+    if (!Array.isArray(metricsData)) return { 
+      whatsapp_conversations_started: 0, 
+      whatsapp_contacts: 0, 
+      whatsapp_new_contacts: 0,
+      cost_per_whatsapp_conversation: 0,
+      cost_per_whatsapp_contact: 0,
+      cost_per_whatsapp_new_contact: 0
+    };
+    
+    const totals = metricsData.reduce((acc, m) => ({
+      spend: acc.spend + (m.spend || 0),
+      whatsapp_conversations_started: acc.whatsapp_conversations_started + (m.whatsapp_conversations_started || 0),
+      whatsapp_contacts: acc.whatsapp_contacts + (m.whatsapp_contacts || 0),
+      whatsapp_new_contacts: acc.whatsapp_new_contacts + (m.whatsapp_new_contacts || 0)
+    }), { spend: 0, whatsapp_conversations_started: 0, whatsapp_contacts: 0, whatsapp_new_contacts: 0 });
+
+    return {
+      whatsapp_conversations_started: totals.whatsapp_conversations_started,
+      whatsapp_contacts: totals.whatsapp_contacts,
+      whatsapp_new_contacts: totals.whatsapp_new_contacts,
+      cost_per_whatsapp_conversation: totals.whatsapp_conversations_started > 0 ? totals.spend / totals.whatsapp_conversations_started : 0,
+      cost_per_whatsapp_contact: totals.whatsapp_contacts > 0 ? totals.spend / totals.whatsapp_contacts : 0,
+      cost_per_whatsapp_new_contact: totals.whatsapp_new_contacts > 0 ? totals.spend / totals.whatsapp_new_contacts : 0
+    };
+  };
+
+  const currentWhatsAppTotals = calculateWhatsAppTotals(dailyData);
+  const previousWhatsAppTotals = calculateWhatsAppTotals([]); // TODO: passar dados do período anterior
 
   const funnelData = [
     { label: 'Impressões', value: totals.impressions || 0, color: 'bg-blue-500' },
@@ -36,63 +71,20 @@ export default function MetaSectionReport({
         </div>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard 
-          title="Investimento"
-          value={totals.spend}
-          type="currency"
-          icon={DollarSign}
-          color="blue"
+      {/* Funil com Gráficos de Linha */}
+      {dailyData && dailyData.length > 0 && (
+        <FunnelChartWithLines 
+          metrics={dailyData}
+          previousMetrics={[]}
         />
-        <MetricCard 
-          title="Impressões"
-          value={totals.impressions}
-          type="number"
-          icon={Eye}
-          color="purple"
-        />
-        <MetricCard 
-          title="Alcance"
-          value={totals.reach}
-          type="number"
-          icon={Users}
-          color="green"
-        />
-        <MetricCard 
-          title="Cliques"
-          value={totals.clicks}
-          type="number"
-          icon={MousePointer}
-          color="orange"
-        />
-        <MetricCard 
-          title="CTR"
-          value={totals.ctr}
-          type="percent"
-          icon={Target}
-          color="cyan"
-        />
-        <MetricCard 
-          title="CPC"
-          value={totals.cpc}
-          type="currency"
-          icon={TrendingUp}
-          color="pink"
-        />
-        <MetricCard 
-          title="Mensagens"
-          value={totals.messages}
-          type="number"
-          icon={MessageCircle}
-          color="green"
-        />
-        <MetricCard 
-          title="Compras"
-          value={totals.purchases}
-          type="number"
-          icon={ShoppingCart}
-          color="blue"
+      )}
+
+      {/* Métricas de WhatsApp */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas de WhatsApp</h3>
+        <WhatsAppMetricsCards 
+          currentTotals={currentWhatsAppTotals}
+          previousTotals={previousWhatsAppTotals}
         />
       </div>
 
