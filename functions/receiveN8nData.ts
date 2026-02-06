@@ -419,13 +419,24 @@ Deno.serve(async (req) => {
 
         // Atualizar log com sucesso
         await base44.asServiceRole.entities.WebhookLog.update(webhookLogId, {
-            records_processed: { days: processedDays, metrics: totalMetrics, entities: totalEntities }
+            records_processed: { 
+                days: processedDays, 
+                metrics: totalMetrics, 
+                entities: totalEntities,
+                creatives: totalCreatives
+            }
         });
         
         return Response.json({
             success: true,
-            message: `Dados processados com sucesso: ${processedDays} dia(s), ${totalMetrics} métricas, ${totalEntities} entidades`,
-            processed: { days: processedDays, metrics: totalMetrics, entities: totalEntities }
+            message: `Dados processados com sucesso (${data_type}): ${processedDays} item(ns), ${totalMetrics} métricas, ${totalEntities} entidades, ${totalCreatives} criativos`,
+            processed: { 
+                type: data_type,
+                days: processedDays, 
+                metrics: totalMetrics, 
+                entities: totalEntities,
+                creatives: totalCreatives
+            }
         });
 
     } catch (error) {
