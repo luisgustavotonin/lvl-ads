@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import FunnelWithLine from './FunnelWithLine';
+import ReporteiStyleFunnel from '../unified/ReporteiStyleFunnel';
+import UnifiedWhatsAppCards from '../unified/UnifiedWhatsAppCards';
 import BrandLogo from './BrandLogo';
-import WhatsAppMetricsCards from './WhatsAppMetricsCards';
 import { format, subDays } from 'date-fns';
 
 const calculateTotals = (metrics) => {
@@ -67,32 +67,32 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
     };
   }, [period, customStartDate, customEndDate]);
 
-  // Buscar métricas do período atual
-  const { data: currentMetrics = [] } = useQuery({
-    queryKey: ['metaMetricsCurrent', unitId, currentPeriod],
+  // Buscar métricas unificadas (usa computeUnifiedMetrics)
+  const { data: unifiedMetrics } = useQuery({
+    queryKey: ['unifiedMetricsMeta', unitId, currentPeriod],
     queryFn: async () => {
-      const metrics = await base44.entities.MetricsDaily.filter({
+      const response = await base44.functions.invoke('computeUnifiedMetrics', {
+        unit_id: unitId,
         platform_id: 'META',
-        ...(unitId && { unit_id: unitId })
+        start_date: currentPeriod.start,
+        end_date: currentPeriod.end
       });
-      return metrics.filter(m => m.date >= currentPeriod.start && m.date <= currentPeriod.end);
-    },
+      return response.data;
+    }
   });
 
-  // Buscar métricas do período anterior
-  const { data: previousMetrics = [] } = useQuery({
-    queryKey: ['metaMetricsPrevious', unitId, previousPeriod],
+  const { data: unifiedMetricsPrevious } = useQuery({
+    queryKey: ['unifiedMetricsMetaPrevious', unitId, previousPeriod],
     queryFn: async () => {
-      const metrics = await base44.entities.MetricsDaily.filter({
+      const response = await base44.functions.invoke('computeUnifiedMetrics', {
+        unit_id: unitId,
         platform_id: 'META',
-        ...(unitId && { unit_id: unitId })
+        start_date: previousPeriod.start,
+        end_date: previousPeriod.end
       });
-      return metrics.filter(m => m.date >= previousPeriod.start && m.date <= previousPeriod.end);
-    },
+      return response.data;
+    }
   });
-
-  const currentTotals = calculateTotals(currentMetrics);
-  const previousTotals = calculateTotals(previousMetrics);
 
   // Verificar se tem dados
   const hasData = currentTotals.spend > 0 || currentTotals.impressions > 0;
@@ -108,18 +108,17 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
         </div>
       </div>
 
-      {/* Funil com Linha */}
-      <FunnelWithLine 
-        metrics={currentMetrics}
-        previousMetrics={previousMetrics}
+      {/* Funil estilo Reportei */}
+      <ReporteiStyleFunnel 
+        currentMetrics={unifiedMetrics}
+        previousMetrics={unifiedMetricsPrevious}
       />
 
-      {/* Cards de WhatsApp com Custos */}
+      {/* Cards de WhatsApp */}
       <div className="mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas de WhatsApp</h3>
-        <WhatsAppMetricsCards 
-          currentTotals={currentTotals}
-          previousTotals={previousTotals}
+        <UnifiedWhatsAppCards 
+          currentMetrics={unifiedMetrics}
+          previousMetrics={unifiedMetricsPrevious}
         />
       </div>
     </div>

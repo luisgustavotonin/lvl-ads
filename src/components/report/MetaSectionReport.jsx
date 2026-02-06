@@ -1,61 +1,46 @@
 import React from 'react';
-import MetricCard from './MetricCard';
 import SpendChart from './SpendChart';
 import FunnelChart from './FunnelChart';
 import CampaignTable from './CampaignTable';
 import CreativeGallery from './CreativeGallery';
-import WhatsAppMetricsCards from '../dashboard/WhatsAppMetricsCards';
-import FunnelWithLine from '../dashboard/FunnelWithLine';
-import { DollarSign, Eye, MousePointer, Users, MessageCircle, ShoppingCart, Target, TrendingUp } from 'lucide-react';
+import ReporteiStyleFunnel from '../unified/ReporteiStyleFunnel';
+import UnifiedWhatsAppCards from '../unified/UnifiedWhatsAppCards';
+import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
 
 export default function MetaSectionReport({ 
-  metrics, 
-  previousMetrics,
+  unitId,
+  startDate,
+  endDate,
   dailyData, 
   campaigns, 
   ads, 
   creatives,
   config 
 }) {
-  const totals = metrics || {};
-  const previousTotals = previousMetrics || {};
+  // Usar função unificada para calcular métricas
+  const { data: unifiedMetrics, isLoading } = useQuery({
+    queryKey: ['unifiedMetricsMeta', unitId, startDate, endDate],
+    queryFn: async () => {
+      const response = await base44.functions.invoke('computeUnifiedMetrics', {
+        unit_id: unitId,
+        platform_id: 'META',
+        start_date: startDate,
+        end_date: endDate
+      });
+      return response.data;
+    },
+    enabled: !!startDate && !!endDate
+  });
 
-  // Calcular totais de WhatsApp
-  const calculateWhatsAppTotals = (metricsData) => {
-    if (!Array.isArray(metricsData)) return { 
-      whatsapp_conversations_started: 0, 
-      whatsapp_contacts: 0, 
-      whatsapp_new_contacts: 0,
-      cost_per_whatsapp_conversation: 0,
-      cost_per_whatsapp_contact: 0,
-      cost_per_whatsapp_new_contact: 0
-    };
-    
-    const totals = metricsData.reduce((acc, m) => ({
-      spend: acc.spend + (m.spend || 0),
-      whatsapp_conversations_started: acc.whatsapp_conversations_started + (m.whatsapp_conversations_started || 0),
-      whatsapp_contacts: acc.whatsapp_contacts + (m.whatsapp_contacts || 0),
-      whatsapp_new_contacts: acc.whatsapp_new_contacts + (m.whatsapp_new_contacts || 0)
-    }), { spend: 0, whatsapp_conversations_started: 0, whatsapp_contacts: 0, whatsapp_new_contacts: 0 });
-
-    return {
-      whatsapp_conversations_started: totals.whatsapp_conversations_started,
-      whatsapp_contacts: totals.whatsapp_contacts,
-      whatsapp_new_contacts: totals.whatsapp_new_contacts,
-      cost_per_whatsapp_conversation: totals.whatsapp_conversations_started > 0 ? totals.spend / totals.whatsapp_conversations_started : 0,
-      cost_per_whatsapp_contact: totals.whatsapp_contacts > 0 ? totals.spend / totals.whatsapp_contacts : 0,
-      cost_per_whatsapp_new_contact: totals.whatsapp_new_contacts > 0 ? totals.spend / totals.whatsapp_new_contacts : 0
-    };
-  };
-
-  const currentWhatsAppTotals = calculateWhatsAppTotals(dailyData);
-  const previousWhatsAppTotals = calculateWhatsAppTotals([]); // TODO: passar dados do período anterior
+  if (isLoading || !unifiedMetrics) {
+    return <div className="text-sm text-gray-500">Carregando métricas...</div>;
+  }
 
   const funnelData = [
-    { label: 'Impressões', value: totals.impressions || 0, color: 'bg-blue-500' },
-    { label: 'Cliques', value: totals.clicks || 0, color: 'bg-blue-400' },
-    { label: 'Mensagens', value: totals.messages || 0, color: 'bg-green-400' },
-    { label: 'Compras', value: totals.purchases || 0, color: 'bg-green-500' },
+    { label: 'Impressões', value: unifiedMetrics.totals.impressions || 0, color: 'bg-blue-500' },
+    { label: 'Cliques', value: unifiedMetrics.totals.clicks || 0, color: 'bg-blue-400' },
+    { label: 'Conversas WhatsApp', value: unifiedMetrics.totals.whatsapp_conversations_started || 0, color: 'bg-green-400' },
   ];
 
   return (
@@ -71,22 +56,17 @@ export default function MetaSectionReport({
         </div>
       </div>
 
-      {/* Funil com Linha */}
-      {dailyData && dailyData.length > 0 && (
-        <FunnelWithLine 
-          metrics={dailyData}
-          previousMetrics={[]}
-        />
-      )}
+      {/* Funil estilo Reportei */}
+      <ReporteiStyleFunnel 
+        currentMetrics={unifiedMetrics}
+        previousMetrics={{}}
+      />
 
       {/* Métricas de WhatsApp */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas de WhatsApp</h3>
-        <WhatsAppMetricsCards 
-          currentTotals={currentWhatsAppTotals}
-          previousTotals={previousWhatsAppTotals}
-        />
-      </div>
+      <UnifiedWhatsAppCards 
+        currentMetrics={unifiedMetrics}
+        previousMetrics={{}}
+      />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

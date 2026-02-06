@@ -305,7 +305,9 @@ export default function Reports() {
       {/* Meta Section */}
       {isSectionVisible('meta') && selectedPlatforms.includes('META') && (
         <MetaSectionReport
-          metrics={getMetricsForPlatform('META')}
+          unitId={selectedUnit}
+          startDate={period.start.toISOString().split('T')[0]}
+          endDate={period.end.toISOString().split('T')[0]}
           dailyData={getDailyDataForPlatform('META')}
           campaigns={getCampaignsForPlatform('META')}
           ads={getAdsForPlatform('META')}
