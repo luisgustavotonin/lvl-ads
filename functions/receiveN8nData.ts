@@ -83,12 +83,250 @@ Deno.serve(async (req) => {
         if (data_type === 'insights' || data_type === 'metrics') {
             // Processar dados brutos de insights do Meta (formato da API)
             for (const insight of data) {
-            const { date, metrics, campaign_data, adset_data, ad_data } = dayData;
+                const date = insight.date_start;
+                
+                if (!date) {
+                    console.warn('⚠️ Insight sem "date_start", pulando:', insight);
+                    continue;
+                }
 
-            if (!date) {
-                console.warn('⚠️ Data sem campo "date", pulando:', dayData);
-                continue;
+                // Extrair métricas agregadas do dia
+                const existingDaily = await base44.asServiceRole.entities.MetricsDaily.filter({
+                    unit_id: integration.unit_id,
+                    platform_id: integration.platform_id,
+                    date: date
+                });
+
+                let dailyMetrics = existingDaily.length > 0 ? existingDaily[0] : {
+                    unit_id: integration.unit_id,
+                    platform_id: integration.platform_id,
+                    date: date,
+                    currency: 'BRL',
+                    spend: 0,
+                    impressions: 0,
+                    reach: 0,
+                    clicks: 0,
+                    link_clicks: 0,
+                    ctr: 0,
+                    cpc: 0,
+                    cpm: 0,
+                    conversions: 0,
+                    conversion_value: 0,
+                    messages: 0,
+                    leads: 0,
+                    purchases: 0,
+                    extras: {}
+                };
+
+                // Somar métricas do insight
+                dailyMetrics.spend += parseFloat(insight.spend || 0);
+                dailyMetrics.impressions += parseInt(insight.impressions || 0);
+                dailyMetrics.reach = Math.max(dailyMetrics.reach, parseInt(insight.reach || 0));
+                dailyMetrics.clicks += parseInt(insight.clicks || 0);
+                dailyMetrics.link_clicks += parseInt(insight.inline_link_clicks || 0);
+
+                // Salvar ações do Meta no extras
+                if (insight.actions) {
+                    for (const action of insight.actions) {
+                        if (action.action_type === 'onsite_conversion.total_messaging_connection') {
+                            dailyMetrics.messages += parseInt(action.value || 0);
+                        }
+                        if (action.action_type.includes('lead')) {
+                            dailyMetrics.leads += parseInt(action.value || 0);
+                        }
+                        if (action.action_type.includes('purchase')) {
+                            dailyMetrics.purchases += parseInt(action.value || 0);
+                        }
+                    }
+                }
+
+                // Calcular médias
+                if (dailyMetrics.impressions > 0) {
+                    dailyMetrics.cpm = (dailyMetrics.spend / dailyMetrics.impressions) * 1000;
+                    dailyMetrics.ctr = (dailyMetrics.clicks / dailyMetrics.impressions) * 100;
+                }
+                if (dailyMetrics.clicks > 0) {
+                    dailyMetrics.cpc = dailyMetrics.spend / dailyMetrics.clicks;
+                }
+
+                // Upsert métrica diária
+                if (existingDaily.length > 0) {
+                    await base44.asServiceRole.entities.MetricsDaily.update(existingDaily[0].id, dailyMetrics);
+                } else {
+                    await base44.asServiceRole.entities.MetricsDaily.create(dailyMetrics);
+                }
+                totalMetrics++;
+
+                // Salvar dados de campanha
+                if (insight.campaign_id) {
+                    const campaignRecord = {
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date,
+                        entity_level: 'campaign',
+                        entity_id: insight.campaign_id,
+                        entity_name: insight.campaign_name || 'Unknown Campaign',
+                        status: 'active',
+                        spend: parseFloat(insight.spend || 0),
+                        impressions: parseInt(insight.impressions || 0),
+                        clicks: parseInt(insight.clicks || 0),
+                        results: parseInt(insight.inline_link_clicks || 0),
+                        cpr: parseFloat(insight.cost_per_inline_link_click || 0),
+                        extras: {
+                            objective: insight.objective,
+                            buying_type: insight.buying_type,
+                            actions: insight.actions || [],
+                            cost_per_action_type: insight.cost_per_action_type || []
+                        }
+                    };
+
+                    const existingCampaign = await base44.asServiceRole.entities.MetricsEntity.filter({
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date,
+                        entity_level: 'campaign',
+                        entity_id: insight.campaign_id
+                    });
+
+                    if (existingCampaign.length > 0) {
+                        await base44.asServiceRole.entities.MetricsEntity.update(existingCampaign[0].id, campaignRecord);
+                    } else {
+                        await base44.asServiceRole.entities.MetricsEntity.create(campaignRecord);
+                    }
+                    totalEntities++;
+                }
+
+                // Salvar dados de adset
+                if (insight.adset_id) {
+                    const adsetRecord = {
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date,
+                        entity_level: 'adset',
+                        entity_id: insight.adset_id,
+                        entity_name: insight.adset_name || 'Unknown AdSet',
+                        status: 'active',
+                        spend: parseFloat(insight.spend || 0),
+                        impressions: parseInt(insight.impressions || 0),
+                        clicks: parseInt(insight.clicks || 0),
+                        results: parseInt(insight.inline_link_clicks || 0),
+                        cpr: parseFloat(insight.cost_per_inline_link_click || 0),
+                        extras: {
+                            actions: insight.actions || [],
+                            cost_per_action_type: insight.cost_per_action_type || []
+                        }
+                    };
+
+                    const existingAdset = await base44.asServiceRole.entities.MetricsEntity.filter({
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date,
+                        entity_level: 'adset',
+                        entity_id: insight.adset_id
+                    });
+
+                    if (existingAdset.length > 0) {
+                        await base44.asServiceRole.entities.MetricsEntity.update(existingAdset[0].id, adsetRecord);
+                    } else {
+                        await base44.asServiceRole.entities.MetricsEntity.create(adsetRecord);
+                    }
+                    totalEntities++;
+                }
+
+                // Salvar dados de ad
+                if (insight.ad_id) {
+                    const adRecord = {
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date,
+                        entity_level: 'ad',
+                        entity_id: insight.ad_id,
+                        entity_name: insight.ad_name || 'Unknown Ad',
+                        status: 'active',
+                        spend: parseFloat(insight.spend || 0),
+                        impressions: parseInt(insight.impressions || 0),
+                        clicks: parseInt(insight.clicks || 0),
+                        results: parseInt(insight.inline_link_clicks || 0),
+                        cpr: parseFloat(insight.cost_per_inline_link_click || 0),
+                        extras: {
+                            frequency: insight.frequency,
+                            reach: insight.reach,
+                            ctr: insight.ctr,
+                            cpc: insight.cpc,
+                            cpm: insight.cpm,
+                            actions: insight.actions || [],
+                            cost_per_action_type: insight.cost_per_action_type || []
+                        }
+                    };
+
+                    const existingAd = await base44.asServiceRole.entities.MetricsEntity.filter({
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date,
+                        entity_level: 'ad',
+                        entity_id: insight.ad_id
+                    });
+
+                    if (existingAd.length > 0) {
+                        await base44.asServiceRole.entities.MetricsEntity.update(existingAd[0].id, adRecord);
+                    } else {
+                        await base44.asServiceRole.entities.MetricsEntity.create(adRecord);
+                    }
+                    totalEntities++;
+                }
+
+                processedDays++;
             }
+
+        } else if (data_type === 'creatives') {
+            // Processar dados de criativos (imagens, vídeos)
+            for (const creative of data) {
+                if (!creative.ad_id) {
+                    console.warn('⚠️ Criativo sem "ad_id", pulando:', creative);
+                    continue;
+                }
+
+                const creativeRecord = {
+                    unit_id: integration.unit_id,
+                    platform_id: integration.platform_id,
+                    ad_id: creative.ad_id,
+                    ad_name: creative.ad_name || 'Unknown Ad',
+                    creative_type: creative.creative_type || 'image',
+                    thumbnail_url: creative.thumbnail_url || creative.image_url,
+                    media_url: creative.media_url || creative.video_url,
+                    headline: creative.headline,
+                    description: creative.description || creative.body,
+                    call_to_action: creative.call_to_action,
+                    spend: 0,
+                    impressions: 0,
+                    clicks: 0,
+                    results: 0
+                };
+
+                // Verificar se já existe
+                const existingCreative = await base44.asServiceRole.entities.Creative.filter({
+                    unit_id: integration.unit_id,
+                    platform_id: integration.platform_id,
+                    ad_id: creative.ad_id
+                });
+
+                if (existingCreative.length > 0) {
+                    await base44.asServiceRole.entities.Creative.update(existingCreative[0].id, creativeRecord);
+                } else {
+                    await base44.asServiceRole.entities.Creative.create(creativeRecord);
+                }
+                totalCreatives++;
+            }
+
+        } else {
+            // Formato legado (mantido para compatibilidade)
+            for (const dayData of data) {
+                const { date, metrics, campaign_data, adset_data, ad_data } = dayData;
+
+                if (!date) {
+                    console.warn('⚠️ Data sem campo "date", pulando:', dayData);
+                    continue;
+                }
 
             // 1. Salvar métricas diárias agregadas
             if (metrics) {
