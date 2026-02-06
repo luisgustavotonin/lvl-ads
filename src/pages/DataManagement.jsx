@@ -173,25 +173,21 @@ export default function DataManagement() {
   };
 
   const formatDateTimeBR = (dateString) => {
+    // O created_date vem em UTC, precisa converter para BRT (UTC-3)
     const date = new Date(dateString);
-    return date.toLocaleString('pt-BR', { 
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const hour = String(date.getUTCHours() - 3).padStart(2, '0'); // UTC-3 para BRT
+    const minute = String(date.getUTCMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year}, ${hour}:${minute}`;
   };
 
   const formatDateBR = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', { 
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    // O campo date é uma string YYYY-MM-DD, não precisa conversão
+    if (!dateString) return '-';
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    return `${day}/${month}/${year}`;
   };
 
   if (unitsLoading) {
