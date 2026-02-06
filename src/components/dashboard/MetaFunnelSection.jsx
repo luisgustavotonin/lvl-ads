@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import FunnelCard from './FunnelCard';
 import FunnelSparkline from './FunnelSparkline';
 import BrandLogo from './BrandLogo';
+import WhatsAppMetricsCards from './WhatsAppMetricsCards';
 import { format, subDays } from 'date-fns';
 
 const calculateTotals = (metrics) => {
@@ -153,6 +154,15 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
             percentage={currentTotals.link_clicks > 0 ? (currentTotals.whatsapp_conversations_started / currentTotals.link_clicks * 100) : 0}
           />
         </div>
+      </div>
+
+      {/* Cards de WhatsApp com Custos */}
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas de WhatsApp</h3>
+        <WhatsAppMetricsCards 
+          currentTotals={currentTotals}
+          previousTotals={previousTotals}
+        />
       </div>
     </div>
   );
