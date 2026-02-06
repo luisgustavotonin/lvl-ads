@@ -172,6 +172,28 @@ export default function DataManagement() {
     }).format(value || 0);
   };
 
+  const formatDateTimeBR = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('pt-BR', { 
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatDateBR = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', { 
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   if (unitsLoading) {
     return (
       <div className="space-y-6">
@@ -462,7 +484,7 @@ export default function DataManagement() {
                           />
                         </td>
                         <td className="px-3 py-2 text-xs text-gray-900">
-                          {format(new Date(log.created_date), 'dd/MM/yyyy HH:mm:ss')}
+                          {formatDateTimeBR(log.created_date)}
                         </td>
                         <td className="px-3 py-2">
                           <Badge className={
@@ -620,7 +642,7 @@ export default function DataManagement() {
                             />
                           </td>
                           <td className="px-3 py-2 text-gray-900 font-medium">
-                            {format(new Date(metric.date), 'dd/MM/yyyy')}
+                            {formatDateBR(metric.date)}
                           </td>
                           <td className="px-3 py-2 text-gray-600">
                             {getUnitName(metric.unit_id)}
@@ -643,7 +665,7 @@ export default function DataManagement() {
                             {(metric.conversions || 0).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-3 py-2 text-center text-xs text-gray-500">
-                            {format(new Date(metric.created_date), 'dd/MM HH:mm')}
+                            {formatDateTimeBR(metric.created_date)}
                           </td>
                         </tr>
                       ))
@@ -754,7 +776,7 @@ export default function DataManagement() {
                           />
                         </td>
                         <td className="px-3 py-2 text-gray-900 font-medium">
-                          {format(new Date(campaign.date), 'dd/MM/yyyy')}
+                          {formatDateBR(campaign.date)}
                         </td>
                         <td className="px-3 py-2 text-xs text-gray-600 font-mono">
                           {campaign.entity_id}
@@ -774,7 +796,7 @@ export default function DataManagement() {
                           {(campaign.impressions || 0).toLocaleString('pt-BR')}
                         </td>
                         <td className="px-3 py-2 text-center text-xs text-gray-500">
-                          {format(new Date(campaign.created_date), 'dd/MM HH:mm')}
+                          {formatDateTimeBR(campaign.created_date)}
                         </td>
                       </tr>
                     ))
