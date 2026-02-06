@@ -71,13 +71,18 @@ Deno.serve(async (req) => {
 
         // Processar os dados recebidos
         console.log('📦 Total de itens recebidos:', data.length);
+        console.log('📦 Tipo de dados:', data_type);
         console.log('📦 Primeiro item (amostra):', JSON.stringify(data[0], null, 2));
         
         let processedDays = 0;
         let totalMetrics = 0;
         let totalEntities = 0;
+        let totalCreatives = 0;
 
-        for (const dayData of data) {
+        // Processar baseado no tipo de dados
+        if (data_type === 'insights' || data_type === 'metrics') {
+            // Processar dados brutos de insights do Meta (formato da API)
+            for (const insight of data) {
             const { date, metrics, campaign_data, adset_data, ad_data } = dayData;
 
             if (!date) {
