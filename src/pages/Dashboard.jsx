@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import MetaFunnelSection from '@/components/dashboard/MetaFunnelSection';
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('pt-BR', { 
@@ -38,6 +39,8 @@ const formatNumber = (value) => {
 };
 
 export default function Dashboard() {
+  const [selectedPeriod, setSelectedPeriod] = useState('last_7_days');
+
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
@@ -51,6 +54,16 @@ export default function Dashboard() {
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['recentMetrics'],
     queryFn: () => base44.entities.MetricsDaily.filter({}, '-date', 30),
+  });
+
+  // Raw data do webhook (mock - substituir por dados reais do webhook)
+  const { data: rawWebhookData = [] } = useQuery({
+    queryKey: ['rawWebhookData'],
+    queryFn: async () => {
+      // TODO: Substituir por query real dos dados brutos recebidos do webhook
+      // Por enquanto, retorna array vazio
+      return [];
+    },
   });
 
   // Calculate totals
@@ -166,6 +179,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Meta Funnel Section */}
+      <MetaFunnelSection 
+        rawData={rawWebhookData}
+        period={selectedPeriod}
+      />
 
       {/* Chart and Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
