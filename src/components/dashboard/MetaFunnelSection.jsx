@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import FunnelChartWithLines from './FunnelChartWithLines';
+import FunnelWithLine from './FunnelWithLine';
 import BrandLogo from './BrandLogo';
 import WhatsAppMetricsCards from './WhatsAppMetricsCards';
 import { format, subDays } from 'date-fns';
@@ -108,8 +108,8 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
         </div>
       </div>
 
-      {/* Funil de Cards com Gráficos */}
-      <FunnelChartWithLines 
+      {/* Funil com Linha */}
+      <FunnelWithLine 
         metrics={currentMetrics}
         previousMetrics={previousMetrics}
       />

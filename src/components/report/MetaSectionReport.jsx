@@ -5,7 +5,7 @@ import FunnelChart from './FunnelChart';
 import CampaignTable from './CampaignTable';
 import CreativeGallery from './CreativeGallery';
 import WhatsAppMetricsCards from '../dashboard/WhatsAppMetricsCards';
-import FunnelChartWithLines from '../dashboard/FunnelChartWithLines';
+import FunnelWithLine from '../dashboard/FunnelWithLine';
 import { DollarSign, Eye, MousePointer, Users, MessageCircle, ShoppingCart, Target, TrendingUp } from 'lucide-react';
 
 export default function MetaSectionReport({ 
@@ -71,9 +71,9 @@ export default function MetaSectionReport({
         </div>
       </div>
 
-      {/* Funil com Gráficos de Linha */}
+      {/* Funil com Linha */}
       {dailyData && dailyData.length > 0 && (
-        <FunnelChartWithLines 
+        <FunnelWithLine 
           metrics={dailyData}
           previousMetrics={[]}
         />

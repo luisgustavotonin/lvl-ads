@@ -62,7 +62,7 @@ function MetricCard({ icon: Icon, title, value, cost, previousValue, previousCos
 
 export default function WhatsAppMetricsCards({ currentTotals, previousTotals }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <MetricCard
         icon={MessageCircle}
         title="Conversas por mensagem iniciadas"
@@ -71,16 +71,6 @@ export default function WhatsAppMetricsCards({ currentTotals, previousTotals }) 
         previousValue={previousTotals.whatsapp_conversations_started}
         previousCost={previousTotals.cost_per_whatsapp_conversation}
         color="bg-gradient-to-br from-green-500 to-green-600"
-      />
-      
-      <MetricCard
-        icon={Users}
-        title="Contatos por mensagem"
-        value={currentTotals.whatsapp_contacts}
-        cost={currentTotals.cost_per_whatsapp_contact}
-        previousValue={previousTotals.whatsapp_contacts}
-        previousCost={previousTotals.cost_per_whatsapp_contact}
-        color="bg-gradient-to-br from-blue-500 to-blue-600"
       />
       
       <MetricCard
