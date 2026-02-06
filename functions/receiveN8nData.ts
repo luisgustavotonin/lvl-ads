@@ -84,13 +84,79 @@ Deno.serve(async (req) => {
             // Processar dados brutos de insights do Meta (formato da API)
             for (const insight of data) {
                 const date = insight.date_start;
+                const level = insight.level || 'ad';
                 
                 if (!date) {
                     console.warn('⚠️ Insight sem "date_start", pulando:', insight);
                     continue;
                 }
 
-                // Extrair métricas agregadas do dia
+                // Se for level=account, salvar em MetricsAccountLevel (para REACH correto)
+                if (level === 'account') {
+                    const accountRecord = {
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date,
+                        account_id: insight.account_id || integration.account_reference,
+                        currency: insight.account_currency || 'BRL',
+                        spend: parseFloat(insight.spend || 0),
+                        impressions: parseInt(insight.impressions || 0),
+                        reach: parseInt(insight.reach || 0),
+                        clicks: parseInt(insight.clicks || 0),
+                        link_clicks: parseInt(insight.inline_link_clicks || 0),
+                        impressions_facebook: 0,
+                        reach_facebook: 0,
+                        impressions_instagram: 0,
+                        reach_instagram: 0,
+                        whatsapp_conversations_started: 0,
+                        whatsapp_new_contacts: 0,
+                        whatsapp_total_contacts: 0,
+                        actions: insight.actions || [],
+                        cost_per_action_type: insight.cost_per_action_type || []
+                    };
+
+                    // Processar actions[] para WhatsApp
+                    if (Array.isArray(insight.actions)) {
+                        for (const action of insight.actions) {
+                            const value = parseInt(action.value || 0);
+                            if (action.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
+                                accountRecord.whatsapp_conversations_started += value;
+                            }
+                            if (action.action_type === 'onsite_conversion.messaging_first_reply') {
+                                accountRecord.whatsapp_new_contacts += value;
+                            }
+                            if (action.action_type === 'onsite_conversion.total_messaging_connection') {
+                                accountRecord.whatsapp_total_contacts += value;
+                            }
+                        }
+                    }
+
+                    // Calcular custos
+                    if (accountRecord.whatsapp_conversations_started > 0) {
+                        accountRecord.cost_per_whatsapp_conversation = accountRecord.spend / accountRecord.whatsapp_conversations_started;
+                    }
+                    if (accountRecord.whatsapp_new_contacts > 0) {
+                        accountRecord.cost_per_whatsapp_new_contact = accountRecord.spend / accountRecord.whatsapp_new_contacts;
+                    }
+
+                    // Upsert no nível account
+                    const existingAccount = await base44.asServiceRole.entities.MetricsAccountLevel.filter({
+                        unit_id: integration.unit_id,
+                        platform_id: integration.platform_id,
+                        date: date
+                    });
+
+                    if (existingAccount.length > 0) {
+                        await base44.asServiceRole.entities.MetricsAccountLevel.update(existingAccount[0].id, accountRecord);
+                    } else {
+                        await base44.asServiceRole.entities.MetricsAccountLevel.create(accountRecord);
+                    }
+                    totalMetrics++;
+                    processedDays++;
+                    continue;
+                }
+
+                // Extrair métricas agregadas do dia (level=ad, campaign, adset)
                 const existingDaily = await base44.asServiceRole.entities.MetricsDaily.filter({
                     unit_id: integration.unit_id,
                     platform_id: integration.platform_id,
