@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import DataFetchModal from '../components/integrations/DataFetchModal';
 import N8nWebhookCard from '../components/integrations/N8nWebhookCard';
 import ExecutionModal from '../components/integrations/ExecutionModal';
+import ScheduleModal from '../components/integrations/ScheduleModal';
 import {
   Dialog,
   DialogContent,
@@ -52,7 +53,8 @@ export default function Integrations() {
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [fetchDataModal, setFetchDataModal] = useState(null);
   const [executionModal, setExecutionModal] = useState(null);
-  const [selectedUnit, setSelectedUnit] = useState('all');
+  const [scheduleModal, setScheduleModal] = useState(null);
+  const [selectedUnit, setSelectedUnit] = useState('');
   const [formData, setFormData] = useState({
     unit_id: '',
     platform_id: '',
@@ -210,9 +212,22 @@ export default function Integrations() {
     }
   };
 
-  const filteredIntegrations = selectedUnit === 'all' 
-    ? integrations 
-    : integrations.filter(i => i.unit_id === selectedUnit);
+  const handleSaveSchedule = async (scheduleData) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: scheduleModal.id,
+        data: scheduleData
+      });
+      alert('✅ Agendamento salvo com sucesso!');
+      refetch();
+    } catch (error) {
+      alert(`❌ Erro ao salvar: ${error.message}`);
+    }
+  };
+
+  const filteredIntegrations = selectedUnit
+    ? integrations.filter(i => i.unit_id === selectedUnit)
+    : [];
 
   const getUnitName = (unitId) => {
     return units.find(u => u.id === unitId)?.name || 'Unidade';
@@ -279,26 +294,35 @@ export default function Integrations() {
       <Card className="border-gray-100">
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
-            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Filtrar por unidade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as unidades</SelectItem>
-                {units.map((unit) => (
-                  <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex-1">
+              <Label className="text-sm mb-2 block">Selecione uma unidade *</Label>
+              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione a unidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
+      {!selectedUnit && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">👆 Selecione uma unidade para ver as integrações</p>
+        </div>
+      )}
+
 
 
       {/* Platform Cards */}
-      <div className="grid gap-6">
-        {PLATFORMS.map((platform) => {
+      {selectedUnit && (
+        <div className="grid gap-6">
+          {PLATFORMS.map((platform) => {
           const platformIntegrations = filteredIntegrations.filter(i => 
             i.platform_id === platform.id
           );
@@ -340,6 +364,7 @@ export default function Integrations() {
                           onEdit={() => handleOpenEditDialog(integration)}
                           onDelete={() => setDeleteDialog(integration)}
                           onExecute={() => setExecutionModal(integration)}
+                          onSchedule={() => setScheduleModal(integration)}
                         />
                       ) : (
                         <div 
@@ -401,7 +426,8 @@ export default function Integrations() {
             </Card>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -832,6 +858,16 @@ export default function Integrations() {
           onClose={() => setExecutionModal(null)}
           integration={executionModal}
           onExecute={handleExecuteIntegration}
+        />
+      )}
+
+      {/* Schedule Modal */}
+      {scheduleModal && (
+        <ScheduleModal
+          open={!!scheduleModal}
+          onClose={() => setScheduleModal(null)}
+          integration={scheduleModal}
+          onSave={handleSaveSchedule}
         />
       )}
     </div>

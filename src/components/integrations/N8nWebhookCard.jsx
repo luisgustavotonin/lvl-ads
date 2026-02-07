@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Settings, Trash2, Webhook, Send, Loader2, Play } from 'lucide-react';
+import { Copy, Settings, Trash2, Webhook, Send, Loader2, Play, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecute }) {
+export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecute, onSchedule }) {
   const [isTesting, setIsTesting] = useState(false);
   
   // URL correta para chamar a função backend externamente (via N8n)
@@ -194,52 +194,7 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecut
           </div>
         </div>
 
-        {/* JSON Example */}
-        <details className="p-3 bg-white rounded-lg border border-gray-200">
-          <summary className="text-xs font-medium text-gray-700 cursor-pointer">
-            📋 Ver exemplo de JSON para enviar
-          </summary>
-          <pre className="text-xs mt-2 p-2 bg-gray-50 rounded border overflow-x-auto">
-{`{
-  "integration_id": "${integration.id}",
-  "secret_token": "${secretToken === 'NÃO CONFIGURADO' ? 'SEU_TOKEN_AQUI' : secretToken}",
-  "data": [
-    {
-      "date": "2024-01-15",
-      "metrics": {
-        "spend": 1500.50,
-        "impressions": 50000,
-        "clicks": 1200,
-        "link_clicks": 980,
-        "conversions": 45,
-        "leads": 30,
-        "purchases": 15
-      },
-      "campaign_data": [
-        {
-          "id": "campaign_123",
-          "name": "Campanha Verão",
-          "status": "active",
-          "spend": 500,
-          "impressions": 20000,
-          "clicks": 400
-        }
-      ],
-      "adset_data": [...],
-      "ad_data": [
-        {
-          "id": "ad_456",
-          "name": "Anúncio Produto X",
-          "status": "active",
-          "spend": 100,
-          "thumbnail_url": "https://exemplo.com/imagem.jpg"
-        }
-      ]
-    }
-  ]
-}`}
-          </pre>
-        </details>
+
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
@@ -270,6 +225,15 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecut
                 Testar
               </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSchedule}
+            className={integration.schedule_enabled ? 'bg-green-50 text-green-700 border-green-200' : ''}
+          >
+            <Calendar className="w-4 h-4 mr-1" />
+            Agendamento
           </Button>
           <Button
             variant="outline"
