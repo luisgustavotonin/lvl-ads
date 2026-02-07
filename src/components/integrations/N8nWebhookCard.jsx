@@ -208,24 +208,7 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecut
             <Play className="w-4 h-4 mr-1" />
             Executar
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTestWebhook}
-            disabled={isTesting || !integration.settings?.n8n_webhook_url}
-          >
-            {isTesting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                Testando...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4 mr-1" />
-                Testar
-              </>
-            )}
-          </Button>
+
           <Button
             variant="outline"
             size="sm"

@@ -744,6 +744,7 @@ export default function Integrations() {
                     <Input
                       id="n8n_secret_token"
                       type="password"
+                      autoComplete="off"
                       value={editFormData.settings.n8n_secret_token}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
@@ -761,6 +762,7 @@ export default function Integrations() {
                     <Input
                       id="n8n_access_token"
                       type="password"
+                      autoComplete="off"
                       value={editFormData.settings.access_token}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
@@ -786,29 +788,7 @@ export default function Integrations() {
                     </p>
                   </div>
 
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-xs text-blue-800 font-medium mb-2">📋 Estrutura do JSON para enviar do N8n:</p>
-                    <pre className="text-xs bg-white p-2 rounded border overflow-x-auto">
-{`{
-  "integration_id": "${editDialog?.id || 'ID_DA_INTEGRACAO'}",
-  "secret_token": "SEU_TOKEN_AQUI",
-  "data": [
-    {
-      "date": "2024-01-15",
-      "metrics": {
-        "spend": 1500.50,
-        "impressions": 50000,
-        "clicks": 1200,
-        "conversions": 45
-      },
-      "campaign_data": [...],
-      "adset_data": [...],
-      "ad_data": [...]
-    }
-  ]
-}`}
-                    </pre>
-                  </div>
+
                 </div>
               )}
 
