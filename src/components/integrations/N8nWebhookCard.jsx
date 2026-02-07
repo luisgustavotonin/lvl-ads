@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Settings, Trash2, Webhook, Send, Loader2 } from 'lucide-react';
+import { Copy, Settings, Trash2, Webhook, Send, Loader2, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecute }) {
@@ -244,11 +244,20 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecut
         {/* Actions */}
         <div className="flex gap-2 pt-2">
           <Button
+            variant="default"
+            size="sm"
+            onClick={onExecute}
+            disabled={!integration.settings?.n8n_secret_token}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Play className="w-4 h-4 mr-1" />
+            Executar
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={handleTestWebhook}
             disabled={isTesting || !integration.settings?.n8n_webhook_url}
-            className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
           >
             {isTesting ? (
               <>
@@ -258,7 +267,7 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecut
             ) : (
               <>
                 <Send className="w-4 h-4 mr-1" />
-                Testar Webhook
+                Testar
               </>
             )}
           </Button>
