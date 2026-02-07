@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
         const payload = {
             integration_id: integration_id,
             secret_token: secretToken || '',
+            access_token: integration.settings?.access_token || '',
             unit_id: integration.unit_id,
             account_id: integration.account_reference || '',
             provider: provider,

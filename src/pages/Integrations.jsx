@@ -757,6 +757,23 @@ export default function Integrations() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="n8n_access_token">Access Token *</Label>
+                    <Input
+                      id="n8n_access_token"
+                      type="password"
+                      value={editFormData.settings.access_token}
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        settings: { ...editFormData.settings, access_token: e.target.value }
+                      })}
+                      placeholder="Cole seu access token aqui"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Token de acesso da plataforma - será enviado para o N8n
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="integration_id_display">ID da Integração</Label>
                     <Input
                       id="integration_id_display"
