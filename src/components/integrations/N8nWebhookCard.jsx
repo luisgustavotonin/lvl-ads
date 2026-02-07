@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Copy, Settings, Trash2, Webhook, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function N8nWebhookCard({ integration, onEdit, onDelete }) {
+export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecute }) {
   const [isTesting, setIsTesting] = useState(false);
   
   // URL correta para chamar a função backend externamente (via N8n)

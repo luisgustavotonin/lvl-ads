@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Link2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Trash2, Settings } from 'lucide-react';
+import { Plus, Link2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Trash2, Settings, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import DataFetchModal from '../components/integrations/DataFetchModal';
 import N8nWebhookCard from '../components/integrations/N8nWebhookCard';
+import ExecutionModal from '../components/integrations/ExecutionModal';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ export default function Integrations() {
   const [editDialog, setEditDialog] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [fetchDataModal, setFetchDataModal] = useState(null);
+  const [executionModal, setExecutionModal] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState('all');
   const [formData, setFormData] = useState({
     unit_id: '',
@@ -194,6 +196,20 @@ export default function Integrations() {
     }
   };
 
+  const handleExecuteIntegration = async (params) => {
+    try {
+      const response = await base44.functions.invoke('triggerN8nIntegration', params);
+      if (response.data.success) {
+        alert(`✅ ${response.data.message}`);
+        refetch();
+      } else {
+        alert(`❌ ${response.data.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Erro: ${error.message}`);
+    }
+  };
+
   const filteredIntegrations = selectedUnit === 'all' 
     ? integrations 
     : integrations.filter(i => i.unit_id === selectedUnit);
@@ -323,6 +339,7 @@ export default function Integrations() {
                           integration={integration}
                           onEdit={() => handleOpenEditDialog(integration)}
                           onDelete={() => setDeleteDialog(integration)}
+                          onExecute={() => setExecutionModal(integration)}
                         />
                       ) : (
                         <div 
@@ -805,6 +822,16 @@ export default function Integrations() {
           onClose={() => setFetchDataModal(null)}
           integration={fetchDataModal}
           onFetch={handleFetchData}
+        />
+      )}
+
+      {/* Execution Modal */}
+      {executionModal && (
+        <ExecutionModal
+          open={!!executionModal}
+          onClose={() => setExecutionModal(null)}
+          integration={executionModal}
+          onExecute={handleExecuteIntegration}
         />
       )}
     </div>
