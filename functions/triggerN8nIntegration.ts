@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
             integration_id: integration_id,
             secret_token: secretToken || '',
             unit_id: integration.unit_id,
+            account_id: integration.account_reference || '',
             provider: provider,
             date_mode: date_mode,
             since: since || null,
