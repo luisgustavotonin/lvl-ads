@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date().toISOString()
+                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
                 });
             }
             return Response.json({ 
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date().toISOString()
+                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
                 });
             }
             return Response.json({ 
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date().toISOString()
+                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
                 });
             }
             return Response.json({ 
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date().toISOString()
+                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
                 });
             }
             return Response.json({ 
@@ -501,7 +501,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: error.message,
-                    completed_at: new Date().toISOString()
+                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
                 });
             } catch (logError) {
                 console.error('Erro ao atualizar log:', logError);
