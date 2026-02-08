@@ -1,41 +1,50 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
-    let webhookLogId = null;
     let executionLogId = null;
     
     try {
         const base44 = createClientFromRequest(req);
         
-        // Parse JSON body
+        // Parse JSON body e normalizar payload
         const body = await req.json();
+        const payload = body.payload ?? body.data ?? body;
+        
         const { 
             integration_id, 
             secret_token, 
-            unit_id,
             provider,
-            range,
-            metrics_daily = [],
-            metrics_ads = [],
+            unit_id,
+            ad_account_id,
+            date_mode,
+            since,
+            until,
+            timezone,
+            execution_log_id,
+            metrics = {},
+            ads = [],
             creatives = [],
-            videos = [],
-            execution_log_id
-        } = body;
+            videos = []
+        } = payload;
         
         executionLogId = execution_log_id;
         
         console.log('🔔 WEBHOOK RECEBIDO:', JSON.stringify({
             integration_id,
             unit_id,
+            ad_account_id,
             provider,
-            range,
-            metrics_daily_count: metrics_daily.length,
-            metrics_ads_count: metrics_ads.length,
+            date_mode,
+            since,
+            until,
+            daily_summary_count: metrics.daily_summary?.length || 0,
+            ads_count: ads.length,
             creatives_count: creatives.length,
             videos_count: videos.length,
             execution_log_id
         }, null, 2));
 
+        // Validação obrigatória
         if (!integration_id || !unit_id || !provider) {
             const errorMsg = 'integration_id, unit_id e provider são obrigatórios';
             if (executionLogId) {
@@ -86,6 +95,22 @@ Deno.serve(async (req) => {
             }, { status: 403 });
         }
 
+        // Validar provider
+        if (provider !== 'meta') {
+            const errorMsg = 'Apenas provider "meta" é suportado no momento';
+            if (executionLogId) {
+                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
+                    status: 'error',
+                    error_message: errorMsg,
+                    completed_at: new Date().toISOString()
+                });
+            }
+            return Response.json({ 
+                success: false, 
+                error: errorMsg 
+            }, { status: 400 });
+        }
+
         // Mapear provider para platform_id
         const platformMap = {
             'meta': 'META',
@@ -100,9 +125,10 @@ Deno.serve(async (req) => {
         let processedCreatives = 0;
         let processedVideos = 0;
 
-        // 1. Processar métricas diárias (metrics_daily)
-        for (const metric of metrics_daily) {
-            const { date, spend, impressions, reach, clicks, link_clicks, ctr, cpc, cpm, whatsapp } = metric;
+        // 1. Processar métricas diárias (metrics.daily_summary)
+        const dailySummary = metrics.daily_summary || [];
+        for (const metric of dailySummary) {
+            const { date, spend, impressions, reach, clicks, link_clicks, whatsapp } = metric;
             
             if (!date) {
                 console.warn('⚠️ Métrica sem date, pulando:', metric);
@@ -119,29 +145,27 @@ Deno.serve(async (req) => {
                 reach: parseInt(reach || 0),
                 clicks: parseInt(clicks || 0),
                 link_clicks: parseInt(link_clicks || 0),
-                ctr: parseFloat(ctr || 0),
-                cpc: parseFloat(cpc || 0),
-                cpm: parseFloat(cpm || 0),
+                ctr: 0,
+                cpc: 0,
+                cpm: 0,
                 whatsapp_conversations_started: parseInt(whatsapp?.conversations_started_7d || 0),
                 whatsapp_new_contacts: parseInt(whatsapp?.messaging_first_reply || 0),
                 whatsapp_contacts: parseInt(whatsapp?.total_messaging_connection || 0),
-                cost_per_whatsapp_conversation: 0,
-                cost_per_whatsapp_new_contact: 0,
-                cost_per_whatsapp_contact: 0
+                cost_per_whatsapp_conversation: parseFloat(whatsapp?.cost_per_conversation || 0),
+                cost_per_whatsapp_new_contact: parseFloat(whatsapp?.cost_per_new_contact || 0),
+                cost_per_whatsapp_contact: parseFloat(whatsapp?.cost_per_total_contact || 0)
             };
 
-            // Calcular custos de WhatsApp
-            if (dailyRecord.whatsapp_conversations_started > 0) {
-                dailyRecord.cost_per_whatsapp_conversation = dailyRecord.spend / dailyRecord.whatsapp_conversations_started;
+            // Calcular CTR, CPC, CPM
+            if (dailyRecord.impressions > 0) {
+                dailyRecord.ctr = (dailyRecord.clicks / dailyRecord.impressions) * 100;
+                dailyRecord.cpm = (dailyRecord.spend / dailyRecord.impressions) * 1000;
             }
-            if (dailyRecord.whatsapp_new_contacts > 0) {
-                dailyRecord.cost_per_whatsapp_new_contact = dailyRecord.spend / dailyRecord.whatsapp_new_contacts;
-            }
-            if (dailyRecord.whatsapp_contacts > 0) {
-                dailyRecord.cost_per_whatsapp_contact = dailyRecord.spend / dailyRecord.whatsapp_contacts;
+            if (dailyRecord.clicks > 0) {
+                dailyRecord.cpc = dailyRecord.spend / dailyRecord.clicks;
             }
 
-            // Upsert
+            // Upsert MetricsDaily
             const existing = await base44.asServiceRole.entities.MetricsDaily.filter({
                 unit_id: unit_id,
                 platform_id: platform_id,
@@ -155,12 +179,12 @@ Deno.serve(async (req) => {
             }
             processedMetrics++;
 
-            // Também salvar em MetricsAccountLevel para preservar reach único
+            // Também salvar em MetricsAccountLevel
             const accountRecord = {
                 unit_id: unit_id,
                 platform_id: platform_id,
                 date: date,
-                account_id: integration.account_reference || 'unknown',
+                account_id: ad_account_id || integration.account_reference || 'unknown',
                 currency: 'BRL',
                 spend: dailyRecord.spend,
                 impressions: dailyRecord.impressions,
@@ -183,7 +207,8 @@ Deno.serve(async (req) => {
             const existingAccount = await base44.asServiceRole.entities.MetricsAccountLevel.filter({
                 unit_id: unit_id,
                 platform_id: platform_id,
-                date: date
+                date: date,
+                account_id: accountRecord.account_id
             });
 
             if (existingAccount.length > 0) {
@@ -193,32 +218,55 @@ Deno.serve(async (req) => {
             }
         }
 
-        // 2. Processar métricas de anúncios (metrics_ads)
-        for (const ad of metrics_ads) {
+        // 2. Processar anúncios (ads)
+        for (const ad of ads) {
             const { 
-                date, 
+                date_start,
                 campaign_id, 
                 campaign_name, 
                 adset_id, 
                 adset_name, 
-                ad_id, 
-                ad_name,
+                id: ad_id, 
+                name: ad_name,
                 objective,
                 buying_type,
                 spend, 
                 impressions, 
                 reach, 
-                clicks, 
-                link_clicks,
-                ctr,
-                cpc,
-                cpm,
-                whatsapp
+                clicks,
+                actions = []
             } = ad;
             
+            const date = date_start;
+            
             if (!date) {
-                console.warn('⚠️ Ad sem date, pulando:', ad);
+                console.warn('⚠️ Ad sem date_start, pulando:', ad);
                 continue;
+            }
+
+            // Extrair link_clicks das actions
+            let link_clicks = 0;
+            const linkClickAction = actions.find(a => a.action_type === 'link_click');
+            if (linkClickAction) {
+                link_clicks = parseInt(linkClickAction.value || 0);
+            }
+
+            const spendValue = parseFloat(spend || 0);
+            const impressionsValue = parseInt(impressions || 0);
+            const clicksValue = parseInt(clicks || 0);
+            const linkClicksValue = parseInt(link_clicks || 0);
+            
+            // Calcular métricas
+            let cpc = 0;
+            let ctr = 0;
+            let cpm = 0;
+            
+            if (clicksValue > 0) {
+                cpc = spendValue / clicksValue;
+            }
+            if (impressionsValue > 0) {
+                ctr = (clicksValue / impressionsValue) * 100;
+                cpm = (spendValue / impressionsValue) * 1000;
             }
 
             // Salvar campanha
@@ -231,16 +279,18 @@ Deno.serve(async (req) => {
                     entity_id: campaign_id,
                     entity_name: campaign_name || 'Unknown Campaign',
                     status: 'active',
-                    spend: parseFloat(spend || 0),
-                    impressions: parseInt(impressions || 0),
-                    clicks: parseInt(clicks || 0),
-                    results: parseInt(link_clicks || 0),
-                    cpr: parseFloat(cpc || 0),
+                    spend: spendValue,
+                    impressions: impressionsValue,
+                    clicks: clicksValue,
+                    results: linkClicksValue,
+                    cpr: linkClicksValue > 0 ? spendValue / linkClicksValue : 0,
                     extras: {
                         objective: objective,
                         buying_type: buying_type,
                         reach: reach,
-                        whatsapp: whatsapp || {}
+                        ctr: ctr,
+                        cpc: cpc,
+                        cpm: cpm
                     }
                 };
 
@@ -257,7 +307,6 @@ Deno.serve(async (req) => {
                 } else {
                     await base44.asServiceRole.entities.MetricsEntity.create(campaignRecord);
                 }
-                processedAds++;
             }
 
             // Salvar adset
@@ -270,14 +319,16 @@ Deno.serve(async (req) => {
                     entity_id: adset_id,
                     entity_name: adset_name || 'Unknown AdSet',
                     status: 'active',
-                    spend: parseFloat(spend || 0),
-                    impressions: parseInt(impressions || 0),
-                    clicks: parseInt(clicks || 0),
-                    results: parseInt(link_clicks || 0),
-                    cpr: parseFloat(cpc || 0),
+                    spend: spendValue,
+                    impressions: impressionsValue,
+                    clicks: clicksValue,
+                    results: linkClicksValue,
+                    cpr: linkClicksValue > 0 ? spendValue / linkClicksValue : 0,
                     extras: {
                         reach: reach,
-                        whatsapp: whatsapp || {}
+                        ctr: ctr,
+                        cpc: cpc,
+                        cpm: cpm
                     }
                 };
 
@@ -294,7 +345,6 @@ Deno.serve(async (req) => {
                 } else {
                     await base44.asServiceRole.entities.MetricsEntity.create(adsetRecord);
                 }
-                processedAds++;
             }
 
             // Salvar ad
@@ -307,17 +357,16 @@ Deno.serve(async (req) => {
                     entity_id: ad_id,
                     entity_name: ad_name || 'Unknown Ad',
                     status: 'active',
-                    spend: parseFloat(spend || 0),
-                    impressions: parseInt(impressions || 0),
-                    clicks: parseInt(clicks || 0),
-                    results: parseInt(link_clicks || 0),
-                    cpr: parseFloat(cpc || 0),
+                    spend: spendValue,
+                    impressions: impressionsValue,
+                    clicks: clicksValue,
+                    results: linkClicksValue,
+                    cpr: linkClicksValue > 0 ? spendValue / linkClicksValue : 0,
                     extras: {
                         reach: reach,
                         ctr: ctr,
                         cpc: cpc,
-                        cpm: cpm,
-                        whatsapp: whatsapp || {}
+                        cpm: cpm
                     }
                 };
 
@@ -342,11 +391,10 @@ Deno.serve(async (req) => {
         for (const creative of creatives) {
             const { 
                 ad_id, 
-                creative_name, 
-                creative_thumbnail_url, 
-                creative_image_url,
-                video_id,
-                best_thumbnail_url
+                ad_name,
+                thumbnail_url,
+                image_url,
+                video_id
             } = creative;
             
             if (!ad_id) {
@@ -358,10 +406,10 @@ Deno.serve(async (req) => {
                 unit_id: unit_id,
                 platform_id: platform_id,
                 ad_id: ad_id,
-                ad_name: creative_name || ad_id,
+                ad_name: ad_name || ad_id,
                 creative_type: video_id ? 'video' : 'image',
-                thumbnail_url: creative_thumbnail_url || best_thumbnail_url || creative_image_url,
-                media_url: creative_image_url || creative_thumbnail_url,
+                thumbnail_url: thumbnail_url || image_url,
+                media_url: image_url || thumbnail_url,
                 spend: 0,
                 impressions: 0,
                 clicks: 0,
@@ -386,10 +434,10 @@ Deno.serve(async (req) => {
         for (const video of videos) {
             const { 
                 video_id, 
-                video_length, 
-                video_title, 
-                video_permalink, 
-                video_thumbnail_url 
+                length_seconds, 
+                title, 
+                permalink_url, 
+                picture 
             } = video;
             
             if (!video_id) {
@@ -401,10 +449,10 @@ Deno.serve(async (req) => {
                 unit_id: unit_id,
                 platform_id: platform_id,
                 video_id: video_id,
-                video_length: parseInt(video_length || 0),
-                video_title: video_title || '',
-                video_permalink: video_permalink || '',
-                video_thumbnail_url: video_thumbnail_url || ''
+                video_length: parseInt(length_seconds || 0),
+                video_title: title || '',
+                video_permalink: permalink_url || '',
+                video_thumbnail_url: picture || ''
             };
 
             const existingVideo = await base44.asServiceRole.entities.Video.filter({
