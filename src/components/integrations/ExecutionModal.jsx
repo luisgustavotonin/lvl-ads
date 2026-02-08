@@ -92,7 +92,7 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
                   value={until}
                   onChange={(e) => setUntil(e.target.value)}
                   min={since}
-                  max={format(new Date(), 'yyyy-MM-dd')}
+                  max={format(new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })), 'yyyy-MM-dd')}
                 />
               </div>
             </div>

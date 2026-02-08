@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
             since: since || null,
             until: until || null,
             status: 'pending',
-            started_at: new Date().toISOString()
+            started_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
         });
 
         // Preparar payload para o n8n
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
             await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
                 status: 'error',
                 error_message: `N8n returned ${n8nResponse.status}: ${errorText}`,
-                completed_at: new Date().toISOString()
+                completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
             });
 
             return Response.json({
