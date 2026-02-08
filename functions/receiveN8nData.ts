@@ -85,10 +85,10 @@ Deno.serve(async (req) => {
             }, { status: 404 });
         }
 
-        // Validar secret token
+        // Validar secret token (obrigatório)
         const expectedToken = integration.settings?.n8n_secret_token;
-        if (expectedToken && secret_token !== expectedToken) {
-            const errorMsg = 'Token de segurança inválido';
+        if (!secret_token || secret_token !== expectedToken) {
+            const errorMsg = 'Token de segurança inválido ou ausente';
             if (executionLogId) {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
             return Response.json({ 
                 success: false, 
                 error: errorMsg 
-            }, { status: 403 });
+            }, { status: 401 });
         }
 
         // Validar provider
@@ -118,6 +118,45 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        // Validar que metrics.daily_summary tem pelo menos 1 item com date
+        const dailySummary = metrics.daily_summary || [];
+        if (dailySummary.length === 0 || !dailySummary[0].date) {
+            const errorMsg = 'metrics.daily_summary[0].date é obrigatório';
+            if (executionLogId) {
+                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
+                    status: 'error',
+                    error_message: errorMsg,
+                    completed_at: getBrasiliaDate().toISOString()
+                });
+            }
+            return Response.json({ 
+                success: false, 
+                error: errorMsg 
+            }, { status: 400 });
+        }
+
+        // Implementar idempotência: verificar se já processamos esses dados
+        const idempotencyKey = `${integration_id}_${unit_id}_${provider}_${since || dailySummary[0].date}_${until || dailySummary[dailySummary.length - 1]?.date || dailySummary[0].date}`;
+        
+        // Verificar se já existe um log com sucesso para essa chave
+        const existingLogs = await base44.asServiceRole.entities.ExecutionLog.filter({
+            integration_id: integration_id,
+            unit_id: unit_id,
+            provider: provider,
+            since: since || dailySummary[0].date,
+            until: until || dailySummary[dailySummary.length - 1]?.date || dailySummary[0].date,
+            status: 'success'
+        });
+
+        if (existingLogs.length > 0 && !executionLogId) {
+            console.log('⚠️ Requisição duplicada detectada (idempotência):', idempotencyKey);
+            return Response.json({
+                success: true,
+                message: 'Dados já foram processados anteriormente (idempotência)',
+                duplicate: true
+            });
+        }
+
         // Mapear provider para platform_id
         const platformMap = {
             'meta': 'META',
@@ -133,7 +172,6 @@ Deno.serve(async (req) => {
         let processedVideos = 0;
 
         // 1. Processar métricas diárias (metrics.daily_summary)
-        const dailySummary = metrics.daily_summary || [];
         for (const metric of dailySummary) {
             const { date, spend, impressions, reach, clicks, link_clicks, whatsapp } = metric;
             
