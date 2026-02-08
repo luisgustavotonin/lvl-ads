@@ -1,5 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+// Helper para obter data/hora atual em Brasília
+function getBrasiliaDate() {
+    const now = new Date();
+    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    return brasiliaTime;
+}
+
 Deno.serve(async (req) => {
     let executionLogId = null;
     
@@ -51,7 +58,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
+                    completed_at: getBrasiliaDate().toISOString()
                 });
             }
             return Response.json({ 
@@ -69,7 +76,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
+                    completed_at: getBrasiliaDate().toISOString()
                 });
             }
             return Response.json({ 
@@ -86,7 +93,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
+                    completed_at: getBrasiliaDate().toISOString()
                 });
             }
             return Response.json({ 
@@ -102,7 +109,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: errorMsg,
-                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
+                    completed_at: getBrasiliaDate().toISOString()
                 });
             }
             return Response.json({ 
@@ -501,7 +508,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
                     status: 'error',
                     error_message: error.message,
-                    completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
+                    completed_at: getBrasiliaDate().toISOString()
                 });
             } catch (logError) {
                 console.error('Erro ao atualizar log:', logError);

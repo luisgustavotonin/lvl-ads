@@ -1,5 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+// Helper para obter data atual em Brasília
+function getBrasiliaDate() {
+    const now = new Date();
+    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    return brasiliaTime;
+}
+
+// Helper para formatar data em YYYY-MM-DD
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -64,8 +79,48 @@ Deno.serve(async (req) => {
             since: since || null,
             until: until || null,
             status: 'pending',
-            started_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
+            started_at: getBrasiliaDate().toISOString()
         });
+
+        // Calcular datas baseadas no horário de Brasília
+        const brasiliaToday = getBrasiliaDate();
+        let calculatedSince = since;
+        let calculatedUntil = until;
+
+        if (date_mode !== 'CUSTOM') {
+            const today = formatDate(brasiliaToday);
+            
+            if (date_mode === 'TODAY') {
+                calculatedSince = today;
+                calculatedUntil = today;
+            } else if (date_mode === 'YESTERDAY') {
+                const yesterday = new Date(brasiliaToday);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = formatDate(yesterday);
+                calculatedSince = yesterdayStr;
+                calculatedUntil = yesterdayStr;
+            } else if (date_mode === 'LAST_7D') {
+                const sevenDaysAgo = new Date(brasiliaToday);
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                calculatedSince = formatDate(sevenDaysAgo);
+                calculatedUntil = today;
+            } else if (date_mode === 'LAST_14D') {
+                const fourteenDaysAgo = new Date(brasiliaToday);
+                fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+                calculatedSince = formatDate(fourteenDaysAgo);
+                calculatedUntil = today;
+            } else if (date_mode === 'LAST_28D') {
+                const twentyEightDaysAgo = new Date(brasiliaToday);
+                twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+                calculatedSince = formatDate(twentyEightDaysAgo);
+                calculatedUntil = today;
+            } else if (date_mode === 'LAST_30D') {
+                const thirtyDaysAgo = new Date(brasiliaToday);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                calculatedSince = formatDate(thirtyDaysAgo);
+                calculatedUntil = today;
+            }
+        }
 
         // Preparar payload para o n8n
         const payload = {
@@ -76,13 +131,15 @@ Deno.serve(async (req) => {
             account_id: integration.account_reference || '',
             provider: provider,
             date_mode: date_mode,
-            since: since || null,
-            until: until || null,
+            since: calculatedSince,
+            until: calculatedUntil,
             request_type: 'FULL_SYNC',
-            execution_log_id: executionLog.id
+            execution_log_id: executionLog.id,
+            timezone: 'America/Sao_Paulo',
+            brasilia_now: formatDate(brasiliaToday)
         };
 
-        console.log('📤 Disparando N8n:', JSON.stringify(payload, null, 2));
+        console.log('📤 Disparando N8n (horário Brasília):', JSON.stringify(payload, null, 2));
 
         // Disparar o n8n
         const n8nResponse = await fetch(n8nWebhookUrl, {
@@ -98,7 +155,7 @@ Deno.serve(async (req) => {
             await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
                 status: 'error',
                 error_message: `N8n returned ${n8nResponse.status}: ${errorText}`,
-                completed_at: new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toISOString()
+                completed_at: getBrasiliaDate().toISOString()
             });
 
             return Response.json({
