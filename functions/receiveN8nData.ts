@@ -14,7 +14,13 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         
         // Parse JSON body e normalizar payload
-        const body = await req.json();
+        let body = await req.json();
+        
+        // Se vier como array, pegar o primeiro elemento
+        if (Array.isArray(body) && body.length > 0) {
+            body = body[0];
+        }
+        
         const payload = body.payload ?? body.data ?? body;
         
         const { 
