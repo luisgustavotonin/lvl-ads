@@ -77,7 +77,7 @@ export default function ReportModel() {
       clicks: (acc.clicks || 0) + (m.clicks || 0),
       link_clicks: (acc.link_clicks || 0) + (m.link_clicks || 0),
       whatsapp_conversations: (acc.whatsapp_conversations || 0) + (m.whatsapp_conversations_started || 0),
-    }), {});
+    }), { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, whatsapp_conversations: 0 });
   }, [currentMetrics]);
 
   const previous = useMemo(() => {
@@ -88,7 +88,7 @@ export default function ReportModel() {
       clicks: (acc.clicks || 0) + (m.clicks || 0),
       link_clicks: (acc.link_clicks || 0) + (m.link_clicks || 0),
       whatsapp_conversations: (acc.whatsapp_conversations || 0) + (m.whatsapp_conversations_started || 0),
-    }), {});
+    }), { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, whatsapp_conversations: 0 });
   }, [previousMetrics]);
 
   // Calcular métricas derivadas
