@@ -45,12 +45,17 @@ export default function DataManagement() {
     from: subDays(new Date(), 30),
     to: new Date(),
   });
+  const [debugDateRange, setDebugDateRange] = useState({
+    from: null,
+    to: null,
+  });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
   const [selectedWebhooks, setSelectedWebhooks] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
   const [selectedCampaigns, setSelectedCampaigns] = useState([]);
+  const [selectedAdsets, setSelectedAdsets] = useState([]);
   const [sortField, setSortField] = useState('created_date');
   const [sortDirection, setSortDirection] = useState('desc');
 
@@ -72,6 +77,11 @@ export default function DataManagement() {
   const { data: allCampaigns = [] } = useQuery({
     queryKey: ['allCampaigns'],
     queryFn: () => base44.entities.MetricsEntity.filter({ entity_level: 'campaign' }, '-created_date', 50),
+  });
+
+  const { data: allAdsets = [] } = useQuery({
+    queryKey: ['allAdsets'],
+    queryFn: () => base44.entities.MetricsEntity.filter({ entity_level: 'adset' }, '-created_date', 50),
   });
 
   const deleteWebhooksMutation = useMutation({
@@ -138,6 +148,19 @@ export default function DataManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allCampaigns'] });
       setSelectedCampaigns([]);
+    },
+  });
+
+  const deleteAdsetsMutation = useMutation({
+    mutationFn: async (adsetIds) => {
+      for (const id of adsetIds) {
+        await base44.entities.MetricsEntity.delete(id);
+      }
+      return adsetIds.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allAdsets'] });
+      setSelectedAdsets([]);
     },
   });
 
@@ -211,8 +234,23 @@ export default function DataManagement() {
     }
   };
 
+  const getFilteredMetrics = () => {
+    let filtered = [...allMetrics];
+    
+    // Aplicar filtro de data se definido
+    if (debugDateRange.from && debugDateRange.to) {
+      filtered = filtered.filter(m => {
+        const metricDate = new Date(m.date);
+        return metricDate >= debugDateRange.from && metricDate <= debugDateRange.to;
+      });
+    }
+    
+    return filtered;
+  };
+
   const getSortedMetrics = () => {
-    const sorted = [...allMetrics].sort((a, b) => {
+    const filtered = getFilteredMetrics();
+    const sorted = filtered.sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
 
@@ -619,6 +657,46 @@ export default function DataManagement() {
             <CardTitle className="text-lg flex items-center gap-2">
               🔍 Debug - Dados Recebidos (Últimos 100)
             </CardTitle>
+          </div>
+          <div className="flex items-center gap-4 mt-4">
+            <Label className="text-sm">Filtrar por período:</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="justify-start text-left">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  {debugDateRange?.from && debugDateRange?.to ? (
+                    `${format(debugDateRange.from, 'dd/MM/yyyy')} - ${format(debugDateRange.to, 'dd/MM/yyyy')}`
+                  ) : (
+                    'Selecionar período'
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="range"
+                  selected={debugDateRange}
+                  onSelect={(range) => {
+                    if (range?.from && range?.to) {
+                      setDebugDateRange(range);
+                    } else if (range?.from) {
+                      setDebugDateRange({ from: range.from, to: range.from });
+                    }
+                  }}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
+            {debugDateRange.from && (
+              <Button variant="ghost" size="sm" onClick={() => setDebugDateRange({ from: null, to: null })}>
+                Limpar filtro
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div></div>
             <div className="flex items-center gap-2">
               {selectedMetrics.length > 0 && (
                 <>
@@ -709,12 +787,13 @@ export default function DataManagement() {
                 <tbody className="divide-y divide-gray-100">
                   {allMetrics.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="px-3 py-8 text-center text-gray-500">
+                      <td colSpan="11" className="px-3 py-8 text-center text-gray-500">
                         Nenhum dado encontrado na base. Envie dados do N8n para popular.
                       </td>
                     </tr>
                   ) : (
-                    getSortedMetrics().map((metric) => (
+                    <>
+                    {getSortedMetrics().map((metric) => (
                         <tr key={metric.id} className="hover:bg-gray-50">
                           <td className="px-3 py-2 text-center">
                             <input
@@ -761,14 +840,177 @@ export default function DataManagement() {
                             {format(new Date(metric.created_date), 'dd/MM HH:mm')}
                           </td>
                         </tr>
-                      ))
+                      ))}
+                      {/* Total Row */}
+                      <tr className="bg-blue-50 border-t-2 border-blue-200 font-bold">
+                        <td colSpan="4" className="px-3 py-3 text-right text-gray-900">TOTAL:</td>
+                        <td className="px-3 py-3 text-right text-gray-900">
+                          {formatCurrency(getFilteredMetrics().reduce((sum, m) => sum + (m.spend || 0), 0))}
+                        </td>
+                        <td className="px-3 py-3 text-right text-gray-900">
+                          {getFilteredMetrics().reduce((sum, m) => sum + (m.impressions || 0), 0).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-3 text-right text-gray-900">
+                          {getFilteredMetrics().reduce((sum, m) => sum + (m.reach || 0), 0).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-3 text-right text-gray-900">
+                          {getFilteredMetrics().reduce((sum, m) => sum + (m.clicks || 0), 0).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-3 text-right text-gray-900">
+                          {getFilteredMetrics().reduce((sum, m) => sum + (m.wa_conversations_started_7d || 0), 0).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-3 text-right text-gray-900">
+                          {getFilteredMetrics().reduce((sum, m) => sum + (m.wa_messaging_first_reply || 0), 0).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-3"></td>
+                      </tr>
+                    </>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            💡 Mostrando os 100 registros mais recentes ordenados por data de criação. Total: {allMetrics.length}
+            💡 Mostrando os 100 registros mais recentes ordenados por data de criação. Total: {allMetrics.length} | Filtrados: {getFilteredMetrics().length}
+          </p>
+          {debugDateRange.from && debugDateRange.to && (
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-900">
+                <strong>⚠️ Data 07/02/2026?</strong> Os dados estão sendo salvos com datas erradas porque o N8n está enviando datas futuras (2026 ao invés de 2024/2025). 
+                Verifique o campo "date" no payload do N8n - ele deve enviar a data REAL da métrica no formato YYYY-MM-DD.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Debug - Conjuntos de Anúncios */}
+      <Card className="border-indigo-200 bg-indigo-50/30">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              🎯 Debug - Conjuntos de Anúncios (Últimos 50)
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {selectedAdsets.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-600">{selectedAdsets.length} selecionado(s)</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Excluir ${selectedAdsets.length} adset(s)?`)) {
+                        deleteAdsetsMutation.mutate(selectedAdsets);
+                      }
+                    }}
+                    disabled={deleteAdsetsMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Excluir Selecionados
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`⚠️ ATENÇÃO: Excluir TODOS os ${allAdsets.length} adsets da base?\n\nEsta ação é IRREVERSÍVEL!`)) {
+                    deleteAdsetsMutation.mutate(allAdsets.map(a => a.id));
+                  }
+                }}
+                disabled={deleteAdsetsMutation.isPending || allAdsets.length === 0}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Excluir TUDO ({allAdsets.length})
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allAdsets.length > 0 && selectedAdsets.length === allAdsets.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedAdsets(allAdsets.map(a => a.id));
+                          } else {
+                            setSelectedAdsets([]);
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Adset ID</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Nome</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Plataforma</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Investimento</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Impressões</th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-700">Criado em</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {allAdsets.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className="px-3 py-8 text-center text-gray-500">
+                        Nenhum adset encontrado. Envie dados com adset_data do N8n.
+                      </td>
+                    </tr>
+                  ) : (
+                    allAdsets.map((adset) => (
+                      <tr key={adset.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedAdsets.includes(adset.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedAdsets([...selectedAdsets, adset.id]);
+                              } else {
+                                setSelectedAdsets(selectedAdsets.filter(id => id !== adset.id));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-gray-900 font-medium">
+                          {format(new Date(adset.date), 'dd/MM/yyyy')}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-600 font-mono">
+                          {adset.entity_id}
+                        </td>
+                        <td className="px-3 py-2 text-gray-900">
+                          {adset.entity_name}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge className="text-xs">
+                            {PLATFORMS.find(p => p.id === adset.platform_id)?.icon || ''} {adset.platform_id}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-900 font-medium">
+                          {formatCurrency(adset.spend)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-600">
+                          {(adset.impressions || 0).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-2 text-center text-xs text-gray-500">
+                          {format(new Date(adset.created_date), 'dd/MM HH:mm')}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Adsets extraídos do adset_data do N8n. Total: {allAdsets.length}
           </p>
         </CardContent>
       </Card>
