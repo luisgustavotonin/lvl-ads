@@ -54,8 +54,7 @@ export default function DataManagement() {
   const [searchResults, setSearchResults] = useState(null);
   const [selectedWebhooks, setSelectedWebhooks] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
-  const [selectedCampaigns, setSelectedCampaigns] = useState([]);
-  const [selectedAdsets, setSelectedAdsets] = useState([]);
+
   const [sortField, setSortField] = useState('created_date');
   const [sortDirection, setSortDirection] = useState('desc');
 
@@ -74,15 +73,7 @@ export default function DataManagement() {
     queryFn: () => base44.entities.WebhookLog.list('-created_date', 20),
   });
 
-  const { data: allCampaigns = [] } = useQuery({
-    queryKey: ['allCampaigns'],
-    queryFn: () => base44.entities.MetricsEntity.filter({ entity_level: 'campaign' }, '-created_date', 50),
-  });
 
-  const { data: allAdsets = [] } = useQuery({
-    queryKey: ['allAdsets'],
-    queryFn: () => base44.entities.MetricsEntity.filter({ entity_level: 'adset' }, '-created_date', 50),
-  });
 
   const deleteWebhooksMutation = useMutation({
     mutationFn: async (webhookIds) => {
@@ -138,31 +129,7 @@ export default function DataManagement() {
     },
   });
 
-  const deleteCampaignsMutation = useMutation({
-    mutationFn: async (campaignIds) => {
-      for (const id of campaignIds) {
-        await base44.entities.MetricsEntity.delete(id);
-      }
-      return campaignIds.length;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allCampaigns'] });
-      setSelectedCampaigns([]);
-    },
-  });
 
-  const deleteAdsetsMutation = useMutation({
-    mutationFn: async (adsetIds) => {
-      for (const id of adsetIds) {
-        await base44.entities.MetricsEntity.delete(id);
-      }
-      return adsetIds.length;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allAdsets'] });
-      setSelectedAdsets([]);
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -873,150 +840,17 @@ export default function DataManagement() {
           <p className="text-xs text-gray-500 mt-2">
             💡 Mostrando os 100 registros mais recentes ordenados por data de criação. Total: {allMetrics.length} | Filtrados: {getFilteredMetrics().length}
           </p>
-          {debugDateRange.from && debugDateRange.to && (
-            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-900">
-                <strong>⚠️ Data 07/02/2026?</strong> Os dados estão sendo salvos com datas erradas porque o N8n está enviando datas futuras (2026 ao invés de 2024/2025). 
-                Verifique o campo "date" no payload do N8n - ele deve enviar a data REAL da métrica no formato YYYY-MM-DD.
-              </p>
-            </div>
-          )}
+          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-900">
+              <strong>⚠️ Data 07/02/2026 está errada?</strong> A coluna "Data" mostra a data que o N8n envia no campo <code className="bg-yellow-100 px-1 rounded">"date"</code> do payload. 
+              Se está 07/02/2026 mas deveria ser 08/02/2026, corrija o workflow N8n para enviar a data correta das métricas (formato YYYY-MM-DD).
+            </p>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Debug - Conjuntos de Anúncios */}
-      <Card className="border-indigo-200 bg-indigo-50/30">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              🎯 Debug - Conjuntos de Anúncios (Últimos 50)
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {selectedAdsets.length > 0 && (
-                <>
-                  <span className="text-sm text-gray-600">{selectedAdsets.length} selecionado(s)</span>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm(`Excluir ${selectedAdsets.length} adset(s)?`)) {
-                        deleteAdsetsMutation.mutate(selectedAdsets);
-                      }
-                    }}
-                    disabled={deleteAdsetsMutation.isPending}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Excluir Selecionados
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  if (confirm(`⚠️ ATENÇÃO: Excluir TODOS os ${allAdsets.length} adsets da base?\n\nEsta ação é IRREVERSÍVEL!`)) {
-                    deleteAdsetsMutation.mutate(allAdsets.map(a => a.id));
-                  }
-                }}
-                disabled={deleteAdsetsMutation.isPending || allAdsets.length === 0}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Excluir TUDO ({allAdsets.length})
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={allAdsets.length > 0 && selectedAdsets.length === allAdsets.length}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedAdsets(allAdsets.map(a => a.id));
-                          } else {
-                            setSelectedAdsets([]);
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                    </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Adset ID</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Nome</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Plataforma</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">Investimento</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">Impressões</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-700">Criado em</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {allAdsets.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" className="px-3 py-8 text-center text-gray-500">
-                        Nenhum adset encontrado. Envie dados com adset_data do N8n.
-                      </td>
-                    </tr>
-                  ) : (
-                    allAdsets.map((adset) => (
-                      <tr key={adset.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedAdsets.includes(adset.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedAdsets([...selectedAdsets, adset.id]);
-                              } else {
-                                setSelectedAdsets(selectedAdsets.filter(id => id !== adset.id));
-                              }
-                            }}
-                            className="w-4 h-4"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-gray-900 font-medium">
-                          {format(new Date(adset.date), 'dd/MM/yyyy')}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-600 font-mono">
-                          {adset.entity_id}
-                        </td>
-                        <td className="px-3 py-2 text-gray-900">
-                          {adset.entity_name}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Badge className="text-xs">
-                            {PLATFORMS.find(p => p.id === adset.platform_id)?.icon || ''} {adset.platform_id}
-                          </Badge>
-                        </td>
-                        <td className="px-3 py-2 text-right text-gray-900 font-medium">
-                          {formatCurrency(adset.spend)}
-                        </td>
-                        <td className="px-3 py-2 text-right text-gray-600">
-                          {(adset.impressions || 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="px-3 py-2 text-center text-xs text-gray-500">
-                          {format(new Date(adset.created_date), 'dd/MM HH:mm')}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            💡 Adsets extraídos do adset_data do N8n. Total: {allAdsets.length}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Debug - Campanhas */}
-      <Card className="border-purple-200 bg-purple-50/30">
+      {/* Stats Overview */}
+      <Card className="border-gray-100">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">

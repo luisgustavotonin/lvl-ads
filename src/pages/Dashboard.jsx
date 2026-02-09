@@ -56,13 +56,16 @@ export default function Dashboard() {
   });
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
-    queryKey: ['recentMetrics', period.start, period.end],
-    queryFn: () => base44.entities.MetricsDaily.filter({
-      date: { 
-        $gte: format(period.start, 'yyyy-MM-dd'), 
-        $lte: format(period.end, 'yyyy-MM-dd') 
-      }
-    }, '-date', 500),
+    queryKey: ['dashboardMetrics', period.start, period.end],
+    queryFn: async () => {
+      const data = await base44.entities.MetaAdDaily.filter({
+        date: { 
+          $gte: format(period.start, 'yyyy-MM-dd'), 
+          $lte: format(period.end, 'yyyy-MM-dd') 
+        }
+      }, '-date', 5000);
+      return data;
+    },
   });
 
 
