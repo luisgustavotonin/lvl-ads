@@ -8,8 +8,6 @@ function getBrasiliaDate() {
 }
 
 Deno.serve(async (req) => {
-    let executionLogId = null;
-    
     try {
         const base44 = createClientFromRequest(req);
         
@@ -24,52 +22,38 @@ Deno.serve(async (req) => {
         const payload = body.payload ?? body.data ?? body;
         
         const { 
+            run_id,
             integration_id, 
             secret_token, 
-            provider,
+            account_id,
             unit_id,
-            ad_account_id,
-            date_mode,
-            since,
-            until,
-            timezone,
-            execution_log_id,
-            metrics = {},
-            ads = [],
-            creatives = [],
-            videos = []
+            provider,
+            generated_at,
+            batch_index,
+            batch_total,
+            ads_count,
+            approx_chars,
+            ads = []
         } = payload;
         
-        executionLogId = execution_log_id;
-        
-        console.log('🔔 WEBHOOK RECEBIDO:', JSON.stringify({
+        console.log('🔔 WEBHOOK RECEBIDO (BATCH):', JSON.stringify({
+            run_id,
             integration_id,
             unit_id,
-            ad_account_id,
+            account_id,
             provider,
-            date_mode,
-            since,
-            until,
-            daily_summary_count: metrics.daily_summary?.length || 0,
-            ads_count: ads.length,
-            creatives_count: creatives.length,
-            videos_count: videos.length,
-            execution_log_id
+            batch_index,
+            batch_total,
+            ads_count,
+            approx_chars,
+            generated_at
         }, null, 2));
 
         // Validação obrigatória
         if (!integration_id || !unit_id || !provider) {
-            const errorMsg = 'integration_id, unit_id e provider são obrigatórios';
-            if (executionLogId) {
-                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
-                    status: 'error',
-                    error_message: errorMsg,
-                    completed_at: getBrasiliaDate().toISOString()
-                });
-            }
             return Response.json({ 
-                success: false, 
-                error: errorMsg 
+                ok: false,
+                error: 'integration_id, unit_id e provider são obrigatórios'
             }, { status: 400 });
         }
 
@@ -77,490 +61,136 @@ Deno.serve(async (req) => {
         const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
         
         if (!integration) {
-            const errorMsg = 'Integração não encontrada';
-            if (executionLogId) {
-                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
-                    status: 'error',
-                    error_message: errorMsg,
-                    completed_at: getBrasiliaDate().toISOString()
-                });
-            }
             return Response.json({ 
-                success: false, 
-                error: errorMsg 
+                ok: false,
+                error: 'Integração não encontrada'
             }, { status: 404 });
         }
 
         // Validar secret token (obrigatório)
         const expectedToken = integration.settings?.n8n_secret_token;
         if (!secret_token || secret_token !== expectedToken) {
-            const errorMsg = 'Token de segurança inválido ou ausente';
-            if (executionLogId) {
-                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
-                    status: 'error',
-                    error_message: errorMsg,
-                    completed_at: getBrasiliaDate().toISOString()
-                });
-            }
             return Response.json({ 
-                success: false, 
-                error: errorMsg 
+                ok: false,
+                error: 'Token de segurança inválido ou ausente'
             }, { status: 401 });
         }
 
         // Validar provider
         if (provider !== 'meta') {
-            const errorMsg = 'Apenas provider "meta" é suportado no momento';
-            if (executionLogId) {
-                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
-                    status: 'error',
-                    error_message: errorMsg,
-                    completed_at: getBrasiliaDate().toISOString()
-                });
-            }
             return Response.json({ 
-                success: false, 
-                error: errorMsg 
+                ok: false,
+                error: 'Apenas provider "meta" é suportado no momento'
             }, { status: 400 });
         }
 
-        // Validar que metrics.daily_summary tem pelo menos 1 item com date
-        const dailySummary = metrics.daily_summary || [];
-        if (dailySummary.length === 0 || !dailySummary[0].date) {
-            const errorMsg = 'metrics.daily_summary[0].date é obrigatório';
-            if (executionLogId) {
-                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
-                    status: 'error',
-                    error_message: errorMsg,
-                    completed_at: getBrasiliaDate().toISOString()
-                });
-            }
-            return Response.json({ 
-                success: false, 
-                error: errorMsg 
-            }, { status: 400 });
-        }
+        // Processar anúncios com UPSERT (idempotência)
+        let adsUpserted = 0;
 
-        // Implementar idempotência: verificar se já processamos esses dados
-        const idempotencyKey = `${integration_id}_${unit_id}_${provider}_${since || dailySummary[0].date}_${until || dailySummary[dailySummary.length - 1]?.date || dailySummary[0].date}`;
-        
-        // Verificar se já existe um log com sucesso para essa chave
-        const existingLogs = await base44.asServiceRole.entities.ExecutionLog.filter({
-            integration_id: integration_id,
-            unit_id: unit_id,
-            provider: provider,
-            since: since || dailySummary[0].date,
-            until: until || dailySummary[dailySummary.length - 1]?.date || dailySummary[0].date,
-            status: 'success'
-        });
-
-        if (existingLogs.length > 0 && !executionLogId) {
-            console.log('⚠️ Requisição duplicada detectada (idempotência):', idempotencyKey);
-            return Response.json({
-                success: true,
-                message: 'Dados já foram processados anteriormente (idempotência)',
-                duplicate: true
-            });
-        }
-
-        // Mapear provider para platform_id
-        const platformMap = {
-            'meta': 'META',
-            'google': 'GOOGLE_ADS',
-            'tiktok': 'TIKTOK_ADS',
-            'youtube': 'YOUTUBE'
-        };
-        const platform_id = platformMap[provider] || 'META';
-
-        let processedMetrics = 0;
-        let processedAds = 0;
-        let processedCreatives = 0;
-        let processedVideos = 0;
-
-        // 1. Processar métricas diárias (metrics.daily_summary)
-        for (const metric of dailySummary) {
-            const { date, spend, impressions, reach, clicks, link_clicks, whatsapp } = metric;
-            
-            if (!date) {
-                console.warn('⚠️ Métrica sem date, pulando:', metric);
-                continue;
-            }
-
-            const dailyRecord = {
-                unit_id: unit_id,
-                platform_id: platform_id,
-                date: date,
-                currency: 'BRL',
-                spend: parseFloat(spend || 0),
-                impressions: parseInt(impressions || 0),
-                reach: parseInt(reach || 0),
-                clicks: parseInt(clicks || 0),
-                link_clicks: parseInt(link_clicks || 0),
-                ctr: 0,
-                cpc: 0,
-                cpm: 0,
-                whatsapp_conversations_started: parseInt(whatsapp?.conversations_started_7d || 0),
-                whatsapp_new_contacts: parseInt(whatsapp?.messaging_first_reply || 0),
-                whatsapp_contacts: parseInt(whatsapp?.total_messaging_connection || 0),
-                cost_per_whatsapp_conversation: parseFloat(whatsapp?.cost_per_conversation || 0),
-                cost_per_whatsapp_new_contact: parseFloat(whatsapp?.cost_per_new_contact || 0),
-                cost_per_whatsapp_contact: parseFloat(whatsapp?.cost_per_total_contact || 0)
-            };
-
-            // Calcular CTR, CPC, CPM
-            if (dailyRecord.impressions > 0) {
-                dailyRecord.ctr = (dailyRecord.clicks / dailyRecord.impressions) * 100;
-                dailyRecord.cpm = (dailyRecord.spend / dailyRecord.impressions) * 1000;
-            }
-            if (dailyRecord.clicks > 0) {
-                dailyRecord.cpc = dailyRecord.spend / dailyRecord.clicks;
-            }
-
-            // Upsert MetricsDaily
-            const existing = await base44.asServiceRole.entities.MetricsDaily.filter({
-                unit_id: unit_id,
-                platform_id: platform_id,
-                date: date
-            });
-
-            if (existing.length > 0) {
-                await base44.asServiceRole.entities.MetricsDaily.update(existing[0].id, dailyRecord);
-            } else {
-                await base44.asServiceRole.entities.MetricsDaily.create(dailyRecord);
-            }
-            processedMetrics++;
-
-            // Também salvar em MetricsAccountLevel
-            const accountRecord = {
-                unit_id: unit_id,
-                platform_id: platform_id,
-                date: date,
-                account_id: ad_account_id || integration.account_reference || 'unknown',
-                currency: 'BRL',
-                spend: dailyRecord.spend,
-                impressions: dailyRecord.impressions,
-                reach: dailyRecord.reach,
-                clicks: dailyRecord.clicks,
-                link_clicks: dailyRecord.link_clicks,
-                impressions_facebook: 0,
-                reach_facebook: 0,
-                impressions_instagram: 0,
-                reach_instagram: 0,
-                whatsapp_conversations_started: dailyRecord.whatsapp_conversations_started,
-                whatsapp_new_contacts: dailyRecord.whatsapp_new_contacts,
-                whatsapp_total_contacts: dailyRecord.whatsapp_contacts,
-                cost_per_whatsapp_conversation: dailyRecord.cost_per_whatsapp_conversation,
-                cost_per_whatsapp_new_contact: dailyRecord.cost_per_whatsapp_new_contact,
-                actions: [],
-                cost_per_action_type: []
-            };
-
-            const existingAccount = await base44.asServiceRole.entities.MetricsAccountLevel.filter({
-                unit_id: unit_id,
-                platform_id: platform_id,
-                date: date,
-                account_id: accountRecord.account_id
-            });
-
-            if (existingAccount.length > 0) {
-                await base44.asServiceRole.entities.MetricsAccountLevel.update(existingAccount[0].id, accountRecord);
-            } else {
-                await base44.asServiceRole.entities.MetricsAccountLevel.create(accountRecord);
-            }
-        }
-
-        // 2. Processar anúncios (ads)
         for (const ad of ads) {
             const { 
-                date_start,
+                ad_id, 
+                date,
                 campaign_id, 
                 campaign_name, 
                 adset_id, 
                 adset_name, 
-                id: ad_id, 
-                name: ad_name,
-                objective,
-                buying_type,
-                spend, 
-                impressions, 
-                reach, 
-                clicks,
-                actions = []
+                ad_name,
+                ad_effective_status,
+                metrics = {},
+                breakdowns = {}
             } = ad;
             
-            const date = date_start;
-            
-            if (!date) {
-                console.warn('⚠️ Ad sem date_start, pulando:', ad);
+            if (!ad_id || !date) {
+                console.warn('⚠️ Ad sem ad_id ou date, pulando:', ad);
                 continue;
             }
 
-            // Extrair link_clicks das actions
-            let link_clicks = 0;
-            const linkClickAction = actions.find(a => a.action_type === 'link_click');
-            if (linkClickAction) {
-                link_clicks = parseInt(linkClickAction.value || 0);
-            }
-
-            const spendValue = parseFloat(spend || 0);
-            const impressionsValue = parseInt(impressions || 0);
-            const clicksValue = parseInt(clicks || 0);
-            const linkClicksValue = parseInt(link_clicks || 0);
-            
-            // Calcular métricas
-            let cpc = 0;
-            let ctr = 0;
-            let cpm = 0;
-            
-            if (clicksValue > 0) {
-                cpc = spendValue / clicksValue;
-            }
-            if (impressionsValue > 0) {
-                ctr = (clicksValue / impressionsValue) * 100;
-                cpm = (spendValue / impressionsValue) * 1000;
-            }
-
-            // Salvar campanha
-            if (campaign_id) {
-                const campaignRecord = {
-                    unit_id: unit_id,
-                    platform_id: platform_id,
-                    date: date,
-                    entity_level: 'campaign',
-                    entity_id: campaign_id,
-                    entity_name: campaign_name || 'Unknown Campaign',
-                    status: 'active',
-                    spend: spendValue,
-                    impressions: impressionsValue,
-                    clicks: clicksValue,
-                    results: linkClicksValue,
-                    cpr: linkClicksValue > 0 ? spendValue / linkClicksValue : 0,
-                    extras: {
-                        objective: objective,
-                        buying_type: buying_type,
-                        reach: reach,
-                        ctr: ctr,
-                        cpc: cpc,
-                        cpm: cpm
-                    }
-                };
-
-                const existingCampaign = await base44.asServiceRole.entities.MetricsEntity.filter({
-                    unit_id: unit_id,
-                    platform_id: platform_id,
-                    date: date,
-                    entity_level: 'campaign',
-                    entity_id: campaign_id
-                });
-
-                if (existingCampaign.length > 0) {
-                    await base44.asServiceRole.entities.MetricsEntity.update(existingCampaign[0].id, campaignRecord);
-                } else {
-                    await base44.asServiceRole.entities.MetricsEntity.create(campaignRecord);
-                }
-            }
-
-            // Salvar adset
-            if (adset_id) {
-                const adsetRecord = {
-                    unit_id: unit_id,
-                    platform_id: platform_id,
-                    date: date,
-                    entity_level: 'adset',
-                    entity_id: adset_id,
-                    entity_name: adset_name || 'Unknown AdSet',
-                    status: 'active',
-                    spend: spendValue,
-                    impressions: impressionsValue,
-                    clicks: clicksValue,
-                    results: linkClicksValue,
-                    cpr: linkClicksValue > 0 ? spendValue / linkClicksValue : 0,
-                    extras: {
-                        reach: reach,
-                        ctr: ctr,
-                        cpc: cpc,
-                        cpm: cpm
-                    }
-                };
-
-                const existingAdset = await base44.asServiceRole.entities.MetricsEntity.filter({
-                    unit_id: unit_id,
-                    platform_id: platform_id,
-                    date: date,
-                    entity_level: 'adset',
-                    entity_id: adset_id
-                });
-
-                if (existingAdset.length > 0) {
-                    await base44.asServiceRole.entities.MetricsEntity.update(existingAdset[0].id, adsetRecord);
-                } else {
-                    await base44.asServiceRole.entities.MetricsEntity.create(adsetRecord);
-                }
-            }
-
-            // Salvar ad
-            if (ad_id) {
-                const adRecord = {
-                    unit_id: unit_id,
-                    platform_id: platform_id,
-                    date: date,
-                    entity_level: 'ad',
-                    entity_id: ad_id,
-                    entity_name: ad_name || 'Unknown Ad',
-                    status: 'active',
-                    spend: spendValue,
-                    impressions: impressionsValue,
-                    clicks: clicksValue,
-                    results: linkClicksValue,
-                    cpr: linkClicksValue > 0 ? spendValue / linkClicksValue : 0,
-                    extras: {
-                        reach: reach,
-                        ctr: ctr,
-                        cpc: cpc,
-                        cpm: cpm
-                    }
-                };
-
-                const existingAd = await base44.asServiceRole.entities.MetricsEntity.filter({
-                    unit_id: unit_id,
-                    platform_id: platform_id,
-                    date: date,
-                    entity_level: 'ad',
-                    entity_id: ad_id
-                });
-
-                if (existingAd.length > 0) {
-                    await base44.asServiceRole.entities.MetricsEntity.update(existingAd[0].id, adRecord);
-                } else {
-                    await base44.asServiceRole.entities.MetricsEntity.create(adRecord);
-                }
-                processedAds++;
-            }
-        }
-
-        // 3. Processar criativos
-        for (const creative of creatives) {
-            const { 
-                ad_id, 
-                ad_name,
-                thumbnail_url,
-                image_url,
-                video_id
-            } = creative;
-            
-            if (!ad_id) {
-                console.warn('⚠️ Criativo sem ad_id, pulando:', creative);
-                continue;
-            }
-
-            const creativeRecord = {
+            // Preparar record
+            const adRecord = {
                 unit_id: unit_id,
-                platform_id: platform_id,
+                account_id: account_id,
+                date: date,
                 ad_id: ad_id,
                 ad_name: ad_name || ad_id,
-                creative_type: video_id ? 'video' : 'image',
-                thumbnail_url: thumbnail_url || image_url,
-                media_url: image_url || thumbnail_url,
-                spend: 0,
-                impressions: 0,
-                clicks: 0,
-                results: 0
+                ad_effective_status: ad_effective_status || 'UNKNOWN',
+                adset_id: adset_id || '',
+                adset_name: adset_name || '',
+                campaign_id: campaign_id || '',
+                campaign_name: campaign_name || '',
+                spend: parseFloat(metrics.spend || 0),
+                impressions: parseInt(metrics.impressions || 0),
+                reach: parseInt(metrics.reach || 0),
+                clicks: parseInt(metrics.clicks || 0),
+                link_clicks: parseInt(metrics.link_clicks || 0),
+                wa_conversations_started_7d: parseInt(metrics.wa_conversations_started_7d || 0),
+                wa_total_messaging_connection: parseInt(metrics.wa_total_messaging_connection || 0),
+                wa_messaging_first_reply: parseInt(metrics.wa_messaging_first_reply || 0),
+                ctr_link: parseFloat(metrics.ctr_link || 0),
+                cpc_link: parseFloat(metrics.cpc_link || 0),
+                cpm: parseFloat(metrics.cpm || 0),
+                cost_per_conversation: parseFloat(metrics.cost_per_conversation || 0),
+                cost_per_total_contact: parseFloat(metrics.cost_per_total_contact || 0),
+                cost_per_first_reply: parseFloat(metrics.cost_per_first_reply || 0),
+                demographics_json: breakdowns.demographics || [],
+                placement_json: breakdowns.placement || [],
+                devices_json: breakdowns.devices || [],
+                run_id: run_id || ''
             };
 
-            const existingCreative = await base44.asServiceRole.entities.Creative.filter({
+            // UPSERT: buscar existente por chave única (unit_id, account_id, ad_id, date)
+            const existing = await base44.asServiceRole.entities.MetaAdDaily.filter({
                 unit_id: unit_id,
-                platform_id: platform_id,
-                ad_id: ad_id
+                account_id: account_id,
+                ad_id: ad_id,
+                date: date
             });
 
-            if (existingCreative.length > 0) {
-                await base44.asServiceRole.entities.Creative.update(existingCreative[0].id, creativeRecord);
+            if (existing.length > 0) {
+                // UPDATE
+                await base44.asServiceRole.entities.MetaAdDaily.update(existing[0].id, adRecord);
+                console.log(`✅ Updated ad ${ad_id} for date ${date}`);
             } else {
-                await base44.asServiceRole.entities.Creative.create(creativeRecord);
+                // INSERT
+                await base44.asServiceRole.entities.MetaAdDaily.create(adRecord);
+                console.log(`✅ Inserted ad ${ad_id} for date ${date}`);
             }
-            processedCreatives++;
-        }
-
-        // 4. Processar vídeos
-        for (const video of videos) {
-            const { 
-                video_id, 
-                length_seconds, 
-                title, 
-                permalink_url, 
-                picture 
-            } = video;
             
-            if (!video_id) {
-                console.warn('⚠️ Vídeo sem video_id, pulando:', video);
-                continue;
-            }
-
-            const videoRecord = {
-                unit_id: unit_id,
-                platform_id: platform_id,
-                video_id: video_id,
-                video_length: parseInt(length_seconds || 0),
-                video_title: title || '',
-                video_permalink: permalink_url || '',
-                video_thumbnail_url: picture || ''
-            };
-
-            const existingVideo = await base44.asServiceRole.entities.Video.filter({
-                unit_id: unit_id,
-                platform_id: platform_id,
-                video_id: video_id
-            });
-
-            if (existingVideo.length > 0) {
-                await base44.asServiceRole.entities.Video.update(existingVideo[0].id, videoRecord);
-            } else {
-                await base44.asServiceRole.entities.Video.create(videoRecord);
-            }
-            processedVideos++;
+            adsUpserted++;
         }
 
-        // Atualizar execution log com sucesso
-        if (executionLogId) {
-            await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
-                status: 'success',
-                metrics_processed: processedMetrics,
-                ads_processed: processedAds,
-                creatives_processed: processedCreatives,
-                videos_processed: processedVideos,
-                completed_at: new Date().toISOString()
-            });
-        }
-        
+        // Log do webhook
+        await base44.asServiceRole.entities.WebhookLog.create({
+            integration_id: integration_id,
+            source: 'n8n',
+            status: 'success',
+            payload_received: {
+                run_id,
+                batch_index,
+                batch_total,
+                ads_count,
+                generated_at
+            },
+            records_processed: {
+                ads_upserted: adsUpserted
+            }
+        });
+
         return Response.json({
-            success: true,
-            message: `Dados processados: ${processedMetrics} métricas, ${processedAds} anúncios, ${processedCreatives} criativos, ${processedVideos} vídeos`,
-            processed: { 
-                metrics: processedMetrics,
-                ads: processedAds,
-                creatives: processedCreatives,
-                videos: processedVideos
-            }
+            ok: true,
+            run_id: run_id,
+            batch_index: batch_index,
+            batch_total: batch_total,
+            ads_received: ads.length,
+            ads_upserted: adsUpserted,
+            processed_at: getBrasiliaDate().toISOString()
         });
 
     } catch (error) {
         console.error('❌ ERRO ao processar webhook:', error);
         
-        if (executionLogId) {
-            try {
-                const base44 = createClientFromRequest(req);
-                await base44.asServiceRole.entities.ExecutionLog.update(executionLogId, {
-                    status: 'error',
-                    error_message: error.message,
-                    completed_at: getBrasiliaDate().toISOString()
-                });
-            } catch (logError) {
-                console.error('Erro ao atualizar log:', logError);
-            }
-        }
-        
         return Response.json({ 
-            success: false, 
+            ok: false,
             error: error.message 
         }, { status: 500 });
     }
