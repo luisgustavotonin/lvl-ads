@@ -132,9 +132,9 @@ Deno.serve(async (req) => {
                 cost_per_conversation: parseFloat(metrics.cost_per_conversation || 0),
                 cost_per_total_contact: parseFloat(metrics.cost_per_total_contact || 0),
                 cost_per_first_reply: parseFloat(metrics.cost_per_first_reply || 0),
-                demographics_json: breakdowns.demographics || [],
-                placement_json: breakdowns.placement || [],
-                devices_json: breakdowns.devices || [],
+                demographics_json: breakdowns.demographics || {},
+                placement_json: breakdowns.placement || {},
+                devices_json: breakdowns.devices || {},
                 run_id: run_id || ''
             };
 
