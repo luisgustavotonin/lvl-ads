@@ -689,11 +689,17 @@ export default function DataManagement() {
                     <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('impressions')}>
                       Impressões <SortIcon field="impressions" />
                     </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('reach')}>
+                      Alcance <SortIcon field="reach" />
+                    </th>
                     <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('clicks')}>
                       Cliques <SortIcon field="clicks" />
                     </th>
                     <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('wa_conversations_started_7d')}>
-                      Conversas WA <SortIcon field="wa_conversations_started_7d" />
+                      Conversas iniciadas <SortIcon field="wa_conversations_started_7d" />
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('wa_messaging_first_reply')}>
+                      Novos contatos <SortIcon field="wa_messaging_first_reply" />
                     </th>
                     <th className="px-3 py-2 text-center font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_date')}>
                       Criado em <SortIcon field="created_date" />
@@ -703,7 +709,7 @@ export default function DataManagement() {
                 <tbody className="divide-y divide-gray-100">
                   {allMetrics.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="px-3 py-8 text-center text-gray-500">
+                      <td colSpan="10" className="px-3 py-8 text-center text-gray-500">
                         Nenhum dado encontrado na base. Envie dados do N8n para popular.
                       </td>
                     </tr>
@@ -740,10 +746,16 @@ export default function DataManagement() {
                             {(metric.impressions || 0).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-600">
+                            {(metric.reach || 0).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600">
                             {(metric.clicks || 0).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-600">
                             {(metric.wa_conversations_started_7d || 0).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600">
+                            {(metric.wa_messaging_first_reply || 0).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-3 py-2 text-center text-xs text-gray-500">
                             {format(new Date(metric.created_date), 'dd/MM HH:mm')}
