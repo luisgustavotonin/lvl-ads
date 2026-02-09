@@ -89,13 +89,41 @@ export default function DataManagement() {
 
   const deleteMetricsMutation = useMutation({
     mutationFn: async (metricIds) => {
+      // Buscar os registros para saber quais datas/unidades afetadas
+      const affectedDates = new Set();
+      
       for (const id of metricIds) {
+        const record = allMetrics.find(m => m.id === id);
+        if (record) {
+          affectedDates.add(`${record.unit_id}_${record.date}`);
+        }
         await base44.entities.MetaAdDaily.delete(id);
       }
+      
+      // Reagregar as datas afetadas ou limpar se não houver mais dados
+      for (const key of affectedDates) {
+        const [unit_id, date] = key.split('_');
+        
+        // Verificar se ainda existem dados para essa data
+        const remaining = await base44.entities.MetaAdDaily.filter({ unit_id, date });
+        
+        if (remaining.length === 0) {
+          // Não há mais dados, deletar de MetricsDaily
+          const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, platform_id: 'META' });
+          for (const m of metricsDaily) {
+            await base44.entities.MetricsDaily.delete(m.id);
+          }
+        } else {
+          // Reagregar
+          await base44.functions.invoke('aggregateMetaAdDaily', { unit_id, date_from: date, date_to: date });
+        }
+      }
+      
       return metricIds.length;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['recentMetrics'] });
       setSelectedMetrics([]);
     },
   });
