@@ -51,6 +51,8 @@ export default function DataManagement() {
   const [selectedWebhooks, setSelectedWebhooks] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
   const [selectedCampaigns, setSelectedCampaigns] = useState([]);
+  const [sortField, setSortField] = useState('created_date');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -170,6 +172,51 @@ export default function DataManagement() {
       style: 'currency', 
       currency: 'BRL' 
     }).format(value || 0);
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortedMetrics = () => {
+    const sorted = [...allMetrics].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      // Handle dates
+      if (sortField === 'date' || sortField === 'created_date') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+
+      // Handle numbers
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      // Handle strings
+      const aStr = String(aVal || '').toLowerCase();
+      const bStr = String(bVal || '').toLowerCase();
+      
+      if (sortDirection === 'asc') {
+        return aStr.localeCompare(bStr);
+      } else {
+        return bStr.localeCompare(aStr);
+      }
+    });
+    return sorted;
+  };
+
+  const SortIcon = ({ field }) => {
+    if (sortField !== field) {
+      return <span className="text-gray-300 ml-1">↕</span>;
+    }
+    return <span className="text-blue-600 ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>;
   };
 
   if (unitsLoading) {
@@ -583,14 +630,30 @@ export default function DataManagement() {
                         className="w-4 h-4"
                       />
                     </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Unidade</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Anúncio</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">Investimento</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">Impressões</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">Cliques</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">Conversas WA</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-700">Criado em</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('date')}>
+                      Data <SortIcon field="date" />
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('unit_id')}>
+                      Unidade <SortIcon field="unit_id" />
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('ad_name')}>
+                      Anúncio <SortIcon field="ad_name" />
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('spend')}>
+                      Investimento <SortIcon field="spend" />
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('impressions')}>
+                      Impressões <SortIcon field="impressions" />
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('clicks')}>
+                      Cliques <SortIcon field="clicks" />
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('wa_conversations_started_7d')}>
+                      Conversas WA <SortIcon field="wa_conversations_started_7d" />
+                    </th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_date')}>
+                      Criado em <SortIcon field="created_date" />
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -601,9 +664,7 @@ export default function DataManagement() {
                       </td>
                     </tr>
                   ) : (
-                    allMetrics
-                      .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
-                      .map((metric) => (
+                    getSortedMetrics().map((metric) => (
                         <tr key={metric.id} className="hover:bg-gray-50">
                           <td className="px-3 py-2 text-center">
                             <input
