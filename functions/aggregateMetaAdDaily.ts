@@ -34,15 +34,17 @@ Deno.serve(async (req) => {
 
         console.log(`📊 Anúncios a processar: ${adsToProcess.length}`);
 
-        // Agrupar por (unit_id, date)
+        // Agrupar por (unit_id, account_id, date) - mesma chave do receiveN8nData
         const grouped = {};
+        const reachTracking = {}; // Para não duplicar reach
         
         for (const ad of adsToProcess) {
-            const key = `${ad.unit_id}_${ad.date}`;
+            const key = `${ad.unit_id}_${ad.account_id}_${ad.date}`;
             
             if (!grouped[key]) {
                 grouped[key] = {
                     unit_id: ad.unit_id,
+                    account_id: ad.account_id,
                     platform_id: 'META',
                     date: ad.date,
                     spend: 0,
@@ -60,17 +62,23 @@ Deno.serve(async (req) => {
                     cpc: 0,
                     cpm: 0,
                 };
+                reachTracking[key] = new Set();
             }
 
-            // Somar métricas
+            // Somar métricas EXCETO REACH (não pode somar)
             grouped[key].spend += ad.spend || 0;
             grouped[key].impressions += ad.impressions || 0;
-            grouped[key].reach += ad.reach || 0;
             grouped[key].clicks += ad.clicks || 0;
             grouped[key].link_clicks += ad.link_clicks || 0;
             grouped[key].whatsapp_conversations_started += ad.wa_conversations_started_7d || 0;
             grouped[key].whatsapp_contacts += ad.wa_total_messaging_connection || 0;
             grouped[key].whatsapp_new_contacts += ad.wa_messaging_first_reply || 0;
+            
+            // REACH: trackear único por ad_id para não duplicar
+            // Usar o maior reach entre os anúncios do dia como aproximação
+            if (ad.reach && ad.reach > grouped[key].reach) {
+                grouped[key].reach = ad.reach;
+            }
         }
 
         // Calcular métricas derivadas e fazer UPSERT
@@ -98,9 +106,10 @@ Deno.serve(async (req) => {
                 metric.cost_per_whatsapp_new_contact = metric.spend / metric.whatsapp_new_contacts;
             }
 
-            // Buscar registro existente
+            // Buscar registro existente (incluir account_id na chave única)
             const existing = await base44.asServiceRole.entities.MetricsDaily.filter({
                 unit_id: metric.unit_id,
+                account_id: metric.account_id,
                 platform_id: metric.platform_id,
                 date: metric.date
             });
