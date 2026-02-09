@@ -24,6 +24,7 @@ import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import MetaFunnelSection from '@/components/dashboard/MetaFunnelSection';
+import PeriodFilter from '@/components/report/PeriodFilter';
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('pt-BR', { 
@@ -39,7 +40,10 @@ const formatNumber = (value) => {
 };
 
 export default function Dashboard() {
-  const [selectedPeriod, setSelectedPeriod] = useState('last_7_days');
+  const [period, setPeriod] = useState({
+    start: subDays(new Date(), 6),
+    end: new Date(),
+  });
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -52,8 +56,13 @@ export default function Dashboard() {
   });
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
-    queryKey: ['recentMetrics'],
-    queryFn: () => base44.entities.MetricsDaily.filter({}, '-date', 30),
+    queryKey: ['recentMetrics', period.start, period.end],
+    queryFn: () => base44.entities.MetricsDaily.filter({
+      date: { 
+        $gte: format(period.start, 'yyyy-MM-dd'), 
+        $lte: format(period.end, 'yyyy-MM-dd') 
+      }
+    }, '-date', 500),
   });
 
 
@@ -96,7 +105,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">Visão geral da sua mídia paga</p>
@@ -108,6 +117,11 @@ export default function Dashboard() {
           </Button>
         </Link>
       </div>
+
+      {/* Period Filter */}
+      <Card className="p-4 bg-white border border-gray-200 shadow-sm">
+        <PeriodFilter value={period} onChange={setPeriod} />
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -175,7 +189,9 @@ export default function Dashboard() {
       {/* Meta Funnel Section */}
       <MetaFunnelSection 
         unitId={null}
-        period={selectedPeriod}
+        period="custom"
+        customStart={period.start}
+        customEnd={period.end}
       />
 
       {/* Chart and Status */}
