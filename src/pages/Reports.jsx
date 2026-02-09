@@ -1,437 +1,490 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { subDays } from 'date-fns';
-import { Settings2, Download, RefreshCw, Loader2 } from 'lucide-react';
+import { subDays, format, differenceInDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Download, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-import UnitSelector from '@/components/report/UnitSelector';
-import PeriodSelector from '@/components/report/PeriodSelector';
-import PlatformSelector from '@/components/report/PlatformSelector';
-import ReportCustomizer from '@/components/report/ReportCustomizer';
-import PdfExportModal from '@/components/report/PdfExportModal';
-import MetricCard from '@/components/report/MetricCard';
-import SpendChart from '@/components/report/SpendChart';
-import PlatformBarChart from '@/components/report/PlatformBarChart';
-import MetaSectionReport from '@/components/report/MetaSectionReport';
-import GoogleSectionReport from '@/components/report/GoogleSectionReport';
-import TikTokSectionReport from '@/components/report/TikTokSectionReport';
-
-import { DollarSign, Eye, MousePointer, Users, Target, TrendingUp, MessageCircle, ShoppingCart } from 'lucide-react';
-
-const DEFAULT_PLATFORMS = [
-  { platform_id: 'META', name: 'Meta Ads' },
-  { platform_id: 'GOOGLE_ADS', name: 'Google Ads' },
-  { platform_id: 'TIKTOK_ADS', name: 'TikTok Ads' },
-  { platform_id: 'YOUTUBE', name: 'YouTube' },
-];
-
-const DEFAULT_CONFIG = {
-  cards: [
-    { id: 'spend', visible: true },
-    { id: 'impressions', visible: true },
-    { id: 'reach', visible: true },
-    { id: 'clicks', visible: true },
-    { id: 'ctr', visible: true },
-    { id: 'cpc', visible: true },
-    { id: 'messages', visible: true },
-    { id: 'purchases', visible: true },
-  ],
-  charts: [
-    { id: 'spend_daily', visible: true },
-    { id: 'spend_platform', visible: true },
-  ],
-  sections: ['summary', 'meta', 'google', 'tiktok'],
-};
+const COLORS = ['#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1e40af', '#1e3a8a'];
 
 export default function Reports() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const [selectedUnit, setSelectedUnit] = useState(null);
-  const [period, setPeriod] = useState({
-    periodId: 'last_30_days',
-    start: subDays(today, 29),
-    end: today,
-  });
-  const [selectedPlatforms, setSelectedPlatforms] = useState(['META', 'GOOGLE_ADS', 'TIKTOK_ADS', 'YOUTUBE']);
-  const [customizerOpen, setCustomizerOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [reportConfig, setReportConfig] = useState(DEFAULT_CONFIG);
+  const today = new Date();
+  const [endDate] = useState(today);
+  const [startDate] = useState(subDays(today, 29));
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
   });
 
-  const { data: platforms = [] } = useQuery({
-    queryKey: ['platforms'],
-    queryFn: () => base44.entities.Platform.list(),
-    initialData: DEFAULT_PLATFORMS,
-  });
-
-  // Set first unit as default
   React.useEffect(() => {
     if (units.length > 0 && !selectedUnit) {
       setSelectedUnit(units[0].id);
     }
   }, [units, selectedUnit]);
 
-  const { data: metricsDaily = [], isLoading: metricsLoading, refetch: refetchMetrics } = useQuery({
-    queryKey: ['metricsDaily', selectedUnit, period.start, period.end],
+  const days = differenceInDays(endDate, startDate) + 1;
+  const compareStartDate = subDays(startDate, days);
+  const compareEndDate = subDays(startDate, 1);
+
+  const { data: currentMetrics = [], isLoading } = useQuery({
+    queryKey: ['currentMetrics', selectedUnit, startDate, endDate],
     queryFn: async () => {
       if (!selectedUnit) return [];
-      const startStr = period.start.toISOString().split('T')[0];
-      const endStr = period.end.toISOString().split('T')[0];
       return base44.entities.MetricsDaily.filter({
         unit_id: selectedUnit,
-        date: { $gte: startStr, $lte: endStr }
+        platform_id: 'META',
+        date: { 
+          $gte: format(startDate, 'yyyy-MM-dd'), 
+          $lte: format(endDate, 'yyyy-MM-dd') 
+        }
       });
     },
     enabled: !!selectedUnit,
   });
 
-  const { data: metricsEntity = [] } = useQuery({
-    queryKey: ['metricsEntity', selectedUnit, period.start, period.end],
+  const { data: previousMetrics = [] } = useQuery({
+    queryKey: ['previousMetrics', selectedUnit, compareStartDate, compareEndDate],
     queryFn: async () => {
       if (!selectedUnit) return [];
-      const startStr = period.start.toISOString().split('T')[0];
-      const endStr = period.end.toISOString().split('T')[0];
-      return base44.entities.MetricsEntity.filter({
+      return base44.entities.MetricsDaily.filter({
         unit_id: selectedUnit,
-        date: { $gte: startStr, $lte: endStr }
+        platform_id: 'META',
+        date: { 
+          $gte: format(compareStartDate, 'yyyy-MM-dd'), 
+          $lte: format(compareEndDate, 'yyyy-MM-dd') 
+        }
       });
     },
     enabled: !!selectedUnit,
   });
 
-  const { data: creatives = [] } = useQuery({
-    queryKey: ['creatives', selectedUnit],
-    queryFn: () => selectedUnit ? base44.entities.Creative.filter({ unit_id: selectedUnit }) : [],
+  const { data: adData = [] } = useQuery({
+    queryKey: ['adData', selectedUnit, startDate, endDate],
+    queryFn: async () => {
+      if (!selectedUnit) return [];
+      return base44.entities.MetaAdDaily.filter({
+        unit_id: selectedUnit,
+        date: { 
+          $gte: format(startDate, 'yyyy-MM-dd'), 
+          $lte: format(endDate, 'yyyy-MM-dd') 
+        }
+      });
+    },
     enabled: !!selectedUnit,
   });
 
-  // Filter data by selected platforms
-  const filteredMetrics = useMemo(() => {
-    return metricsDaily.filter(m => selectedPlatforms.includes(m.platform_id));
-  }, [metricsDaily, selectedPlatforms]);
+  const current = useMemo(() => {
+    const spend = currentMetrics.reduce((s, m) => s + (m.spend || 0), 0);
+    const impressions = currentMetrics.reduce((s, m) => s + (m.impressions || 0), 0);
+    const maxReach = Math.max(...currentMetrics.map(m => m.reach || 0), 0);
+    const clicks = currentMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
+    const linkClicks = currentMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
+    const conversations = currentMetrics.reduce((s, m) => s + (m.whatsapp_conversations_started || 0), 0);
+    
+    return {
+      spend,
+      impressions,
+      reach: maxReach,
+      clicks,
+      linkClicks,
+      ctrLink: impressions > 0 ? (linkClicks / impressions) * 100 : 0,
+      cpcLink: linkClicks > 0 ? spend / linkClicks : 0,
+      cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+      frequency: maxReach > 0 ? impressions / maxReach : 0,
+      conversations,
+      costPerConversation: conversations > 0 ? spend / conversations : 0,
+    };
+  }, [currentMetrics]);
 
-  const filteredEntities = useMemo(() => {
-    return metricsEntity.filter(m => selectedPlatforms.includes(m.platform_id));
-  }, [metricsEntity, selectedPlatforms]);
+  const previous = useMemo(() => {
+    const spend = previousMetrics.reduce((s, m) => s + (m.spend || 0), 0);
+    const impressions = previousMetrics.reduce((s, m) => s + (m.impressions || 0), 0);
+    const maxReach = Math.max(...previousMetrics.map(m => m.reach || 0), 0);
+    const clicks = previousMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
+    const linkClicks = previousMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
+    const conversations = previousMetrics.reduce((s, m) => s + (m.whatsapp_conversations_started || 0), 0);
+    
+    return {
+      spend,
+      impressions,
+      reach: maxReach,
+      clicks,
+      linkClicks,
+      ctrLink: impressions > 0 ? (linkClicks / impressions) * 100 : 0,
+      cpcLink: linkClicks > 0 ? spend / linkClicks : 0,
+      cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+      frequency: maxReach > 0 ? impressions / maxReach : 0,
+      conversations,
+      costPerConversation: conversations > 0 ? spend / conversations : 0,
+    };
+  }, [previousMetrics]);
 
-  // Calculate totals
-  const totals = useMemo(() => {
-    return filteredMetrics.reduce((acc, m) => ({
-      spend: (acc.spend || 0) + (m.spend || 0),
-      impressions: (acc.impressions || 0) + (m.impressions || 0),
-      reach: (acc.reach || 0) + (m.reach || 0),
-      clicks: (acc.clicks || 0) + (m.clicks || 0),
-      link_clicks: (acc.link_clicks || 0) + (m.link_clicks || 0),
-      conversions: (acc.conversions || 0) + (m.conversions || 0),
-      messages: (acc.messages || 0) + (m.messages || 0),
-      purchases: (acc.purchases || 0) + (m.purchases || 0),
-    }), {});
-  }, [filteredMetrics]);
+  const variation = (curr, prev) => {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return ((curr - prev) / prev) * 100;
+  };
 
-  totals.ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
-  totals.cpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
+  const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  const formatNumber = (val) => new Intl.NumberFormat('pt-BR').format(Math.round(val));
+  const formatPercent = (val) => `${val.toFixed(2)}%`;
 
-  // Daily chart data
-  const dailyChartData = useMemo(() => {
+  const MetricCard = ({ label, current, previous, format, positiveIsGood = true }) => {
+    const diff = variation(current, previous);
+    const isPositive = diff > 0;
+    const isNeutral = diff === 0;
+    const color = isNeutral ? 'text-gray-500' : (isPositive === positiveIsGood ? 'text-green-600' : 'text-red-600');
+    const Icon = isNeutral ? Minus : (isPositive ? TrendingUp : TrendingDown);
+    
+    return (
+      <Card className="p-4 bg-white border border-gray-200">
+        <div className="text-sm text-gray-600 font-medium mb-1">{label}</div>
+        <div className="text-2xl font-bold text-gray-900 mb-2">{format(current)}</div>
+        <div className={`flex items-center gap-1 text-sm font-medium ${color}`}>
+          <Icon className="w-4 h-4" />
+          <span>{isPositive ? '+' : ''}{diff.toFixed(2)}%</span>
+        </div>
+        <div className="text-xs text-gray-500 mt-1">{format(previous)} no período anterior</div>
+      </Card>
+    );
+  };
+
+  const dailyData = useMemo(() => {
     const byDate = {};
-    filteredMetrics.forEach(m => {
+    currentMetrics.forEach(m => {
       if (!byDate[m.date]) byDate[m.date] = { date: m.date, spend: 0 };
       byDate[m.date].spend += m.spend || 0;
     });
     return Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [filteredMetrics]);
+  }, [currentMetrics]);
 
-  // Platform chart data
-  const platformChartData = useMemo(() => {
-    const byPlatform = {};
-    filteredMetrics.forEach(m => {
-      if (!byPlatform[m.platform_id]) {
-        const platformInfo = platforms.find(p => p.platform_id === m.platform_id);
-        byPlatform[m.platform_id] = { 
-          platform_id: m.platform_id, 
-          name: platformInfo?.name || m.platform_id,
-          spend: 0 
+  const campaigns = useMemo(() => {
+    const byCampaign = {};
+    adData.forEach(ad => {
+      if (!byCampaign[ad.campaign_id]) {
+        byCampaign[ad.campaign_id] = {
+          name: ad.campaign_name,
+          spend: 0,
+          impressions: 0,
+          reach: 0,
+          clicks: 0,
+          linkClicks: 0,
+          conversations: 0,
         };
       }
-      byPlatform[m.platform_id].spend += m.spend || 0;
+      byCampaign[ad.campaign_id].spend += ad.spend || 0;
+      byCampaign[ad.campaign_id].impressions += ad.impressions || 0;
+      if (ad.reach > byCampaign[ad.campaign_id].reach) byCampaign[ad.campaign_id].reach = ad.reach;
+      byCampaign[ad.campaign_id].clicks += ad.clicks || 0;
+      byCampaign[ad.campaign_id].linkClicks += ad.link_clicks || 0;
+      byCampaign[ad.campaign_id].conversations += ad.wa_conversations_started_7d || 0;
     });
-    return Object.values(byPlatform);
-  }, [filteredMetrics, platforms]);
+    
+    return Object.values(byCampaign).map(c => ({
+      ...c,
+      frequency: c.reach > 0 ? c.impressions / c.reach : 0,
+      ctrLink: c.impressions > 0 ? (c.linkClicks / c.impressions) * 100 : 0,
+      cpcLink: c.linkClicks > 0 ? c.spend / c.linkClicks : 0,
+      cpm: c.impressions > 0 ? (c.spend / c.impressions) * 1000 : 0,
+      costPerConversation: c.conversations > 0 ? c.spend / c.conversations : 0,
+    })).sort((a, b) => b.conversations - a.conversations);
+  }, [adData]);
 
-  // Platform specific data
-  const getMetricsForPlatform = (platformId) => {
-    const platformMetrics = metricsDaily.filter(m => m.platform_id === platformId);
-    const metrics = platformMetrics.reduce((acc, m) => ({
-      spend: (acc.spend || 0) + (m.spend || 0),
-      impressions: (acc.impressions || 0) + (m.impressions || 0),
-      reach: (acc.reach || 0) + (m.reach || 0),
-      clicks: (acc.clicks || 0) + (m.clicks || 0),
-      messages: (acc.messages || 0) + (m.messages || 0),
-      purchases: (acc.purchases || 0) + (m.purchases || 0),
-      conversions: (acc.conversions || 0) + (m.conversions || 0),
-      conversion_value: (acc.conversion_value || 0) + (m.conversion_value || 0),
-      extras: m.extras || {},
-    }), {});
-    metrics.ctr = metrics.impressions > 0 ? (metrics.clicks / metrics.impressions) * 100 : 0;
-    metrics.cpc = metrics.clicks > 0 ? metrics.spend / metrics.clicks : 0;
-    metrics.cpm = metrics.impressions > 0 ? (metrics.spend / metrics.impressions) * 1000 : 0;
-    return metrics;
-  };
-
-  const getDailyDataForPlatform = (platformId) => {
-    const byDate = {};
-    metricsDaily.filter(m => m.platform_id === platformId).forEach(m => {
-      if (!byDate[m.date]) byDate[m.date] = { date: m.date, spend: 0 };
-      byDate[m.date].spend += m.spend || 0;
+  const adsets = useMemo(() => {
+    const byAdset = {};
+    adData.forEach(ad => {
+      if (!byAdset[ad.adset_id]) {
+        byAdset[ad.adset_id] = {
+          name: ad.adset_name,
+          spend: 0,
+          impressions: 0,
+          reach: 0,
+          clicks: 0,
+          linkClicks: 0,
+          conversations: 0,
+        };
+      }
+      byAdset[ad.adset_id].spend += ad.spend || 0;
+      byAdset[ad.adset_id].impressions += ad.impressions || 0;
+      if (ad.reach > byAdset[ad.adset_id].reach) byAdset[ad.adset_id].reach = ad.reach;
+      byAdset[ad.adset_id].clicks += ad.clicks || 0;
+      byAdset[ad.adset_id].linkClicks += ad.link_clicks || 0;
+      byAdset[ad.adset_id].conversations += ad.wa_conversations_started_7d || 0;
     });
-    return Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
-  };
+    
+    return Object.values(byAdset).map(c => ({
+      ...c,
+      ctrLink: c.impressions > 0 ? (c.linkClicks / c.impressions) * 100 : 0,
+      cpcLink: c.linkClicks > 0 ? c.spend / c.linkClicks : 0,
+      cpm: c.impressions > 0 ? (c.spend / c.impressions) * 1000 : 0,
+      costPerConversation: c.conversations > 0 ? c.spend / c.conversations : 0,
+    })).sort((a, b) => b.conversations - a.conversations);
+  }, [adData]);
 
-  const getCampaignsForPlatform = (platformId) => {
-    return metricsEntity
-      .filter(m => m.platform_id === platformId && m.entity_level === 'campaign')
-      .reduce((acc, m) => {
-        const existing = acc.find(e => e.entity_id === m.entity_id);
-        if (existing) {
-          existing.spend += m.spend || 0;
-          existing.impressions += m.impressions || 0;
-          existing.clicks += m.clicks || 0;
-          existing.results += m.results || 0;
-        } else {
-          acc.push({ ...m });
-        }
-        return acc;
-      }, []);
-  };
-
-  const getAdsForPlatform = (platformId) => {
-    return metricsEntity
-      .filter(m => m.platform_id === platformId && m.entity_level === 'ad')
-      .reduce((acc, m) => {
-        const existing = acc.find(e => e.entity_id === m.entity_id);
-        if (existing) {
-          existing.spend += m.spend || 0;
-          existing.impressions += m.impressions || 0;
-          existing.clicks += m.clicks || 0;
-          existing.results += m.results || 0;
-        } else {
-          acc.push({ ...m });
-        }
-        return acc;
-      }, []);
-  };
-
-  const getCreativesForPlatform = (platformId) => {
-    return creatives.filter(c => c.platform_id === platformId);
-  };
+  const ads = useMemo(() => {
+    const byAd = {};
+    adData.forEach(ad => {
+      if (!byAd[ad.ad_id]) {
+        byAd[ad.ad_id] = {
+          name: ad.ad_name,
+          spend: 0,
+          impressions: 0,
+          reach: 0,
+          clicks: 0,
+          linkClicks: 0,
+          conversations: 0,
+        };
+      }
+      byAd[ad.ad_id].spend += ad.spend || 0;
+      byAd[ad.ad_id].impressions += ad.impressions || 0;
+      if (ad.reach > byAd[ad.ad_id].reach) byAd[ad.ad_id].reach = ad.reach;
+      byAd[ad.ad_id].clicks += ad.clicks || 0;
+      byAd[ad.ad_id].linkClicks += ad.link_clicks || 0;
+      byAd[ad.ad_id].conversations += ad.wa_conversations_started_7d || 0;
+    });
+    
+    return Object.values(byAd).map(a => ({
+      ...a,
+      ctrLink: a.impressions > 0 ? (a.linkClicks / a.impressions) * 100 : 0,
+      cpcLink: a.linkClicks > 0 ? a.spend / a.linkClicks : 0,
+      cpm: a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0,
+      costPerConversation: a.conversations > 0 ? a.spend / a.conversations : 0,
+    })).sort((a, b) => b.conversations - a.conversations);
+  }, [adData]);
 
   const selectedUnitData = units.find(u => u.id === selectedUnit);
 
-  const isCardVisible = (cardId) => {
-    const card = reportConfig.cards.find(c => c.id === cardId);
-    return card?.visible !== false;
-  };
-
-  const isChartVisible = (chartId) => {
-    const chart = reportConfig.charts.find(c => c.id === chartId);
-    return chart?.visible !== false;
-  };
-
-  const isSectionVisible = (sectionId) => {
-    return reportConfig.sections?.includes(sectionId) ?? true;
-  };
-
-  // Report content component
-  const ReportContent = () => (
-    <div className="space-y-12">
-      {/* Summary Section */}
-      {isSectionVisible('summary') && (
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-gray-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Resumo Geral</h2>
-              <p className="text-sm text-gray-500">Métricas consolidadas de todas as plataformas</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {isCardVisible('spend') && (
-              <MetricCard title="Investimento Total" value={totals.spend} type="currency" icon={DollarSign} color="blue" />
-            )}
-            {isCardVisible('impressions') && (
-              <MetricCard title="Impressões" value={totals.impressions} type="number" icon={Eye} color="purple" />
-            )}
-            {isCardVisible('reach') && (
-              <MetricCard title="Alcance" value={totals.reach} type="number" icon={Users} color="green" />
-            )}
-            {isCardVisible('clicks') && (
-              <MetricCard title="Cliques" value={totals.clicks} type="number" icon={MousePointer} color="orange" />
-            )}
-            {isCardVisible('ctr') && (
-              <MetricCard title="CTR Médio" value={totals.ctr} type="percent" icon={Target} color="cyan" />
-            )}
-            {isCardVisible('cpc') && (
-              <MetricCard title="CPC Médio" value={totals.cpc} type="currency" icon={TrendingUp} color="pink" />
-            )}
-            {isCardVisible('messages') && (
-              <MetricCard title="Mensagens" value={totals.messages} type="number" icon={MessageCircle} color="green" />
-            )}
-            {isCardVisible('purchases') && (
-              <MetricCard title="Compras" value={totals.purchases} type="number" icon={ShoppingCart} color="blue" />
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {isChartVisible('spend_daily') && (
-              <SpendChart data={dailyChartData} title="Investimento por Dia" />
-            )}
-            {isChartVisible('spend_platform') && (
-              <PlatformBarChart data={platformChartData} title="Investimento por Plataforma" />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Meta Section */}
-      {isSectionVisible('meta') && selectedPlatforms.includes('META') && (
-        <MetaSectionReport
-          unitId={selectedUnit}
-          startDate={period.start.toISOString().split('T')[0]}
-          endDate={period.end.toISOString().split('T')[0]}
-          dailyData={getDailyDataForPlatform('META')}
-          campaigns={getCampaignsForPlatform('META')}
-          ads={getAdsForPlatform('META')}
-          creatives={getCreativesForPlatform('META')}
-          config={reportConfig}
-        />
-      )}
-
-      {/* Google Section */}
-      {isSectionVisible('google') && selectedPlatforms.includes('GOOGLE_ADS') && (
-        <GoogleSectionReport
-          metrics={getMetricsForPlatform('GOOGLE_ADS')}
-          dailyData={getDailyDataForPlatform('GOOGLE_ADS')}
-          campaigns={getCampaignsForPlatform('GOOGLE_ADS')}
-          config={reportConfig}
-        />
-      )}
-
-      {/* TikTok Section */}
-      {isSectionVisible('tiktok') && selectedPlatforms.includes('TIKTOK_ADS') && (
-        <TikTokSectionReport
-          metrics={getMetricsForPlatform('TIKTOK_ADS')}
-          dailyData={getDailyDataForPlatform('TIKTOK_ADS')}
-          campaigns={getCampaignsForPlatform('TIKTOK_ADS')}
-          creatives={getCreativesForPlatform('TIKTOK_ADS')}
-          config={reportConfig}
-        />
-      )}
-    </div>
-  );
-
   if (unitsLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-96 w-full rounded-xl" />
-      </div>
-    );
+    return <div className="p-6 space-y-4"><Skeleton className="h-96 w-full" /></div>;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <UnitSelector 
-            units={units} 
-            value={selectedUnit} 
-            onChange={setSelectedUnit}
-          />
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-[1400px] mx-auto p-6 space-y-6">
+        {/* Header */}
+        <Card className="p-6 bg-white border border-gray-200">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Relatório de {selectedUnitData?.name || 'Cliente'}</h1>
+              <p className="text-base text-gray-600 mt-1">Análise de desempenho</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Relatório gerado dos dados analisados entre {format(startDate, "dd/MM/yyyy", { locale: ptBR })} e {format(endDate, "dd/MM/yyyy", { locale: ptBR })} comparado com os dados coletados entre {format(compareStartDate, "dd/MM/yyyy", { locale: ptBR })} e {format(compareEndDate, "dd/MM/yyyy", { locale: ptBR })}.
+              </p>
+            </div>
+            <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
+              <Download className="w-4 h-4" />
+              Exportar PDF
+            </Button>
+          </div>
           
-          <PeriodSelector 
-            value={period} 
-            onChange={setPeriod}
-          />
-          
-          <PlatformSelector 
-            platforms={platforms.length > 0 ? platforms : DEFAULT_PLATFORMS}
-            selected={selectedPlatforms}
-            onChange={setSelectedPlatforms}
-          />
+          <div className="flex items-center gap-4">
+            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+              <SelectTrigger className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {units.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
 
-          <div className="flex-1" />
+        {isLoading ? (
+          <Skeleton className="h-96 w-full" />
+        ) : (
+          <>
+            {/* KPI Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <MetricCard label="Valor investido" current={current.spend} previous={previous.spend} format={formatCurrency} positiveIsGood={false} />
+              <MetricCard label="CTR (Taxa de cliques no link)" current={current.ctrLink} previous={previous.ctrLink} format={formatPercent} />
+              <MetricCard label="CPC médio" current={current.cpcLink} previous={previous.cpcLink} format={formatCurrency} positiveIsGood={false} />
+              <MetricCard label="CPM médio" current={current.cpm} previous={previous.cpm} format={formatCurrency} positiveIsGood={false} />
+              <MetricCard label="Impressões Totais" current={current.impressions} previous={previous.impressions} format={formatNumber} />
+              <MetricCard label="Alcance Total" current={current.reach} previous={previous.reach} format={formatNumber} />
+              <MetricCard label="Total de Cliques" current={current.clicks} previous={previous.clicks} format={formatNumber} />
+              <MetricCard label="Total de cliques no link" current={current.linkClicks} previous={previous.linkClicks} format={formatNumber} />
+              <MetricCard label="Frequência" current={current.frequency} previous={previous.frequency} format={(v) => v.toFixed(2)} />
+              <MetricCard label="Conversas iniciadas por mensagem" current={current.conversations} previous={previous.conversations} format={formatNumber} />
+              <MetricCard label="Custo por conversas iniciadas por mensagem" current={current.costPerConversation} previous={previous.costPerConversation} format={formatCurrency} positiveIsGood={false} />
+            </div>
 
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={() => refetchMetrics()}
-            disabled={metricsLoading}
-          >
-            {metricsLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            Atualizar
-          </Button>
+            {/* Funnel */}
+            <Card className="p-6 bg-white border border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Funil</h3>
+              <div className="space-y-2">
+                {[
+                  { label: 'Valor investido', value: current.spend, format: formatCurrency },
+                  { label: 'Impressões Totais', value: current.impressions, format: formatNumber },
+                  { label: 'Alcance Total', value: current.reach, format: formatNumber },
+                  { label: 'Total de Cliques', value: current.clicks, format: formatNumber },
+                  { label: 'Total de cliques no link', value: current.linkClicks, format: formatNumber },
+                  { label: 'Conversas iniciadas por mensagem', value: current.conversations, format: formatNumber },
+                ].map((step, idx) => {
+                  const maxVal = current.impressions;
+                  const width = maxVal > 0 ? (typeof step.value === 'number' ? (step.value / maxVal) * 100 : 100) : 0;
+                  return (
+                    <div key={idx} className="flex items-center gap-4">
+                      <div className="w-64 text-sm font-medium text-gray-700">{step.label}</div>
+                      <div className="flex-1 h-12 bg-gray-100 rounded overflow-hidden">
+                        <div 
+                          className="h-full flex items-center justify-end px-4 text-white text-sm font-bold transition-all"
+                          style={{ 
+                            width: `${Math.max(width, 5)}%`,
+                            backgroundColor: COLORS[idx] || COLORS[0]
+                          }}
+                        >
+                          {step.format(step.value)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
 
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={() => setCustomizerOpen(true)}
-          >
-            <Settings2 className="w-4 h-4" />
-            Personalizar
-          </Button>
+            {/* Daily Chart */}
+            <Card className="p-6 bg-white border border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Valor investido por dia</h3>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="date" tickFormatter={(d) => format(new Date(d), 'dd/MM')} tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 12 }} />
+                    <Tooltip formatter={(v) => formatCurrency(v)} labelFormatter={(d) => format(new Date(d), 'dd/MM/yyyy')} />
+                    <Bar dataKey="spend" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
 
-          <Button 
-            className="gap-2 bg-blue-600 hover:bg-blue-700"
-            onClick={() => setExportOpen(true)}
-          >
-            <Download className="w-4 h-4" />
-            Exportar PDF
-          </Button>
-        </div>
+            {/* Campaigns Table */}
+            <Card className="p-6 bg-white border border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Campanhas em destaque</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome da Campanha</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Resultados</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Custo por resultados</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor investido</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CTR</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CPC</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CPM</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Alcance</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Impressões</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Frequência</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {campaigns.slice(0, 10).map((c, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">{c.name}</td>
+                        <td className="px-4 py-3 text-right text-gray-900 font-medium">{formatNumber(c.conversations)}<br/><span className="text-xs text-gray-500">Conversas iniciadas</span></td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(c.costPerConversation)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(c.spend)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatPercent(c.ctrLink)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(c.cpcLink)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(c.cpm)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(c.reach)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(c.impressions)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{c.frequency.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* Adsets Table */}
+            <Card className="p-6 bg-white border border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Conjunto de anúncios em destaque</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Conjunto de anúncio</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Resultados</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Custo por resultados</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor investido</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CTR</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CPC</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CPM</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Alcance</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Impressões</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cliques</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {adsets.slice(0, 10).map((a, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">{a.name}</td>
+                        <td className="px-4 py-3 text-right text-gray-900 font-medium">{formatNumber(a.conversations)}<br/><span className="text-xs text-gray-500">Conversas iniciadas</span></td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.costPerConversation)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.spend)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatPercent(a.ctrLink)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cpcLink)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cpm)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.reach)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.impressions)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.clicks)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* Ads Table */}
+            <Card className="p-6 bg-white border border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Anúncios em Destaque</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Anúncio</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Resultados</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Custo por resultados</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor investido</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CTR</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CPC</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CPM</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Alcance</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Impressões</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cliques</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {ads.slice(0, 10).map((a, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">{a.name}</td>
+                        <td className="px-4 py-3 text-right text-gray-900 font-medium">{formatNumber(a.conversations)}<br/><span className="text-xs text-gray-500">Conversas</span></td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.costPerConversation)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.spend)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatPercent(a.ctrLink)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cpcLink)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cpm)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.reach)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.impressions)}</td>
+                        <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.clicks)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </>
+        )}
       </div>
-
-      {/* Report Content */}
-      {metricsLoading ? (
-        <div className="space-y-6">
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </div>
-      ) : (
-        <ReportContent />
-      )}
-
-      {/* Customizer Sidebar */}
-      <ReportCustomizer
-        open={customizerOpen}
-        onClose={() => setCustomizerOpen(false)}
-        config={reportConfig}
-        onConfigChange={setReportConfig}
-      />
-
-      {/* PDF Export Modal */}
-      <PdfExportModal
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        unit={selectedUnitData}
-        period={period}
-      >
-        <ReportContent />
-      </PdfExportModal>
     </div>
   );
 }

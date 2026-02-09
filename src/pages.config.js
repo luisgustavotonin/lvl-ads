@@ -57,7 +57,6 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
-import ReporteiStyle from './pages/ReporteiStyle';
 import __Layout from './Layout.jsx';
 
 
@@ -72,7 +71,6 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
-    "ReporteiStyle": ReporteiStyle,
 }
 
 export const pagesConfig = {
