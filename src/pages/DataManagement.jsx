@@ -59,7 +59,7 @@ export default function DataManagement() {
 
   const { data: allMetrics = [], refetch: refetchMetrics } = useQuery({
     queryKey: ['allMetrics'],
-    queryFn: () => base44.entities.MetricsDaily.list('-created_date', 100),
+    queryFn: () => base44.entities.MetaAdDaily.list('-created_date', 100),
   });
 
   const { data: webhookLogs = [], refetch: refetchLogs } = useQuery({
@@ -88,7 +88,7 @@ export default function DataManagement() {
   const deleteMetricsMutation = useMutation({
     mutationFn: async (metricIds) => {
       for (const id of metricIds) {
-        await base44.entities.MetricsDaily.delete(id);
+        await base44.entities.MetaAdDaily.delete(id);
       }
       return metricIds.length;
     },
@@ -124,7 +124,7 @@ export default function DataManagement() {
 
       // Delete in batches
       for (const metric of metricsToDelete) {
-        await base44.entities.MetricsDaily.delete(metric.id);
+        await base44.entities.MetaAdDaily.delete(metric.id);
       }
 
       return metricsToDelete.length;
@@ -585,11 +585,11 @@ export default function DataManagement() {
                     </th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Data</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700">Unidade</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Plataforma</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">Anúncio</th>
                     <th className="px-3 py-2 text-right font-medium text-gray-700">Investimento</th>
                     <th className="px-3 py-2 text-right font-medium text-gray-700">Impressões</th>
                     <th className="px-3 py-2 text-right font-medium text-gray-700">Cliques</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">Conversões</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700">Conversas WA</th>
                     <th className="px-3 py-2 text-center font-medium text-gray-700">Criado em</th>
                   </tr>
                 </thead>
@@ -625,10 +625,8 @@ export default function DataManagement() {
                           <td className="px-3 py-2 text-gray-600">
                             {getUnitName(metric.unit_id)}
                           </td>
-                          <td className="px-3 py-2">
-                            <Badge className="text-xs">
-                              {PLATFORMS.find(p => p.id === metric.platform_id)?.icon || ''} {metric.platform_id}
-                            </Badge>
+                          <td className="px-3 py-2 text-gray-600 text-xs">
+                            {metric.ad_name || metric.ad_id}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-900 font-medium">
                             {formatCurrency(metric.spend)}
@@ -640,7 +638,7 @@ export default function DataManagement() {
                             {(metric.clicks || 0).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-600">
-                            {(metric.conversions || 0).toLocaleString('pt-BR')}
+                            {(metric.wa_conversations_started_7d || 0).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-3 py-2 text-center text-xs text-gray-500">
                             {format(new Date(metric.created_date), 'dd/MM HH:mm')}

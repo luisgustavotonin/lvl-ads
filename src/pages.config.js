@@ -51,12 +51,12 @@ import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
 import Integrations from './pages/Integrations';
 import Profiles from './pages/Profiles';
+import ReportModel from './pages/ReportModel';
 import Reports from './pages/Reports';
 import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
-import ReportModel from './pages/ReportModel';
 import __Layout from './Layout.jsx';
 
 
@@ -65,12 +65,12 @@ export const PAGES = {
     "DataManagement": DataManagement,
     "Integrations": Integrations,
     "Profiles": Profiles,
+    "ReportModel": ReportModel,
     "Reports": Reports,
     "Schedules": Schedules,
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
-    "ReportModel": ReportModel,
 }
 
 export const pagesConfig = {
