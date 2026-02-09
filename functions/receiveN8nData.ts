@@ -84,6 +84,14 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        // Função para garantir que o valor seja sempre um objeto
+        const ensureObject = (value) => {
+            if (Array.isArray(value)) {
+                return value.length > 0 ? Object.assign({}, ...value) : {};
+            }
+            return typeof value === 'object' && value !== null ? value : {};
+        };
+
         // Processar anúncios com UPSERT (idempotência)
         let adsUpserted = 0;
 
@@ -132,9 +140,9 @@ Deno.serve(async (req) => {
                 cost_per_conversation: parseFloat(metrics.cost_per_conversation || 0),
                 cost_per_total_contact: parseFloat(metrics.cost_per_total_contact || 0),
                 cost_per_first_reply: parseFloat(metrics.cost_per_first_reply || 0),
-                demographics_json: breakdowns.demographics || {},
-                placement_json: breakdowns.placement || {},
-                devices_json: breakdowns.devices || {},
+                demographics_json: ensureObject(breakdowns.demographics),
+                placement_json: ensureObject(breakdowns.placement),
+                devices_json: ensureObject(breakdowns.devices),
                 run_id: run_id || ''
             };
 
