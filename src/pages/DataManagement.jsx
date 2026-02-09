@@ -403,6 +403,22 @@ export default function DataManagement() {
       <div className="flex justify-end gap-2">
         <Button 
           variant="outline" 
+          onClick={async () => {
+            try {
+              const result = await base44.functions.invoke('aggregateMetaAdDaily', {});
+              alert(`✅ Agregação concluída!\n\n${result.data.stats.ads_processed} anúncios processados\n${result.data.stats.daily_metrics_created} métricas criadas\n${result.data.stats.daily_metrics_updated} métricas atualizadas`);
+              refetchMetrics();
+            } catch (error) {
+              alert(`❌ Erro: ${error.message}`);
+            }
+          }}
+          className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Database className="w-4 h-4" />
+          Agregar Dados → MetricsDaily
+        </Button>
+        <Button 
+          variant="outline" 
           onClick={() => {
             refetchMetrics();
             refetchLogs();

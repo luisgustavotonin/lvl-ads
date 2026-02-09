@@ -184,6 +184,23 @@ Deno.serve(async (req) => {
             }
         });
 
+        // Se for o último batch, agregar dados automaticamente
+        if (batch_index === batch_total) {
+            console.log('🔄 Último batch recebido, iniciando agregação automática...');
+            
+            try {
+                // Chamar função de agregação
+                const aggregationResult = await base44.asServiceRole.functions.invoke('aggregateMetaAdDaily', {
+                    unit_id: unit_id
+                });
+                
+                console.log('✅ Agregação concluída:', aggregationResult);
+            } catch (aggError) {
+                console.error('⚠️ Erro na agregação (não fatal):', aggError.message);
+                // Não falha o webhook se a agregação falhar
+            }
+        }
+
         return Response.json({
             ok: true,
             run_id: run_id,
