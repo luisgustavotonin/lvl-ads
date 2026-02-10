@@ -371,12 +371,20 @@ export default function Integrations() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: `${platform.color}15` }}
-                    >
-                      {platform.icon}
-                    </div>
+                    {platformIntegrations.length > 0 && platformIntegrations[0].logo_url ? (
+                      <img 
+                        src={platformIntegrations[0].logo_url} 
+                        alt={platform.name}
+                        className="w-12 h-12 rounded-xl object-contain"
+                      />
+                    ) : (
+                      <div 
+                        className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                        style={{ backgroundColor: `${platform.color}15` }}
+                      >
+                        {platform.icon}
+                      </div>
+                    )}
                     <div>
                       <CardTitle className="text-lg">{platform.name}</CardTitle>
                       <p className="text-sm text-gray-500">{platform.description}</p>
