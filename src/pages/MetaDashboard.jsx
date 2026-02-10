@@ -13,6 +13,12 @@ import { Tooltip as TooltipUI, TooltipContent, TooltipProvider, TooltipTrigger }
 import PeriodFilter from '@/components/report/PeriodFilter';
 import MetaKPISelector from '@/components/meta/MetaKPISelector';
 import MetaFunnel from '@/components/meta/MetaFunnel';
+import MetaCampaignsTable from '@/components/meta/MetaCampaignsTable';
+import MetaAdsetsTable from '@/components/meta/MetaAdsetsTable';
+import MetaAdsTable from '@/components/meta/MetaAdsTable';
+import MetaBreakdownPlacement from '@/components/meta/MetaBreakdownPlacement';
+import MetaBreakdownDemographics from '@/components/meta/MetaBreakdownDemographics';
+import MetaBreakdownDevices from '@/components/meta/MetaBreakdownDevices';
 
 const ALL_KPIS = [
   // Entrega
@@ -79,6 +85,21 @@ export default function MetaDashboard() {
           $lte: format(period.end, 'yyyy-MM-dd') 
         }
       }, '-date', 5000);
+    },
+    enabled: !!selectedUnit,
+  });
+
+  const { data: metaAdDaily = [] } = useQuery({
+    queryKey: ['metaAdDailyCurrent', selectedUnit, period.start, period.end],
+    queryFn: async () => {
+      if (!selectedUnit) return [];
+      return base44.entities.MetaAdDaily.filter({
+        unit_id: selectedUnit,
+        date: { 
+          $gte: format(period.start, 'yyyy-MM-dd'), 
+          $lte: format(period.end, 'yyyy-MM-dd') 
+        }
+      }, '-date', 10000);
     },
     enabled: !!selectedUnit,
   });
@@ -411,6 +432,21 @@ export default function MetaDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Tabelas de Ranking */}
+        <MetaCampaignsTable metaAdDaily={metaAdDaily} />
+        <MetaAdsetsTable metaAdDaily={metaAdDaily} />
+        <MetaAdsTable metaAdDaily={metaAdDaily} />
+
+        {/* Breakdowns */}
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Análise por Segmento</h2>
+          <div className="space-y-6">
+            <MetaBreakdownPlacement metaAdDaily={metaAdDaily} />
+            <MetaBreakdownDemographics metaAdDaily={metaAdDaily} />
+            <MetaBreakdownDevices metaAdDaily={metaAdDaily} />
+          </div>
         </div>
       </div>
     </div>
