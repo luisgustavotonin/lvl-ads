@@ -42,19 +42,22 @@ export default function DataManagement() {
   const [sortField, setSortField] = useState('created_date');
   const [sortDirection, setSortDirection] = useState('desc');
   
-  // Auto-colunas: estado de visibilidade
-  const [visibleColumns, setVisibleColumns] = useState({
-    date: true,
-    unit_id: true,
-    ad_name: true,
-    spend: true,
-    impressions: true,
-    reach: true,
-    clicks: true,
-    link_clicks: true,
-    wa_conversations_started_7d: true,
-    wa_messaging_first_reply: true,
-    created_date: true,
+  // Auto-colunas: carregar preferências do localStorage
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('dataManagement_visibleColumns');
+    return saved ? JSON.parse(saved) : {
+      date: true,
+      unit_id: true,
+      ad_name: true,
+      spend: true,
+      impressions: true,
+      reach: true,
+      clicks: true,
+      link_clicks: true,
+      wa_conversations_started_7d: true,
+      wa_messaging_first_reply: true,
+      created_date: true,
+    };
   });
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
@@ -127,7 +130,7 @@ export default function DataManagement() {
   const getFilteredMetrics = () => {
     return allMetrics.filter(m => {
       const matchUnit = selectedUnit === 'all' || m.unit_id === selectedUnit;
-      const matchPlatform = true; // MetaAdDaily não tem platform_id
+      const matchPlatform = selectedPlatform === 'all' || selectedPlatform === 'META'; // MetaAdDaily é sempre META
       
       // Comparação de STRING (lexicográfica funciona para YYYY-MM-DD)
       const matchDate = (!dateFrom || m.date >= dateFrom) && (!dateTo || m.date <= dateTo);
@@ -194,7 +197,11 @@ export default function DataManagement() {
   };
 
   const toggleColumnVisibility = (colKey) => {
-    setVisibleColumns(prev => ({ ...prev, [colKey]: !prev[colKey] }));
+    setVisibleColumns(prev => {
+      const updated = { ...prev, [colKey]: !prev[colKey] };
+      localStorage.setItem('dataManagement_visibleColumns', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   if (unitsLoading) {
@@ -207,25 +214,9 @@ export default function DataManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Gestão de Dados (BUG TIMEZONE CORRIGIDO)</h1>
-        <p className="text-gray-500 mt-1">Datas agora são tratadas como STRING YYYY-MM-DD sem conversão</p>
+        <h1 className="text-2xl font-bold text-gray-900">Gestão de Dados</h1>
+        <p className="text-gray-500 mt-1">Gerencie e visualize os dados do sistema</p>
       </div>
-
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-900">
-              <p className="font-medium">✅ Correção implementada:</p>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Campo "date" agora é sempre STRING (YYYY-MM-DD) sem timezone</li>
-                <li>Comparação usa ordem lexicográfica (funciona perfeitamente para YYYY-MM-DD)</li>
-                <li>Formatação visual (DD/MM/YYYY) sem criar Date()</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Filtros */}
       <Card>
@@ -233,7 +224,7 @@ export default function DataManagement() {
           <CardTitle className="text-lg">Filtros</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <Label>Unidade</Label>
               <Select value={selectedUnit} onValueChange={setSelectedUnit}>
@@ -244,24 +235,34 @@ export default function DataManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Plataforma</Label>
+              <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PLATFORMS.map(p => <SelectItem key={p.id} value={p.id}>{p.icon} {p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             
             <div className="space-y-2">
-              <Label>Data Início (YYYY-MM-DD)</Label>
+              <Label>Data Início (DD/MM/AAAA)</Label>
               <Input 
                 type="date" 
                 value={dateFrom} 
                 onChange={(e) => setDateFrom(e.target.value)}
-                placeholder="YYYY-MM-DD"
+                placeholder="DD/MM/AAAA"
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Data Fim (YYYY-MM-DD)</Label>
+              <Label>Data Fim (DD/MM/AAAA)</Label>
               <Input 
                 type="date" 
                 value={dateTo} 
                 onChange={(e) => setDateTo(e.target.value)}
-                placeholder="YYYY-MM-DD"
+                placeholder="DD/MM/AAAA"
               />
             </div>
 
@@ -332,7 +333,7 @@ export default function DataManagement() {
                     <SheetTitle>Selecionar Colunas</SheetTitle>
                     <SheetDescription>Escolha quais colunas exibir</SheetDescription>
                   </SheetHeader>
-                  <div className="mt-6 space-y-3">
+                  <div className="mt-6 space-y-3 max-h-[calc(100vh-150px)] overflow-y-auto pr-2">
                     {dynamicColumns.map(col => (
                       <div key={col.key} className="flex items-center gap-2">
                         <Checkbox 
