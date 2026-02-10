@@ -77,31 +77,13 @@ export default function Reports() {
     enabled: !!selectedUnit,
   });
 
-  const { data: metricsDaily = [] } = useQuery({
-    queryKey: ['metricsDailyCurrent', selectedUnit, period.start, period.end, selectedPlatforms],
-    queryFn: async () => {
-      if (!selectedUnit) return [];
-      if (!selectedPlatforms.includes('META')) return [];
-      return base44.entities.MetricsDaily.filter({
-        unit_id: selectedUnit,
-        provider: 'meta',
-        date: { 
-          $gte: format(period.start, 'yyyy-MM-dd'), 
-          $lte: format(period.end, 'yyyy-MM-dd') 
-        }
-      }, '-date', 5000);
-    },
-    enabled: !!selectedUnit,
-  });
-
   // Auto-detectar plataformas com dados
   React.useEffect(() => {
     const checkPlatformsWithData = async () => {
       if (!selectedUnit) return;
       
-      const hasMetaData = await base44.entities.MetricsDaily.filter({
+      const hasMetaData = await base44.entities.MetaAdDaily.filter({
         unit_id: selectedUnit,
-        provider: 'meta',
         date: { 
           $gte: format(period.start, 'yyyy-MM-dd'), 
           $lte: format(period.end, 'yyyy-MM-dd') 
@@ -119,12 +101,12 @@ export default function Reports() {
   }, [selectedUnit, period]);
 
   const current = useMemo(() => {
-    const spend = metricsDaily.reduce((s, m) => s + (m.spend_sum || 0), 0);
-    const impressions = metricsDaily.reduce((s, m) => s + (m.impressions_sum || 0), 0);
-    const reach = metricsDaily.reduce((s, m) => s + (m.reach_sum || 0), 0);
-    const clicks = metricsDaily.reduce((s, m) => s + (m.clicks_sum || 0), 0);
-    const linkClicks = metricsDaily.reduce((s, m) => s + (m.link_clicks_sum || 0), 0);
-    const conversations = metricsDaily.reduce((s, m) => s + (m.wa_conversations_started_7d_sum || 0), 0);
+    const spend = currentMetrics.reduce((s, m) => s + (m.spend || 0), 0);
+    const impressions = currentMetrics.reduce((s, m) => s + (m.impressions || 0), 0);
+    const reach = currentMetrics.reduce((s, m) => s + (m.reach || 0), 0);
+    const clicks = currentMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
+    const linkClicks = currentMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
+    const conversations = currentMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
     
     return {
       spend,
@@ -139,36 +121,38 @@ export default function Reports() {
       conversations,
       costPerConversation: conversations > 0 ? spend / conversations : 0,
     };
-  }, [metricsDaily]);
+  }, [currentMetrics]);
 
   const dailyCharts = useMemo(() => {
     const byDate = {};
-    metricsDaily.forEach(m => {
+    currentMetrics.forEach(m => {
       if (!byDate[m.date]) {
         byDate[m.date] = {
           date: m.date,
           spend: 0,
           impressions: 0,
           reach: 0,
+          link_clicks: 0,
           ctr_link: 0,
           conversations: 0,
           cost_per_conversation: 0,
         };
       }
-      byDate[m.date].spend += m.spend_sum || 0;
-      byDate[m.date].impressions += m.impressions_sum || 0;
-      byDate[m.date].reach += m.reach_sum || 0;
-      byDate[m.date].conversations += m.wa_conversations_started_7d_sum || 0;
+      byDate[m.date].spend += m.spend || 0;
+      byDate[m.date].impressions += m.impressions || 0;
+      byDate[m.date].reach += m.reach || 0;
+      byDate[m.date].link_clicks += m.link_clicks || 0;
+      byDate[m.date].conversations += m.wa_conversations_started_7d || 0;
     });
 
     // Recalcular métricas derivadas
     Object.values(byDate).forEach(day => {
-      day.ctr_link = day.impressions > 0 ? ((day.conversations / day.impressions) * 100) : 0;
+      day.ctr_link = day.impressions > 0 ? ((day.link_clicks / day.impressions) * 100) : 0;
       day.cost_per_conversation = day.conversations > 0 ? (day.spend / day.conversations) : 0;
     });
 
     return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
-  }, [metricsDaily]);
+  }, [currentMetrics]);
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   const formatNumber = (val) => new Intl.NumberFormat('pt-BR').format(Math.round(val));
@@ -218,7 +202,7 @@ export default function Reports() {
             </div>
             <div className="flex gap-2">
               <MetaExportCSV 
-                metricsDaily={metricsDaily} 
+                metricsDaily={[]} 
                 metaAdDaily={currentMetrics}
                 unitName={selectedUnitData?.name || 'Unidade'}
                 period={period}
