@@ -19,6 +19,8 @@ import MetaAdsTable from '@/components/meta/MetaAdsTable';
 import MetaBreakdownPlacement from '@/components/meta/MetaBreakdownPlacement';
 import MetaBreakdownDemographics from '@/components/meta/MetaBreakdownDemographics';
 import MetaBreakdownDevices from '@/components/meta/MetaBreakdownDevices';
+import MetaExportPDF from '@/components/meta/MetaExportPDF';
+import MetaExportCSV from '@/components/meta/MetaExportCSV';
 
 const ALL_KPIS = [
   // Entrega
@@ -280,7 +282,19 @@ export default function MetaDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Meta Ads Dashboard</h1>
             <p className="text-gray-600 mt-1">Análise completa de performance</p>
           </div>
-          <MetaKPISelector selected={selectedKPIs} onChange={setSelectedKPIs} allKPIs={ALL_KPIS} />
+          <div className="flex gap-2">
+            <MetaExportCSV 
+              metricsDaily={currentMetrics} 
+              metaAdDaily={metaAdDaily}
+              unitName={units.find(u => u.id === selectedUnit)?.name || 'Unidade'}
+              period={period}
+            />
+            <MetaExportPDF 
+              unitName={units.find(u => u.id === selectedUnit)?.name || 'Unidade'}
+              period={period}
+            />
+            <MetaKPISelector selected={selectedKPIs} onChange={setSelectedKPIs} allKPIs={ALL_KPIS} />
+          </div>
         </div>
 
         {/* Filters */}
@@ -307,7 +321,7 @@ export default function MetaDashboard() {
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-pdf-section>
           {selectedKPIs.map(kpiId => {
             const kpi = ALL_KPIS.find(k => k.id === kpiId);
             return kpi ? <KPICard key={kpi.id} kpi={kpi} /> : null;

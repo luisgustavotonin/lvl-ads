@@ -58,6 +58,7 @@ import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
 import MetaDashboard from './pages/MetaDashboard';
+import MetaValidation from './pages/MetaValidation';
 import __Layout from './Layout.jsx';
 
 
@@ -73,6 +74,7 @@ export const PAGES = {
     "Units": Units,
     "Users": Users,
     "MetaDashboard": MetaDashboard,
+    "MetaValidation": MetaValidation,
 }
 
 export const pagesConfig = {

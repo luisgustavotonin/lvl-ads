@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   LogOut,
-  Bell
+  Bell,
+  CheckCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,7 @@ const navigation = [
   { name: 'Perfis', href: 'Profiles', icon: Shield },
   { name: 'Usuários', href: 'Users', icon: Users },
   { name: 'Gestão de Dados', href: 'DataManagement', icon: Database },
+  { name: 'Validação Meta', href: 'MetaValidation', icon: CheckCircle },
   { name: 'Configurações', href: 'Settings', icon: Settings },
 ];
 
