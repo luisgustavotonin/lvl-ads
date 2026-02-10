@@ -48,6 +48,7 @@ export default function Reports() {
   });
   const [showComparison, setShowComparison] = useState(true);
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -61,9 +62,10 @@ export default function Reports() {
   }, [units, selectedUnit]);
 
   const { data: currentMetrics = [], isLoading } = useQuery({
-    queryKey: ['currentMetrics', selectedUnit, period.start, period.end],
+    queryKey: ['currentMetrics', selectedUnit, period.start, period.end, selectedPlatforms],
     queryFn: async () => {
       if (!selectedUnit) return [];
+      if (!selectedPlatforms.includes('META')) return [];
       return base44.entities.MetaAdDaily.filter({
         unit_id: selectedUnit,
         date: { 
@@ -76,11 +78,13 @@ export default function Reports() {
   });
 
   const { data: metricsDaily = [] } = useQuery({
-    queryKey: ['metricsDailyCurrent', selectedUnit, period.start, period.end],
+    queryKey: ['metricsDailyCurrent', selectedUnit, period.start, period.end, selectedPlatforms],
     queryFn: async () => {
       if (!selectedUnit) return [];
+      if (!selectedPlatforms.includes('META')) return [];
       return base44.entities.MetricsDaily.filter({
         unit_id: selectedUnit,
+        provider: 'meta',
         date: { 
           $gte: format(period.start, 'yyyy-MM-dd'), 
           $lte: format(period.end, 'yyyy-MM-dd') 
@@ -89,6 +93,30 @@ export default function Reports() {
     },
     enabled: !!selectedUnit,
   });
+
+  // Auto-detectar plataformas com dados
+  React.useEffect(() => {
+    const checkPlatformsWithData = async () => {
+      if (!selectedUnit) return;
+      
+      const hasMetaData = await base44.entities.MetricsDaily.filter({
+        unit_id: selectedUnit,
+        provider: 'meta',
+        date: { 
+          $gte: format(period.start, 'yyyy-MM-dd'), 
+          $lte: format(period.end, 'yyyy-MM-dd') 
+        }
+      }, '-date', 1);
+      
+      if (hasMetaData.length > 0 && !selectedPlatforms.includes('META')) {
+        setSelectedPlatforms(['META']);
+      } else if (hasMetaData.length === 0 && selectedPlatforms.includes('META')) {
+        setSelectedPlatforms([]);
+      }
+    };
+    
+    checkPlatformsWithData();
+  }, [selectedUnit, period]);
 
   const current = useMemo(() => {
     const spend = metricsDaily.reduce((s, m) => s + (m.spend_sum || 0), 0);
@@ -175,9 +203,18 @@ export default function Reports() {
         {/* Header */}
         <Card className="p-8 bg-white border border-gray-200 shadow-sm">
           <div className="flex items-start justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900">Relatório Meta Ads - {selectedUnitData?.name || 'Cliente'}</h1>
-              <p className="text-lg text-gray-600 mt-2">Análise completa de performance</p>
+            <div className="flex items-center gap-4">
+              {selectedUnitData?.logo_url && (
+                <img 
+                  src={selectedUnitData.logo_url} 
+                  alt={selectedUnitData.name}
+                  className="w-16 h-16 object-cover rounded-lg"
+                />
+              )}
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900">Relatório - {selectedUnitData?.name || 'Cliente'}</h1>
+                <p className="text-lg text-gray-600 mt-2">Análise completa de performance</p>
+              </div>
             </div>
             <div className="flex gap-2">
               <MetaExportCSV 
@@ -233,19 +270,49 @@ export default function Reports() {
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-4">
-            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Selecione a unidade" />
-              </SelectTrigger>
-              <SelectContent>
-                {units.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <PeriodFilter value={period} onChange={setPeriod} />
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Selecione a unidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units.map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <PeriodFilter value={period} onChange={setPeriod} />
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">Plataformas</Label>
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    id="platform-meta"
+                    checked={selectedPlatforms.includes('META')}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedPlatforms([...selectedPlatforms, 'META']);
+                      } else {
+                        setSelectedPlatforms(selectedPlatforms.filter(p => p !== 'META'));
+                      }
+                    }}
+                  />
+                  <label htmlFor="platform-meta" className="text-sm cursor-pointer">Meta Ads</label>
+                </div>
+                <div className="flex items-center gap-2 opacity-50">
+                  <Checkbox id="platform-google" disabled />
+                  <label htmlFor="platform-google" className="text-sm">Google Ads (em breve)</label>
+                </div>
+                <div className="flex items-center gap-2 opacity-50">
+                  <Checkbox id="platform-tiktok" disabled />
+                  <label htmlFor="platform-tiktok" className="text-sm">TikTok Ads (em breve)</label>
+                </div>
+              </div>
+            </div>
           </div>
         </Card>
 
