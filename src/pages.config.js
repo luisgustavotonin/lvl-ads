@@ -50,8 +50,6 @@
 import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
 import Integrations from './pages/Integrations';
-import MetaDashboard from './pages/MetaDashboard';
-import MetaValidation from './pages/MetaValidation';
 import Profiles from './pages/Profiles';
 import ReportModel from './pages/ReportModel';
 import Reports from './pages/Reports';
@@ -66,8 +64,6 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "DataManagement": DataManagement,
     "Integrations": Integrations,
-    "MetaDashboard": MetaDashboard,
-    "MetaValidation": MetaValidation,
     "Profiles": Profiles,
     "ReportModel": ReportModel,
     "Reports": Reports,

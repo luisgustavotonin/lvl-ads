@@ -18,8 +18,7 @@ import {
   Menu,
   X,
   LogOut,
-  Bell,
-  CheckCircle
+  Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,14 +32,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navigation = [
   { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard },
-  { name: 'Meta Dashboard', href: 'MetaDashboard', icon: FileText },
   { name: 'Relatórios', href: 'Reports', icon: FileText },
   { name: 'Unidades', href: 'Units', icon: Building2 },
   { name: 'Integrações', href: 'Integrations', icon: Link2 },
   { name: 'Perfis', href: 'Profiles', icon: Shield },
   { name: 'Usuários', href: 'Users', icon: Users },
   { name: 'Gestão de Dados', href: 'DataManagement', icon: Database },
-  { name: 'Validação Meta', href: 'MetaValidation', icon: CheckCircle },
   { name: 'Configurações', href: 'Settings', icon: Settings },
 ];
 
