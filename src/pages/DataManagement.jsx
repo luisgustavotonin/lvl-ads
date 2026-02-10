@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Database, Trash2, AlertTriangle, Calendar, Search, Loader2, RefreshCw, Settings2 } from 'lucide-react';
+import { Database, Trash2, AlertTriangle, Calendar, Search, Loader2, RefreshCw, Settings2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 // HELPER: Formatar data STRING (YYYY-MM-DD) para DD/MM/YYYY SEM criar Date()
 const formatDateString = (dateStr) => {
@@ -29,6 +30,31 @@ const PLATFORMS = [
   { id: 'YOUTUBE', name: 'YouTube', icon: '▶️' },
 ];
 
+// Colunas permitidas (apenas dados da campanha, não dados técnicos)
+const CAMPAIGN_COLUMNS = [
+  { key: 'date', label: 'Data', type: 'date' },
+  { key: 'campaign_name', label: 'Campanha', type: 'string' },
+  { key: 'campaign_id', label: 'ID Campanha', type: 'string' },
+  { key: 'adset_name', label: 'Conjunto de Anúncios', type: 'string' },
+  { key: 'adset_id', label: 'ID Conjunto', type: 'string' },
+  { key: 'ad_name', label: 'Anúncio', type: 'string' },
+  { key: 'ad_id', label: 'ID Anúncio', type: 'string' },
+  { key: 'spend', label: 'Investimento', type: 'currency' },
+  { key: 'impressions', label: 'Impressões', type: 'number' },
+  { key: 'reach', label: 'Alcance', type: 'number' },
+  { key: 'clicks', label: 'Cliques', type: 'number' },
+  { key: 'link_clicks', label: 'Cliques no Link', type: 'number' },
+  { key: 'wa_conversations_started_7d', label: 'Conversas WhatsApp', type: 'number' },
+  { key: 'wa_total_messaging_connection', label: 'Total Contatos WA', type: 'number' },
+  { key: 'wa_messaging_first_reply', label: 'Primeira Resposta WA', type: 'number' },
+  { key: 'ctr_link', label: 'CTR Link', type: 'percent' },
+  { key: 'cpc_link', label: 'CPC Link', type: 'currency' },
+  { key: 'cpm', label: 'CPM', type: 'currency' },
+  { key: 'cost_per_conversation', label: 'Custo por Conversa', type: 'currency' },
+  { key: 'cost_per_total_contact', label: 'Custo por Contato Total', type: 'currency' },
+  { key: 'cost_per_first_reply', label: 'Custo por Primeira Resposta', type: 'currency' },
+];
+
 export default function DataManagement() {
   const queryClient = useQueryClient();
   const [selectedUnit, setSelectedUnit] = useState('all');
@@ -42,12 +68,18 @@ export default function DataManagement() {
   const [sortField, setSortField] = useState('created_date');
   const [sortDirection, setSortDirection] = useState('desc');
   
-  // Auto-colunas: carregar preferências do localStorage
+  // Carregar ordem e visibilidade das colunas do localStorage
+  const [columnOrder, setColumnOrder] = useState(() => {
+    const saved = localStorage.getItem('dataManagement_columnOrder');
+    return saved ? JSON.parse(saved) : CAMPAIGN_COLUMNS.map(c => c.key);
+  });
+
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('dataManagement_visibleColumns');
     return saved ? JSON.parse(saved) : {
       date: true,
-      unit_id: true,
+      campaign_name: true,
+      adset_name: true,
       ad_name: true,
       spend: true,
       impressions: true,
@@ -55,8 +87,6 @@ export default function DataManagement() {
       clicks: true,
       link_clicks: true,
       wa_conversations_started_7d: true,
-      wa_messaging_first_reply: true,
-      created_date: true,
     };
   });
 
@@ -93,26 +123,12 @@ export default function DataManagement() {
     queryFn: () => base44.entities.WebhookLog.list('-created_date', 20),
   });
 
-  // Detectar colunas dinâmicas baseadas no payload
-  const dynamicColumns = useMemo(() => {
-    if (allMetrics.length === 0) return [];
-    
-    const allKeys = new Set();
-    allMetrics.forEach(metric => {
-      Object.keys(metric).forEach(key => {
-        // Ignorar campos fixos e complexos
-        if (!['id', 'created_date', 'updated_date', 'created_by', 'demographics_json', 'placement_json', 'devices_json'].includes(key)) {
-          allKeys.add(key);
-        }
-      });
-    });
-
-    return Array.from(allKeys).map(key => ({
-      key,
-      label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      type: typeof allMetrics[0][key] === 'number' ? 'number' : 'string'
-    }));
-  }, [allMetrics]);
+  // Ordenar colunas conforme a ordem salva
+  const orderedColumns = useMemo(() => {
+    return columnOrder
+      .map(key => CAMPAIGN_COLUMNS.find(col => col.key === key))
+      .filter(Boolean);
+  }, [columnOrder]);
 
   const deleteMetricsMutation = useMutation({
     mutationFn: async (metricIds) => {
@@ -224,6 +240,34 @@ export default function DataManagement() {
       localStorage.setItem('dataManagement_visibleColumns', JSON.stringify(updated));
       return updated;
     });
+  };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const items = Array.from(columnOrder);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setColumnOrder(items);
+    localStorage.setItem('dataManagement_columnOrder', JSON.stringify(items));
+  };
+
+  const formatValue = (value, type) => {
+    if (value == null || value === '') return '-';
+    
+    switch (type) {
+      case 'date':
+        return formatDateString(value);
+      case 'currency':
+        return formatCurrency(value);
+      case 'percent':
+        return `${(value * 100).toFixed(2)}%`;
+      case 'number':
+        return new Intl.NumberFormat('pt-BR').format(Math.round(value));
+      default:
+        return value;
+    }
   };
 
   if (unitsLoading) {
@@ -350,21 +394,46 @@ export default function DataManagement() {
                     Colunas
                   </Button>
                 </SheetTrigger>
-                <SheetContent>
+                <SheetContent className="w-[400px] sm:w-[540px]">
                   <SheetHeader>
-                    <SheetTitle>Selecionar Colunas</SheetTitle>
-                    <SheetDescription>Escolha quais colunas exibir</SheetDescription>
+                    <SheetTitle>Configurar Colunas</SheetTitle>
+                    <SheetDescription>Arraste para reordenar e marque para exibir</SheetDescription>
                   </SheetHeader>
-                  <div className="mt-6 space-y-3 max-h-[calc(100vh-150px)] overflow-y-auto pr-2">
-                    {dynamicColumns.map(col => (
-                      <div key={col.key} className="flex items-center gap-2">
-                        <Checkbox 
-                          checked={visibleColumns[col.key] !== false}
-                          onCheckedChange={() => toggleColumnVisibility(col.key)}
-                        />
-                        <label className="text-sm">{col.label}</label>
-                      </div>
-                    ))}
+                  <div className="mt-6 space-y-2 max-h-[calc(100vh-150px)] overflow-y-auto pr-2">
+                    <DragDropContext onDragEnd={handleDragEnd}>
+                      <Droppable droppableId="columns">
+                        {(provided) => (
+                          <div {...provided.droppableProps} ref={provided.innerRef}>
+                            {orderedColumns.map((col, index) => (
+                              <Draggable key={col.key} draggableId={col.key} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    className={`flex items-center gap-3 p-3 mb-2 bg-white border rounded-lg ${
+                                      snapshot.isDragging ? 'shadow-lg border-blue-400' : 'border-gray-200'
+                                    }`}
+                                  >
+                                    <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                      <GripVertical className="w-4 h-4 text-gray-400" />
+                                    </div>
+                                    <Checkbox 
+                                      checked={visibleColumns[col.key] !== false}
+                                      onCheckedChange={() => toggleColumnVisibility(col.key)}
+                                    />
+                                    <label className="text-sm font-medium flex-1 cursor-pointer" onClick={() => toggleColumnVisibility(col.key)}>
+                                      {col.label}
+                                    </label>
+                                    <Badge variant="outline" className="text-xs">{col.type}</Badge>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
                   </div>
                 </SheetContent>
               </Sheet>
@@ -404,7 +473,7 @@ export default function DataManagement() {
                       className="w-4 h-4"
                     />
                   </th>
-                  {dynamicColumns.filter(col => visibleColumns[col.key] !== false).map(col => (
+                  {orderedColumns.filter(col => visibleColumns[col.key] !== false).map(col => (
                     <th 
                       key={col.key}
                       className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
@@ -418,7 +487,7 @@ export default function DataManagement() {
               <tbody className="divide-y divide-gray-100">
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={dynamicColumns.length + 1} className="px-3 py-8 text-center text-gray-500">
+                    <td colSpan={orderedColumns.length + 1} className="px-3 py-8 text-center text-gray-500">
                       Nenhum dado encontrado
                     </td>
                   </tr>
@@ -439,23 +508,13 @@ export default function DataManagement() {
                           className="w-4 h-4"
                         />
                       </td>
-                      {dynamicColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
-                        let value = metric[col.key];
-                        
-                        // Formatação especial
-                        if (col.key === 'date') {
-                          value = formatDateString(value);
-                        } else if (col.key === 'created_date') {
-                          value = formatDateString(String(value).split('T')[0]);
-                        } else if (col.key.includes('spend') || col.key.includes('cost') || col.key.includes('cpc') || col.key.includes('cpm')) {
-                          value = formatCurrency(value);
-                        } else if (col.type === 'number') {
-                          value = new Intl.NumberFormat('pt-BR').format(Math.round(value || 0));
-                        }
+                      {orderedColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
+                        const value = formatValue(metric[col.key], col.type);
+                        const isNumeric = ['number', 'currency', 'percent'].includes(col.type);
                         
                         return (
-                          <td key={col.key} className={`px-3 py-2 ${col.type === 'number' ? 'text-right' : 'text-left'} text-gray-900`}>
-                            {value || '-'}
+                          <td key={col.key} className={`px-3 py-2 ${isNumeric ? 'text-right' : 'text-left'} text-gray-900`}>
+                            {value}
                           </td>
                         );
                       })}
@@ -465,19 +524,13 @@ export default function DataManagement() {
                 {sorted.length > 0 && (
                   <tr className="bg-blue-50 border-t-2 border-blue-200 font-bold">
                     <td className="px-3 py-3"></td>
-                    {dynamicColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
-                      if (col.type !== 'number') {
+                    {orderedColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
+                      if (!['number', 'currency'].includes(col.type)) {
                         return <td key={col.key} className="px-3 py-3"></td>;
                       }
                       
                       const total = filtered.reduce((sum, m) => sum + (m[col.key] || 0), 0);
-                      let formattedTotal = total;
-                      
-                      if (col.key.includes('spend') || col.key.includes('cost') || col.key.includes('cpc') || col.key.includes('cpm')) {
-                        formattedTotal = formatCurrency(total);
-                      } else {
-                        formattedTotal = new Intl.NumberFormat('pt-BR').format(Math.round(total));
-                      }
+                      const formattedTotal = col.type === 'currency' ? formatCurrency(total) : new Intl.NumberFormat('pt-BR').format(Math.round(total));
                       
                       return (
                         <td key={col.key} className="px-3 py-3 text-right text-gray-900">
@@ -491,7 +544,7 @@ export default function DataManagement() {
             </table>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            💡 Colunas dinâmicas: novos campos do payload aparecem automaticamente
+            💡 Clique em "Colunas" para reordenar com drag & drop e escolher quais exibir
           </p>
         </CardContent>
       </Card>
