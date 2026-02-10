@@ -32,6 +32,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navigation = [
   { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard },
+  { name: 'Meta Dashboard', href: 'MetaDashboard', icon: FileText },
   { name: 'Relatórios', href: 'Reports', icon: FileText },
   { name: 'Unidades', href: 'Units', icon: Building2 },
   { name: 'Integrações', href: 'Integrations', icon: Link2 },
