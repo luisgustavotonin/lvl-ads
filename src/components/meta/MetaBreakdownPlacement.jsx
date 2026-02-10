@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+const COLORS = ['#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export default function MetaBreakdownPlacement({ metaAdDaily }) {
   const { platformData, placementData } = useMemo(() => {
@@ -63,37 +63,20 @@ export default function MetaBreakdownPlacement({ metaAdDaily }) {
           <CardTitle className="text-lg">Investimento por Plataforma</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
+          <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={platformData}
-                  dataKey="spend"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label={(entry) => `${entry.name}: ${formatCurrency(entry.spend)}`}
-                >
+              <BarChart data={platformData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
+                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <Bar dataKey="spend" fill="#3B82F6" radius={[0, 8, 8, 0]}>
                   {platformData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Legend />
-              </PieChart>
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
-          </div>
-          <div className="mt-4 space-y-2">
-            {platformData.map((p, idx) => (
-              <div key={idx} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700 capitalize">{p.name}</span>
-                <div className="text-right">
-                  <div className="font-semibold text-gray-900">{formatCurrency(p.spend)}</div>
-                  <div className="text-xs text-gray-500">{formatNumber(p.impressions)} impressões • {formatNumber(p.conversations)} conversas</div>
-                </div>
-              </div>
-            ))}
           </div>
         </CardContent>
       </Card>
@@ -103,7 +86,7 @@ export default function MetaBreakdownPlacement({ metaAdDaily }) {
           <CardTitle className="text-lg">Investimento por Placement</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
+          <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -112,28 +95,21 @@ export default function MetaBreakdownPlacement({ metaAdDaily }) {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
-                  label={(entry) => `${entry.name}: ${formatCurrency(entry.spend)}`}
+                  innerRadius={60}
+                  outerRadius={120}
+                  paddingAngle={2}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
                   {placementData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Legend />
+                <Tooltip 
+                  formatter={(value) => formatCurrency(value)} 
+                  contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                />
               </PieChart>
             </ResponsiveContainer>
-          </div>
-          <div className="mt-4 space-y-2">
-            {placementData.map((p, idx) => (
-              <div key={idx} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700 capitalize">{p.name}</span>
-                <div className="text-right">
-                  <div className="font-semibold text-gray-900">{formatCurrency(p.spend)}</div>
-                  <div className="text-xs text-gray-500">{formatNumber(p.impressions)} impressões • {formatNumber(p.conversations)} conversas</div>
-                </div>
-              </div>
-            ))}
           </div>
         </CardContent>
       </Card>

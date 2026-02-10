@@ -1,47 +1,57 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
 
-export default function FunnelChart({ data, title = "Funil de Conversão" }) {
-  if (!data || data.length === 0) return null;
+export default function FunnelChart({ data }) {
+  const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  const formatNumber = (val) => new Intl.NumberFormat('pt-BR').format(Math.round(val));
 
-  const maxValue = Math.max(...data.map(d => d.value));
+  const steps = [
+    { label: 'Investimento', value: data.spend, format: formatCurrency, color: '#3B82F6' },
+    { label: 'Impressões', value: data.impressions, format: formatNumber, color: '#60A5FA' },
+    { label: 'Alcance', value: data.reach, format: formatNumber, color: '#93C5FD' },
+    { label: 'Cliques', value: data.clicks, format: formatNumber, color: '#BFDBFE' },
+    { label: 'Cliques no link', value: data.linkClicks, format: formatNumber, color: '#DBEAFE' },
+    { label: 'Conversas', value: data.conversations, format: formatNumber, color: '#EFF6FF' },
+  ];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">{title}</h3>
-      <div className="space-y-3">
-        {data.map((item, index) => {
-          const widthPercent = (item.value / maxValue) * 100;
-          const conversionRate = index > 0 ? ((item.value / data[index - 1].value) * 100).toFixed(1) : null;
-          
-          return (
-            <div key={item.label} className="relative">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-gray-900">
-                    {new Intl.NumberFormat('pt-BR').format(item.value)}
-                  </span>
-                  {conversionRate && (
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {conversionRate}%
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="h-8 bg-gray-100 rounded-lg overflow-hidden">
-                <div 
-                  className={cn(
-                    "h-full rounded-lg transition-all duration-500",
-                    item.color || "bg-blue-500"
-                  )}
-                  style={{ width: `${widthPercent}%` }}
-                />
+    <div className="flex flex-col items-center gap-1 py-6">
+      {steps.map((step, idx) => {
+        const widthPercent = 100 - (idx * 12);
+        const convRate = idx > 0 ? ((step.value / steps[idx - 1].value) * 100) : 100;
+        
+        return (
+          <div key={idx} className="w-full flex flex-col items-center">
+            <div 
+              className="relative flex items-center justify-center py-6 px-6 rounded-lg shadow-md transition-all hover:scale-105"
+              style={{ 
+                width: `${widthPercent}%`,
+                backgroundColor: step.color,
+                minWidth: '200px'
+              }}
+            >
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-700 mb-1">{step.label}</div>
+                <div className="text-xl font-bold text-gray-900">{step.format(step.value)}</div>
+                {idx > 0 && (
+                  <div className="text-xs text-gray-600 mt-1">{convRate.toFixed(1)}% conversão</div>
+                )}
               </div>
             </div>
-          );
-        })}
-      </div>
+            
+            {/* Connector Triangle */}
+            {idx < steps.length - 1 && (
+              <svg width="0" height="16" className="relative" style={{ top: '-1px' }}>
+                <defs>
+                  <linearGradient id={`gradient-${idx}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{ stopColor: step.color, stopOpacity: 1 }} />
+                    <stop offset="100%" style={{ stopColor: steps[idx + 1].color, stopOpacity: 1 }} />
+                  </linearGradient>
+                </defs>
+              </svg>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

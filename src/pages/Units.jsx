@@ -46,10 +46,12 @@ export default function Units() {
   const [editingUnit, setEditingUnit] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    logo_url: '',
     color: COLORS[0],
     default_period: 'last_30_days',
     status: 'active',
   });
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const { data: units = [], isLoading } = useQuery({
     queryKey: ['units'],
@@ -90,6 +92,7 @@ export default function Units() {
       setEditingUnit(unit);
       setFormData({
         name: unit.name,
+        logo_url: unit.logo_url || '',
         color: unit.color || COLORS[0],
         default_period: unit.default_period || 'last_30_days',
         status: unit.status || 'active',
@@ -98,12 +101,28 @@ export default function Units() {
       setEditingUnit(null);
       setFormData({
         name: '',
+        logo_url: '',
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         default_period: 'last_30_days',
         status: 'active',
       });
     }
     setDialogOpen(true);
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setFormData({ ...formData, logo_url: file_url });
+    } catch (error) {
+      alert('Erro ao fazer upload do logo: ' + error.message);
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -174,13 +193,21 @@ export default function Units() {
             <Card key={unit.id} className="group hover:shadow-lg transition-shadow border-gray-100">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-bold"
-                      style={{ backgroundColor: unit.color || '#3B82F6' }}
-                    >
-                      {unit.name?.charAt(0)?.toUpperCase()}
-                    </div>
+                 <div className="flex items-center gap-3">
+                   {unit.logo_url ? (
+                     <img 
+                       src={unit.logo_url} 
+                       alt={unit.name}
+                       className="w-12 h-12 rounded-xl object-cover"
+                     />
+                   ) : (
+                     <div 
+                       className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-bold"
+                       style={{ backgroundColor: unit.color || '#3B82F6' }}
+                     >
+                       {unit.name?.charAt(0)?.toUpperCase()}
+                     </div>
+                   )}
                     <div>
                       <h3 className="font-semibold text-gray-900">{unit.name}</h3>
                       <Badge 
@@ -232,6 +259,23 @@ export default function Units() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ex: Loja Centro"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="logo">Logo da Empresa (opcional)</Label>
+              {formData.logo_url && (
+                <div className="mb-2">
+                  <img src={formData.logo_url} alt="Logo" className="w-20 h-20 object-cover rounded-lg border" />
+                </div>
+              )}
+              <Input
+                id="logo"
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                disabled={uploadingLogo}
+              />
+              {uploadingLogo && <p className="text-sm text-gray-500">Fazendo upload...</p>}
             </div>
 
             <div className="space-y-2">

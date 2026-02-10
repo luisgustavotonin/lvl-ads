@@ -22,6 +22,7 @@ import MetaBreakdownDemographics from '@/components/meta/MetaBreakdownDemographi
 import MetaBreakdownDevices from '@/components/meta/MetaBreakdownDevices';
 import MetaExportPDF from '@/components/meta/MetaExportPDF';
 import MetaExportCSV from '@/components/meta/MetaExportCSV';
+import FunnelChart from '@/components/report/FunnelChart';
 
 const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
 
@@ -263,42 +264,7 @@ export default function Reports() {
             {/* Funil */}
             <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
               <h3 className="text-xl font-bold text-gray-900 mb-6">Funil de Conversão</h3>
-              <div className="space-y-2">
-                {[
-                  { label: 'Investimento', value: current.spend, format: formatCurrency },
-                  { label: 'Impressões', value: current.impressions, format: formatNumber },
-                  { label: 'Alcance', value: current.reach, format: formatNumber },
-                  { label: 'Cliques', value: current.clicks, format: formatNumber },
-                  { label: 'Cliques no link', value: current.linkClicks, format: formatNumber },
-                  { label: 'Conversas', value: current.conversations, format: formatNumber },
-                ].map((step, idx) => {
-                  const maxVal = current.spend;
-                  const width = maxVal > 0 ? ((step.value / maxVal) * 100) : 0;
-                  const displayWidth = Math.min(Math.max(width, 15), 100);
-                  const convRate = idx > 0 ? ((step.value / [current.spend, current.impressions, current.reach, current.clicks, current.linkClicks, current.conversations][idx - 1]) * 100) : 0;
-                  
-                  return (
-                    <div key={idx}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700">{step.label}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-gray-900">{step.format(step.value)}</span>
-                          {idx > 0 && <span className="text-xs text-gray-500">{convRate.toFixed(1)}%</span>}
-                        </div>
-                      </div>
-                      <div className="w-full h-12 bg-gray-100 rounded overflow-hidden">
-                        <div 
-                          className="h-full flex items-center px-3 text-white text-sm font-bold transition-all"
-                          style={{ 
-                            width: `${displayWidth}%`,
-                            backgroundColor: COLORS_BLUE[idx] || COLORS_BLUE[0]
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <FunnelChart data={current} />
             </Card>
 
             {/* Gráficos por Dia */}

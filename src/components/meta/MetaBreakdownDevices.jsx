@@ -48,15 +48,19 @@ export default function MetaBreakdownDevices({ metaAdDaily }) {
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius={100}
-                label={(entry) => `${entry.name}: ${formatCurrency(entry.spend)}`}
+                innerRadius={60}
+                outerRadius={120}
+                paddingAngle={2}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
                 {devicesData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => formatCurrency(value)} />
-              <Legend />
+              <Tooltip 
+                formatter={(value) => formatCurrency(value)}
+                contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px', border: '1px solid #E5E7EB' }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
