@@ -65,9 +65,27 @@ export default function DataManagement() {
     queryFn: () => base44.entities.Unit.list(),
   });
 
-  const { data: allMetrics = [], refetch: refetchMetrics } = useQuery({
-    queryKey: ['allMetrics'],
-    queryFn: () => base44.entities.MetaAdDaily.list('-created_date', 100),
+  const { data: allMetrics = [], refetch: refetchMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['allMetrics', selectedUnit, dateFrom, dateTo],
+    queryFn: async () => {
+      const filters = {};
+      
+      if (selectedUnit !== 'all') {
+        filters.unit_id = selectedUnit;
+      }
+      
+      if (dateFrom || dateTo) {
+        filters.date = {};
+        if (dateFrom) filters.date.$gte = dateFrom;
+        if (dateTo) filters.date.$lte = dateTo;
+      }
+      
+      // Se houver filtros, busca TUDO do período, senão busca os últimos 100
+      const hasFilters = Object.keys(filters).length > 0;
+      return hasFilters 
+        ? base44.entities.MetaAdDaily.filter(filters, '-date', 10000)
+        : base44.entities.MetaAdDaily.list('-created_date', 100);
+    },
   });
 
   const { data: webhookLogs = [], refetch: refetchLogs } = useQuery({
@@ -98,26 +116,30 @@ export default function DataManagement() {
 
   const deleteMetricsMutation = useMutation({
     mutationFn: async (metricIds) => {
+      // Exclusão em lote - coletar todas as datas afetadas ANTES
       const affectedDates = new Set();
-      
-      for (const id of metricIds) {
+      metricIds.forEach(id => {
         const record = allMetrics.find(m => m.id === id);
         if (record) affectedDates.add(`${record.unit_id}_${record.date}`);
-        await base44.entities.MetaAdDaily.delete(id);
-      }
+      });
       
-      // Reagregar ou limpar
-      for (const key of affectedDates) {
-        const [unit_id, date] = key.split('_');
-        const remaining = await base44.entities.MetaAdDaily.filter({ unit_id, date });
-        
-        if (remaining.length === 0) {
-          const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, provider: 'meta' });
-          for (const m of metricsDaily) await base44.entities.MetricsDaily.delete(m.id);
-        } else {
-          await base44.functions.invoke('aggregateMetaToMetricsDaily', { unit_id, date_from: date, date_to: date });
-        }
-      }
+      // Deletar tudo em paralelo (sem await em loop)
+      await Promise.all(metricIds.map(id => base44.entities.MetaAdDaily.delete(id)));
+      
+      // Reagregar ou limpar em paralelo
+      await Promise.all(
+        Array.from(affectedDates).map(async (key) => {
+          const [unit_id, date] = key.split('_');
+          const remaining = await base44.entities.MetaAdDaily.filter({ unit_id, date });
+          
+          if (remaining.length === 0) {
+            const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, provider: 'meta' });
+            await Promise.all(metricsDaily.map(m => base44.entities.MetricsDaily.delete(m.id)));
+          } else {
+            await base44.functions.invoke('aggregateMetaToMetricsDaily', { unit_id, date_from: date, date_to: date });
+          }
+        })
+      );
       
       return metricIds.length;
     },
@@ -268,8 +290,8 @@ export default function DataManagement() {
 
             <div className="space-y-2">
               <Label>&nbsp;</Label>
-              <Button onClick={handleSearch} disabled={isSearching} className="w-full gap-2">
-                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              <Button onClick={refetchMetrics} disabled={metricsLoading} className="w-full gap-2">
+                {metricsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 Buscar
               </Button>
             </div>
@@ -277,40 +299,38 @@ export default function DataManagement() {
         </CardContent>
       </Card>
 
-      {/* Resultados */}
-      {searchResults && (
+      {/* Resumo dos dados filtrados */}
+      {filtered.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">Resultado: {searchResults.count} registros</CardTitle>
-              {searchResults.count > 0 && !searchResults.deleted && (
-                <Button 
-                  variant="destructive"
-                  onClick={() => setConfirmDelete(true)}
-                  className="gap-2"
-                >
+              <CardTitle className="text-lg">Resultado: {filtered.length} registros</CardTitle>
+              <Button 
+                variant="destructive"
+                onClick={() => setConfirmDelete(true)}
+                disabled={deleteMetricsMutation.isPending}
+                className="gap-2"
+              >
+                {deleteMetricsMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
                   <Trash2 className="w-4 h-4" />
-                  Excluir {searchResults.count}
-                </Button>
-              )}
+                )}
+                Excluir {filtered.length}
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-500">Registros</p>
-                <p className="text-2xl font-bold text-gray-900">{searchResults.count}</p>
+                <p className="text-2xl font-bold text-gray-900">{filtered.length}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-500">Investimento Total</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(searchResults.totalSpend)}</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(filtered.reduce((s, m) => s + (m.spend || 0), 0))}</p>
               </div>
             </div>
-            {searchResults.deleted && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
-                ✓ {searchResults.deleted} registros excluídos com sucesso.
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -319,7 +339,9 @@ export default function DataManagement() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg">Dados (últimos 100) - {filtered.length} filtrados</CardTitle>
+            <CardTitle className="text-lg">
+              {dateFrom || dateTo ? `Dados do período - ${filtered.length} registros` : `Dados (últimos 100) - ${filtered.length} filtrados`}
+            </CardTitle>
             <div className="flex gap-2">
               <Sheet>
                 <SheetTrigger asChild>
@@ -483,21 +505,20 @@ export default function DataManagement() {
               Confirmar Exclusão
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Excluir {searchResults?.count} registros permanentemente? Esta ação não pode ser desfeita.
+              Excluir {filtered.length} registros permanentemente? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              onClick={() => {
-                const filtered = getFilteredMetrics();
-                deleteMetricsMutation.mutate(filtered.map(m => m.id));
+              disabled={deleteMetricsMutation.isPending}
+              onClick={async () => {
+                await deleteMetricsMutation.mutateAsync(filtered.map(m => m.id));
                 setConfirmDelete(false);
-                setSearchResults({ ...searchResults, deleted: filtered.length });
               }}
             >
-              Excluir
+              {deleteMetricsMutation.isPending ? 'Excluindo...' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
