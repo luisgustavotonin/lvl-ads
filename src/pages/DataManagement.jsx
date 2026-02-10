@@ -1,33 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Database, Trash2, AlertTriangle, Calendar, Search, Loader2, RefreshCw } from 'lucide-react';
+import { Database, Trash2, AlertTriangle, Calendar, Search, Loader2, RefreshCw, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
+
+// HELPER: Formatar data STRING (YYYY-MM-DD) para DD/MM/YYYY SEM criar Date()
+const formatDateString = (dateStr) => {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
 
 const PLATFORMS = [
   { id: 'all', name: 'Todas as plataformas' },
@@ -41,22 +33,29 @@ export default function DataManagement() {
   const queryClient = useQueryClient();
   const [selectedUnit, setSelectedUnit] = useState('all');
   const [selectedPlatform, setSelectedPlatform] = useState('all');
-  const [dateRange, setDateRange] = useState({
-    from: subDays(new Date(), 30),
-    to: new Date(),
-  });
-  const [debugDateRange, setDebugDateRange] = useState({
-    from: null,
-    to: null,
-  });
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
-  const [selectedWebhooks, setSelectedWebhooks] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
-
   const [sortField, setSortField] = useState('created_date');
   const [sortDirection, setSortDirection] = useState('desc');
+  
+  // Auto-colunas: estado de visibilidade
+  const [visibleColumns, setVisibleColumns] = useState({
+    date: true,
+    unit_id: true,
+    ad_name: true,
+    spend: true,
+    impressions: true,
+    reach: true,
+    clicks: true,
+    link_clicks: true,
+    wa_conversations_started_7d: true,
+    wa_messaging_first_reply: true,
+    created_date: true,
+  });
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -73,50 +72,47 @@ export default function DataManagement() {
     queryFn: () => base44.entities.WebhookLog.list('-created_date', 20),
   });
 
+  // Detectar colunas dinâmicas baseadas no payload
+  const dynamicColumns = useMemo(() => {
+    if (allMetrics.length === 0) return [];
+    
+    const allKeys = new Set();
+    allMetrics.forEach(metric => {
+      Object.keys(metric).forEach(key => {
+        // Ignorar campos fixos e complexos
+        if (!['id', 'created_date', 'updated_date', 'created_by', 'demographics_json', 'placement_json', 'devices_json'].includes(key)) {
+          allKeys.add(key);
+        }
+      });
+    });
 
-
-  const deleteWebhooksMutation = useMutation({
-    mutationFn: async (webhookIds) => {
-      for (const id of webhookIds) {
-        await base44.entities.WebhookLog.delete(id);
-      }
-      return webhookIds.length;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['webhookLogs'] });
-      setSelectedWebhooks([]);
-    },
-  });
+    return Array.from(allKeys).map(key => ({
+      key,
+      label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      type: typeof allMetrics[0][key] === 'number' ? 'number' : 'string'
+    }));
+  }, [allMetrics]);
 
   const deleteMetricsMutation = useMutation({
     mutationFn: async (metricIds) => {
-      // Buscar os registros para saber quais datas/unidades afetadas
       const affectedDates = new Set();
       
       for (const id of metricIds) {
         const record = allMetrics.find(m => m.id === id);
-        if (record) {
-          affectedDates.add(`${record.unit_id}_${record.date}`);
-        }
+        if (record) affectedDates.add(`${record.unit_id}_${record.date}`);
         await base44.entities.MetaAdDaily.delete(id);
       }
       
-      // Reagregar as datas afetadas ou limpar se não houver mais dados
+      // Reagregar ou limpar
       for (const key of affectedDates) {
         const [unit_id, date] = key.split('_');
-        
-        // Verificar se ainda existem dados para essa data
         const remaining = await base44.entities.MetaAdDaily.filter({ unit_id, date });
         
         if (remaining.length === 0) {
-          // Não há mais dados, deletar de MetricsDaily
-          const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, platform_id: 'META' });
-          for (const m of metricsDaily) {
-            await base44.entities.MetricsDaily.delete(m.id);
-          }
+          const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, provider: 'meta' });
+          for (const m of metricsDaily) await base44.entities.MetricsDaily.delete(m.id);
         } else {
-          // Reagregar
-          await base44.functions.invoke('aggregateMetaAdDaily', { unit_id, date_from: date, date_to: date });
+          await base44.functions.invoke('aggregateMetaToMetricsDaily', { unit_id, date_from: date, date_to: date });
         }
       }
       
@@ -124,58 +120,52 @@ export default function DataManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allMetrics'] });
-      queryClient.invalidateQueries({ queryKey: ['recentMetrics'] });
       setSelectedMetrics([]);
     },
   });
 
+  const getFilteredMetrics = () => {
+    return allMetrics.filter(m => {
+      const matchUnit = selectedUnit === 'all' || m.unit_id === selectedUnit;
+      const matchPlatform = true; // MetaAdDaily não tem platform_id
+      
+      // Comparação de STRING (lexicográfica funciona para YYYY-MM-DD)
+      const matchDate = (!dateFrom || m.date >= dateFrom) && (!dateTo || m.date <= dateTo);
+      
+      return matchUnit && matchPlatform && matchDate;
+    });
+  };
 
+  const getSortedMetrics = () => {
+    const filtered = getFilteredMetrics();
+    return filtered.sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      // Get metrics to delete based on filters
-      const metricsToDelete = allMetrics.filter(m => {
-        const matchUnit = selectedUnit === 'all' || m.unit_id === selectedUnit;
-        const matchPlatform = selectedPlatform === 'all' || m.platform_id === selectedPlatform;
-        const metricDate = new Date(m.date);
-        const matchDate = metricDate >= dateRange.from && metricDate <= dateRange.to;
-        return matchUnit && matchPlatform && matchDate;
-      });
-
-      // Delete in batches
-      for (const metric of metricsToDelete) {
-        await base44.entities.MetaAdDaily.delete(metric.id);
+      // Para datas STRING (YYYY-MM-DD), comparação lexicográfica funciona
+      if (sortField === 'date' || sortField === 'created_date') {
+        return sortDirection === 'asc' 
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
       }
 
-      return metricsToDelete.length;
-    },
-    onSuccess: (deletedCount) => {
-      queryClient.invalidateQueries({ queryKey: ['allMetrics'] });
-      queryClient.invalidateQueries({ queryKey: ['metricsDaily'] });
-      setConfirmDelete(false);
-      setSearchResults({ ...searchResults, deleted: deletedCount });
-    },
-  });
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal || '').toLowerCase();
+      const bStr = String(bVal || '').toLowerCase();
+      return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+  };
 
   const handleSearch = () => {
     setIsSearching(true);
-    
-    const filtered = allMetrics.filter(m => {
-      const matchUnit = selectedUnit === 'all' || m.unit_id === selectedUnit;
-      const matchPlatform = selectedPlatform === 'all' || m.platform_id === selectedPlatform;
-      const metricDate = new Date(m.date);
-      const matchDate = metricDate >= dateRange.from && metricDate <= dateRange.to;
-      return matchUnit && matchPlatform && matchDate;
-    });
-
-    const totalSpend = filtered.reduce((sum, m) => sum + (m.spend || 0), 0);
+    const filtered = getFilteredMetrics();
+    const totalSpend = filtered.reduce((s, m) => s + (m.spend || 0), 0);
     
     setTimeout(() => {
-      setSearchResults({
-        count: filtered.length,
-        totalSpend,
-        deleted: null,
-      });
+      setSearchResults({ count: filtered.length, totalSpend, deleted: null });
       setIsSearching(false);
     }, 500);
   };
@@ -186,10 +176,7 @@ export default function DataManagement() {
   };
 
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', { 
-      style: 'currency', 
-      currency: 'BRL' 
-    }).format(value || 0);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
   };
 
   const handleSort = (field) => {
@@ -201,689 +188,292 @@ export default function DataManagement() {
     }
   };
 
-  const getFilteredMetrics = () => {
-    let filtered = [...allMetrics];
-    
-    // Aplicar filtro de data se definido
-    if (debugDateRange.from && debugDateRange.to) {
-      filtered = filtered.filter(m => {
-        const metricDate = new Date(m.date);
-        return metricDate >= debugDateRange.from && metricDate <= debugDateRange.to;
-      });
-    }
-    
-    return filtered;
-  };
-
-  const getSortedMetrics = () => {
-    const filtered = getFilteredMetrics();
-    const sorted = filtered.sort((a, b) => {
-      let aVal = a[sortField];
-      let bVal = b[sortField];
-
-      // Handle dates
-      if (sortField === 'date' || sortField === 'created_date') {
-        aVal = new Date(aVal).getTime();
-        bVal = new Date(bVal).getTime();
-      }
-
-      // Handle numbers
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-
-      // Handle strings
-      const aStr = String(aVal || '').toLowerCase();
-      const bStr = String(bVal || '').toLowerCase();
-      
-      if (sortDirection === 'asc') {
-        return aStr.localeCompare(bStr);
-      } else {
-        return bStr.localeCompare(aStr);
-      }
-    });
-    return sorted;
-  };
-
   const SortIcon = ({ field }) => {
-    if (sortField !== field) {
-      return <span className="text-gray-300 ml-1">↕</span>;
-    }
+    if (sortField !== field) return <span className="text-gray-300 ml-1">↕</span>;
     return <span className="text-blue-600 ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>;
   };
 
+  const toggleColumnVisibility = (colKey) => {
+    setVisibleColumns(prev => ({ ...prev, [colKey]: !prev[colKey] }));
+  };
+
   if (unitsLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
+    return <div className="space-y-6"><Skeleton className="h-96 w-full" /></div>;
   }
+
+  const filtered = getFilteredMetrics();
+  const sorted = getSortedMetrics();
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Gestão de Dados</h1>
-        <p className="text-gray-500 mt-1">Gerencie e limpe os dados do sistema</p>
+        <h1 className="text-2xl font-bold text-gray-900">Gestão de Dados (BUG TIMEZONE CORRIGIDO)</h1>
+        <p className="text-gray-500 mt-1">Datas agora são tratadas como STRING YYYY-MM-DD sem conversão</p>
       </div>
 
-      {/* Warning Card */}
-      <Card className="bg-amber-50 border-amber-200">
+      <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-            <div>
-              <h3 className="font-medium text-amber-900">Atenção</h3>
-              <p className="text-sm text-amber-700">
-                A exclusão de dados é permanente e não pode ser desfeita. 
-                Certifique-se de ter backups antes de realizar qualquer limpeza.
-              </p>
+            <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="text-sm text-blue-900">
+              <p className="font-medium">✅ Correção implementada:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Campo "date" agora é sempre STRING (YYYY-MM-DD) sem timezone</li>
+                <li>Comparação usa ordem lexicográfica (funciona perfeitamente para YYYY-MM-DD)</li>
+                <li>Formatação visual (DD/MM/YYYY) sem criar Date()</li>
+              </ul>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Filters */}
-      <Card className="border-gray-100">
+      {/* Filtros */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filtros de Busca</CardTitle>
+          <CardTitle className="text-lg">Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Unit */}
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Unidade</Label>
               <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas as unidades</SelectItem>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                  ))}
+                  <SelectItem value="all">Todas</SelectItem>
+                  {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Platform */}
+            
             <div className="space-y-2">
-              <Label>Plataforma</Label>
-              <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORMS.map((platform) => (
-                    <SelectItem key={platform.id} value={platform.id}>
-                      <div className="flex items-center gap-2">
-                        {platform.icon && <span>{platform.icon}</span>}
-                        {platform.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Data Início (YYYY-MM-DD)</Label>
+              <Input 
+                type="date" 
+                value={dateFrom} 
+                onChange={(e) => setDateFrom(e.target.value)}
+                placeholder="YYYY-MM-DD"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Data Fim (YYYY-MM-DD)</Label>
+              <Input 
+                type="date" 
+                value={dateTo} 
+                onChange={(e) => setDateTo(e.target.value)}
+                placeholder="YYYY-MM-DD"
+              />
             </div>
 
-            {/* Date Range */}
             <div className="space-y-2">
-              <Label>Período</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    {dateRange?.from && dateRange?.to ? (
-                      `${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`
-                    ) : (
-                      'Selecionar período'
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={(range) => {
-                      if (range?.from && range?.to) {
-                        setDateRange(range);
-                      } else if (range?.from) {
-                        setDateRange({ from: range.from, to: range.from });
-                      }
-                    }}
-                    numberOfMonths={2}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label>&nbsp;</Label>
+              <Button onClick={handleSearch} disabled={isSearching} className="w-full gap-2">
+                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                Buscar
+              </Button>
             </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Button 
-              className="gap-2"
-              onClick={handleSearch}
-              disabled={isSearching}
-            >
-              {isSearching ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4" />
-              )}
-              Buscar Registros
-            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Results */}
+      {/* Resultados */}
       {searchResults && (
-        <Card className="border-gray-100">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Resultado da Busca</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg">Resultado: {searchResults.count} registros</CardTitle>
+              {searchResults.count > 0 && !searchResults.deleted && (
+                <Button 
+                  variant="destructive"
+                  onClick={() => setConfirmDelete(true)}
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Excluir {searchResults.count}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Registros Encontrados</p>
-                <p className="text-3xl font-bold text-gray-900">{searchResults.count}</p>
+                <p className="text-sm text-gray-500">Registros</p>
+                <p className="text-2xl font-bold text-gray-900">{searchResults.count}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-500">Investimento Total</p>
-                <p className="text-3xl font-bold text-gray-900">{formatCurrency(searchResults.totalSpend)}</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Período</p>
-                <p className="text-lg font-medium text-gray-900">
-                  {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(searchResults.totalSpend)}</p>
               </div>
             </div>
-
-            {searchResults.deleted !== null ? (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-green-700">
-                  ✓ {searchResults.deleted} registros foram excluídos com sucesso.
-                </p>
-              </div>
-            ) : searchResults.count > 0 ? (
-              <div className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div>
-                  <p className="font-medium text-red-900">Excluir {searchResults.count} registros?</p>
-                  <p className="text-sm text-red-700">Esta ação é irreversível.</p>
-                </div>
-                <Button 
-                  variant="destructive"
-                  className="gap-2"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Excluir Registros
-                </Button>
-              </div>
-            ) : (
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center text-gray-500">
-                Nenhum registro encontrado com os filtros selecionados.
+            {searchResults.deleted && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+                ✓ {searchResults.deleted} registros excluídos com sucesso.
               </div>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Atualizar Dados */}
-      <div className="flex justify-end gap-2">
-        <Button 
-          variant="outline" 
-          onClick={async () => {
-            try {
-              const result = await base44.functions.invoke('aggregateMetaAdDaily', {});
-              alert(`✅ Agregação concluída!\n\n${result.data.stats.ads_processed} anúncios processados\n${result.data.stats.daily_metrics_created} métricas criadas\n${result.data.stats.daily_metrics_updated} métricas atualizadas`);
-              refetchMetrics();
-            } catch (error) {
-              alert(`❌ Erro: ${error.message}`);
-            }
-          }}
-          className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Database className="w-4 h-4" />
-          Agregar Dados → MetricsDaily
-        </Button>
-        <Button 
-          variant="outline" 
-          onClick={() => {
-            refetchMetrics();
-            refetchLogs();
-          }}
-          className="gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Atualizar Dados
-        </Button>
-      </div>
-
-      {/* Webhook Logs */}
-      <Card className="border-green-200 bg-green-50/30">
+      {/* Tabela com Auto-Colunas */}
+      <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              📡 Webhooks Recebidos (Últimos 20)
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {selectedWebhooks.length > 0 && (
-                <>
-                  <span className="text-sm text-gray-600">{selectedWebhooks.length} selecionado(s)</span>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm(`Excluir ${selectedWebhooks.length} webhook(s)?`)) {
-                        deleteWebhooksMutation.mutate(selectedWebhooks);
-                      }
-                    }}
-                    disabled={deleteWebhooksMutation.isPending}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Excluir Selecionados
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg">Dados (últimos 100) - {filtered.length} filtrados</CardTitle>
+            <div className="flex gap-2">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings2 className="w-4 h-4" />
+                    Colunas
                   </Button>
-                </>
-              )}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  if (confirm(`⚠️ ATENÇÃO: Excluir TODOS os ${webhookLogs.length} webhooks da base?\n\nEsta ação é IRREVERSÍVEL!`)) {
-                    deleteWebhooksMutation.mutate(webhookLogs.map(w => w.id));
-                  }
-                }}
-                disabled={deleteWebhooksMutation.isPending || webhookLogs.length === 0}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Excluir TUDO ({webhookLogs.length})
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={webhookLogs.length > 0 && selectedWebhooks.length === webhookLogs.length}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedWebhooks(webhookLogs.map(w => w.id));
-                          } else {
-                            setSelectedWebhooks([]);
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                    </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Data/Hora</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Status</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Integration ID</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-700">Processados</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Payload</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">Erro</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {webhookLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-3 py-8 text-center text-gray-500">
-                        Nenhum webhook recebido ainda. Envie dados do N8n.
-                      </td>
-                    </tr>
-                  ) : (
-                    webhookLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedWebhooks.includes(log.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedWebhooks([...selectedWebhooks, log.id]);
-                              } else {
-                                setSelectedWebhooks(selectedWebhooks.filter(id => id !== log.id));
-                              }
-                            }}
-                            className="w-4 h-4"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-900">
-                          {format(new Date(log.created_date), 'dd/MM/yyyy HH:mm:ss')}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Badge className={
-                            log.status === 'success' ? 'bg-green-100 text-green-700' :
-                            log.status === 'error' ? 'bg-red-100 text-red-700' :
-                            'bg-yellow-100 text-yellow-700'
-                          }>
-                            {log.status}
-                          </Badge>
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-600 font-mono">
-                          {log.integration_id?.substring(0, 8)}...
-                        </td>
-                        <td className="px-3 py-2 text-center text-xs">
-                          {log.records_processed ? (
-                            <div className="text-gray-600">
-                              {log.records_processed.days || 0}d / {log.records_processed.metrics || 0}m / {log.records_processed.entities || 0}e
-                            </div>
-                          ) : '-'}
-                        </td>
-                        <td className="px-3 py-2">
-                          <details className="text-xs">
-                            <summary className="cursor-pointer text-blue-600 hover:text-blue-700">Ver JSON</summary>
-                            <pre className="mt-2 p-2 bg-gray-50 rounded text-xs overflow-x-auto max-h-40">
-                              {JSON.stringify(log.payload_received, null, 2)}
-                            </pre>
-                            {log.payload_received?.data?.[0]?.date && (
-                              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                                <p className="text-yellow-800 font-medium">⚠️ Data no payload:</p>
-                                <p className="text-yellow-700">{log.payload_received.data[0].date}</p>
-                                <p className="text-xs text-yellow-600 mt-1">
-                                  Se essa data está errada (ex: 2026 ao invés de 2024), corrija no N8n!
-                                </p>
-                              </div>
-                            )}
-                          </details>
-                        </td>
-                        <td className="px-3 py-2 text-xs text-red-600">
-                          {log.error_message || '-'}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="flex items-start gap-2 mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
-            <div className="text-xs text-yellow-800">
-              <p className="font-medium">⚠️ Problema de Data Detectado!</p>
-              <p className="mt-1">Os dados estão sendo salvos com datas erradas (ex: 2026-01-06 ao invés de 2024-02-05).</p>
-              <p className="mt-1 font-medium">Solução: Verifique no N8n o campo "date" que está sendo enviado. Ele deve ser a data REAL da métrica (formato: YYYY-MM-DD).</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Selecionar Colunas</SheetTitle>
+                    <SheetDescription>Escolha quais colunas exibir</SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-3">
+                    {dynamicColumns.map(col => (
+                      <div key={col.key} className="flex items-center gap-2">
+                        <Checkbox 
+                          checked={visibleColumns[col.key] !== false}
+                          onCheckedChange={() => toggleColumnVisibility(col.key)}
+                        />
+                        <label className="text-sm">{col.label}</label>
+                      </div>
+                    ))}
+                  </div>
+                </SheetContent>
+              </Sheet>
 
-      {/* Debug - Dados Recebidos */}
-      <Card className="border-orange-200 bg-orange-50/30">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              🔍 Debug - Dados Recebidos (Últimos 100)
-            </CardTitle>
-          </div>
-          <div className="flex items-center gap-4 mt-4">
-            <Label className="text-sm">Filtrar por período:</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="justify-start text-left">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {debugDateRange?.from && debugDateRange?.to ? (
-                    `${format(debugDateRange.from, 'dd/MM/yyyy')} - ${format(debugDateRange.to, 'dd/MM/yyyy')}`
-                  ) : (
-                    'Selecionar período'
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="range"
-                  selected={debugDateRange}
-                  onSelect={(range) => {
-                    if (range?.from && range?.to) {
-                      setDebugDateRange(range);
-                    } else if (range?.from) {
-                      setDebugDateRange({ from: range.from, to: range.from });
+              {selectedMetrics.length > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`Excluir ${selectedMetrics.length} selecionados?`)) {
+                      deleteMetricsMutation.mutate(selectedMetrics);
                     }
                   }}
-                  numberOfMonths={2}
-                  locale={ptBR}
-                />
-              </PopoverContent>
-            </Popover>
-            {debugDateRange.from && (
-              <Button variant="ghost" size="sm" onClick={() => setDebugDateRange({ from: null, to: null })}>
-                Limpar filtro
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div></div>
-            <div className="flex items-center gap-2">
-              {selectedMetrics.length > 0 && (
-                <>
-                  <span className="text-sm text-gray-600">{selectedMetrics.length} selecionado(s)</span>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm(`Excluir ${selectedMetrics.length} métrica(s)?`)) {
-                        deleteMetricsMutation.mutate(selectedMetrics);
-                      }
-                    }}
-                    disabled={deleteMetricsMutation.isPending}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Excluir Selecionados
-                  </Button>
-                </>
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Excluir ({selectedMetrics.length})
+                </Button>
               )}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  if (confirm(`⚠️ ATENÇÃO: Excluir TODAS as ${allMetrics.length} métricas da base?\n\nEsta ação é IRREVERSÍVEL!`)) {
-                    deleteMetricsMutation.mutate(allMetrics.map(m => m.id));
-                  }
-                }}
-                disabled={deleteMetricsMutation.isPending || allMetrics.length === 0}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Excluir TUDO ({allMetrics.length})
+              
+              <Button variant="outline" size="sm" onClick={refetchMetrics} className="gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Atualizar
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b sticky top-0">
+          <div className="overflow-x-auto max-h-[600px]">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={sorted.length > 0 && selectedMetrics.length === sorted.length}
+                      onChange={(e) => setSelectedMetrics(e.target.checked ? sorted.map(m => m.id) : [])}
+                      className="w-4 h-4"
+                    />
+                  </th>
+                  {dynamicColumns.filter(col => visibleColumns[col.key] !== false).map(col => (
+                    <th 
+                      key={col.key}
+                      className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.label} <SortIcon field={col.key} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {sorted.length === 0 ? (
                   <tr>
-                    <th className="px-3 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={allMetrics.length > 0 && selectedMetrics.length === allMetrics.length}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedMetrics(allMetrics.map(m => m.id));
-                          } else {
-                            setSelectedMetrics([]);
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                    </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('date')}>
-                      Data <SortIcon field="date" />
-                    </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('unit_id')}>
-                      Unidade <SortIcon field="unit_id" />
-                    </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('ad_name')}>
-                      Anúncio <SortIcon field="ad_name" />
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('spend')}>
-                      Investimento <SortIcon field="spend" />
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('impressions')}>
-                      Impressões <SortIcon field="impressions" />
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('reach')}>
-                      Alcance <SortIcon field="reach" />
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('clicks')}>
-                      Cliques <SortIcon field="clicks" />
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('wa_conversations_started_7d')}>
-                      Conversas iniciadas <SortIcon field="wa_conversations_started_7d" />
-                    </th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('wa_messaging_first_reply')}>
-                      Novos contatos <SortIcon field="wa_messaging_first_reply" />
-                    </th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_date')}>
-                      Criado em <SortIcon field="created_date" />
-                    </th>
+                    <td colSpan={dynamicColumns.length + 1} className="px-3 py-8 text-center text-gray-500">
+                      Nenhum dado encontrado
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {allMetrics.length === 0 ? (
-                    <tr>
-                      <td colSpan="11" className="px-3 py-8 text-center text-gray-500">
-                        Nenhum dado encontrado na base. Envie dados do N8n para popular.
+                ) : (
+                  sorted.map(metric => (
+                    <tr key={metric.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedMetrics.includes(metric.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMetrics([...selectedMetrics, metric.id]);
+                            } else {
+                              setSelectedMetrics(selectedMetrics.filter(id => id !== metric.id));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
                       </td>
+                      {dynamicColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
+                        let value = metric[col.key];
+                        
+                        // Formatação especial
+                        if (col.key === 'date') {
+                          value = formatDateString(value);
+                        } else if (col.key === 'created_date') {
+                          value = formatDateString(String(value).split('T')[0]);
+                        } else if (col.key.includes('spend') || col.key.includes('cost') || col.key.includes('cpc') || col.key.includes('cpm')) {
+                          value = formatCurrency(value);
+                        } else if (col.type === 'number') {
+                          value = new Intl.NumberFormat('pt-BR').format(Math.round(value || 0));
+                        }
+                        
+                        return (
+                          <td key={col.key} className={`px-3 py-2 ${col.type === 'number' ? 'text-right' : 'text-left'} text-gray-900`}>
+                            {value || '-'}
+                          </td>
+                        );
+                      })}
                     </tr>
-                  ) : (
-                    <>
-                    {getSortedMetrics().map((metric) => (
-                        <tr key={metric.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-center">
-                            <input
-                              type="checkbox"
-                              checked={selectedMetrics.includes(metric.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedMetrics([...selectedMetrics, metric.id]);
-                                } else {
-                                  setSelectedMetrics(selectedMetrics.filter(id => id !== metric.id));
-                                }
-                              }}
-                              className="w-4 h-4"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-gray-900 font-medium">
-                            {format(new Date(metric.date), 'dd/MM/yyyy')}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600">
-                            {getUnitName(metric.unit_id)}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600 text-xs">
-                            {metric.ad_name || metric.ad_id}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-900 font-medium">
-                            {formatCurrency(metric.spend)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">
-                            {(metric.impressions || 0).toLocaleString('pt-BR')}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">
-                            {(metric.reach || 0).toLocaleString('pt-BR')}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">
-                            {(metric.clicks || 0).toLocaleString('pt-BR')}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">
-                            {(metric.wa_conversations_started_7d || 0).toLocaleString('pt-BR')}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">
-                            {(metric.wa_messaging_first_reply || 0).toLocaleString('pt-BR')}
-                          </td>
-                          <td className="px-3 py-2 text-center text-xs text-gray-500">
-                            {format(new Date(metric.created_date), 'dd/MM HH:mm')}
-                          </td>
-                        </tr>
-                      ))}
-                      {/* Total Row */}
-                      <tr className="bg-blue-50 border-t-2 border-blue-200 font-bold">
-                        <td colSpan="4" className="px-3 py-3 text-right text-gray-900">TOTAL:</td>
-                        <td className="px-3 py-3 text-right text-gray-900">
-                          {formatCurrency(getFilteredMetrics().reduce((sum, m) => sum + (m.spend || 0), 0))}
+                  ))
+                )}
+                {sorted.length > 0 && (
+                  <tr className="bg-blue-50 border-t-2 border-blue-200 font-bold">
+                    <td className="px-3 py-3"></td>
+                    {dynamicColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
+                      if (col.type !== 'number') {
+                        return <td key={col.key} className="px-3 py-3"></td>;
+                      }
+                      
+                      const total = filtered.reduce((sum, m) => sum + (m[col.key] || 0), 0);
+                      let formattedTotal = total;
+                      
+                      if (col.key.includes('spend') || col.key.includes('cost') || col.key.includes('cpc') || col.key.includes('cpm')) {
+                        formattedTotal = formatCurrency(total);
+                      } else {
+                        formattedTotal = new Intl.NumberFormat('pt-BR').format(Math.round(total));
+                      }
+                      
+                      return (
+                        <td key={col.key} className="px-3 py-3 text-right text-gray-900">
+                          {formattedTotal}
                         </td>
-                        <td className="px-3 py-3 text-right text-gray-900">
-                          {getFilteredMetrics().reduce((sum, m) => sum + (m.impressions || 0), 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="px-3 py-3 text-right text-gray-900">
-                          {getFilteredMetrics().reduce((sum, m) => sum + (m.reach || 0), 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="px-3 py-3 text-right text-gray-900">
-                          {getFilteredMetrics().reduce((sum, m) => sum + (m.clicks || 0), 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="px-3 py-3 text-right text-gray-900">
-                          {getFilteredMetrics().reduce((sum, m) => sum + (m.wa_conversations_started_7d || 0), 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="px-3 py-3 text-right text-gray-900">
-                          {getFilteredMetrics().reduce((sum, m) => sum + (m.wa_messaging_first_reply || 0), 0).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="px-3 py-3"></td>
-                      </tr>
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      );
+                    })}
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            💡 Mostrando os 100 registros mais recentes ordenados por data de criação. Total: {allMetrics.length} | Filtrados: {getFilteredMetrics().length}
+            💡 Colunas dinâmicas: novos campos do payload aparecem automaticamente
           </p>
-          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-900">
-              <strong>⚠️ Data 07/02/2026 está errada?</strong> A coluna "Data" mostra a data que o N8n envia no campo <code className="bg-yellow-100 px-1 rounded">"date"</code> do payload. 
-              Se está 07/02/2026 mas deveria ser 08/02/2026, corrija o workflow N8n para enviar a data correta das métricas (formato YYYY-MM-DD).
-            </p>
-          </div>
         </CardContent>
       </Card>
 
-      {/* Stats Overview */}
-      <Card className="border-gray-100">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Database className="w-5 h-5 text-gray-400" />
-            Visão Geral do Banco de Dados
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-600">Total de Métricas</p>
-              <p className="text-2xl font-bold text-blue-900">{allMetrics.length}</p>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <p className="text-sm text-green-600">Unidades</p>
-              <p className="text-2xl font-bold text-green-900">{units.length}</p>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <p className="text-sm text-purple-600">Plataformas</p>
-              <p className="text-2xl font-bold text-purple-900">
-                {new Set(allMetrics.map(m => m.platform_id)).size}
-              </p>
-            </div>
-            <div className="p-4 bg-orange-50 rounded-lg">
-              <p className="text-sm text-orange-600">Investimento Total</p>
-              <p className="text-2xl font-bold text-orange-900">
-                {formatCurrency(allMetrics.reduce((sum, m) => sum + (m.spend || 0), 0))}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Delete Confirmation */}
+      {/* Dialog de Confirmação */}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -891,30 +481,22 @@ export default function DataManagement() {
               <AlertTriangle className="w-5 h-5" />
               Confirmar Exclusão
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>Você está prestes a excluir permanentemente:</p>
-              <ul className="list-disc list-inside text-sm space-y-1 mt-2">
-                <li><strong>{searchResults?.count}</strong> registros de métricas</li>
-                <li>Unidade: <strong>{getUnitName(selectedUnit)}</strong></li>
-                <li>Plataforma: <strong>{PLATFORMS.find(p => p.id === selectedPlatform)?.name}</strong></li>
-                <li>Período: <strong>{format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}</strong></li>
-              </ul>
-              <p className="mt-4 font-medium text-red-600">Esta ação não pode ser desfeita!</p>
+            <AlertDialogDescription>
+              Excluir {searchResults?.count} registros permanentemente? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
+              onClick={() => {
+                const filtered = getFilteredMetrics();
+                deleteMetricsMutation.mutate(filtered.map(m => m.id));
+                setConfirmDelete(false);
+                setSearchResults({ ...searchResults, deleted: filtered.length });
+              }}
             >
-              {deleteMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Trash2 className="w-4 h-4 mr-2" />
-              )}
-              Excluir Permanentemente
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

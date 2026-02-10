@@ -1,5 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+// Helper: Valida e normaliza data para formato YYYY-MM-DD (SEM timezone)
+function normalizeDateString(dateInput) {
+    if (!dateInput) return null;
+    
+    // Se for string, pegar apenas YYYY-MM-DD (ignorar hora/timezone)
+    const dateStr = String(dateInput);
+    const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+    
+    if (!match) {
+        throw new Error(`Data inválida: ${dateStr}. Formato esperado: YYYY-MM-DD`);
+    }
+    
+    return match[1]; // Retorna somente YYYY-MM-DD
+}
+
 // Helper para obter data/hora atual em Brasília
 function getBrasiliaDate() {
     const now = new Date();
@@ -98,7 +113,7 @@ Deno.serve(async (req) => {
         for (const ad of ads) {
             const { 
                 ad_id, 
-                date,
+                date: rawDate,
                 campaign_id, 
                 campaign_name, 
                 adset_id, 
@@ -109,8 +124,28 @@ Deno.serve(async (req) => {
                 breakdowns = {}
             } = ad;
             
-            if (!ad_id || !date) {
+            if (!ad_id || !rawDate) {
                 console.warn('⚠️ Ad sem ad_id ou date, pulando:', ad);
+                continue;
+            }
+
+            // CRÍTICO: Normalizar data sem timezone (YYYY-MM-DD apenas)
+            let date;
+            try {
+                date = normalizeDateString(rawDate);
+                
+                // Guard anti-bug: verificar se a data normalizada é válida
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                    console.error(`❌ Data no formato incorreto após normalização: ${date} (ad_id: ${ad_id})`);
+                    continue;
+                }
+                
+                // Log se a data foi alterada pela normalização
+                if (date !== rawDate) {
+                    console.log(`ℹ️ Data normalizada: ${rawDate} → ${date} (ad_id: ${ad_id})`);
+                }
+            } catch (error) {
+                console.error(`❌ Erro ao normalizar data para ad_id ${ad_id}:`, error.message);
                 continue;
             }
 

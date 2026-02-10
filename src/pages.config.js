@@ -50,6 +50,8 @@
 import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
 import Integrations from './pages/Integrations';
+import MetaDashboard from './pages/MetaDashboard';
+import MetaValidation from './pages/MetaValidation';
 import Profiles from './pages/Profiles';
 import ReportModel from './pages/ReportModel';
 import Reports from './pages/Reports';
@@ -57,8 +59,6 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
-import MetaDashboard from './pages/MetaDashboard';
-import MetaValidation from './pages/MetaValidation';
 import __Layout from './Layout.jsx';
 
 
@@ -66,6 +66,8 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "DataManagement": DataManagement,
     "Integrations": Integrations,
+    "MetaDashboard": MetaDashboard,
+    "MetaValidation": MetaValidation,
     "Profiles": Profiles,
     "ReportModel": ReportModel,
     "Reports": Reports,
@@ -73,8 +75,6 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
-    "MetaDashboard": MetaDashboard,
-    "MetaValidation": MetaValidation,
 }
 
 export const pagesConfig = {
