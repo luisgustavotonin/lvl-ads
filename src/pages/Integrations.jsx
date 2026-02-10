@@ -68,7 +68,6 @@ export default function Integrations() {
     account_reference: '',
     auth_type: 'token',
     integration_purpose: '',
-    logo_url: '',
     settings: {
       access_token: '',
       api_key: '',
@@ -76,12 +75,10 @@ export default function Integrations() {
       client_secret: '',
       refresh_token: '',
       n8n_webhook_url: '',
-      n8n_webhook_url_test: '',
       n8n_secret_token: '',
     }
   });
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [testingWebhook, setTestingWebhook] = useState(false);
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
@@ -138,7 +135,6 @@ export default function Integrations() {
       account_reference: integration.account_reference || '',
       auth_type: integration.auth_type || 'token',
       integration_purpose: integration.integration_purpose || '',
-      logo_url: integration.logo_url || '',
       settings: {
         access_token: integration.settings?.access_token || '',
         api_key: integration.settings?.api_key || '',
@@ -146,7 +142,6 @@ export default function Integrations() {
         client_secret: integration.settings?.client_secret || '',
         refresh_token: integration.settings?.refresh_token || '',
         n8n_webhook_url: integration.settings?.n8n_webhook_url || '',
-        n8n_webhook_url_test: integration.settings?.n8n_webhook_url_test || '',
         n8n_secret_token: integration.settings?.n8n_secret_token || '',
       }
     });
@@ -156,40 +151,6 @@ export default function Integrations() {
     const baseUrl = window.location.origin;
     const webhookPath = `/api/functions/receiveN8nData`;
     setWebhookUrl(`${baseUrl}${webhookPath}`);
-  };
-
-  const handleTestWebhook = async () => {
-    if (!editDialog) return;
-    
-    setTestingWebhook(true);
-    try {
-      const testUrl = editFormData.settings.n8n_webhook_url_test || editFormData.settings.n8n_webhook_url;
-      
-      if (!testUrl) {
-        alert('⚠️ Configure a URL do webhook de teste primeiro');
-        return;
-      }
-
-      const response = await fetch(testUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          integration_id: editDialog.id,
-          test: true,
-          timestamp: new Date().toISOString()
-        })
-      });
-
-      if (response.ok) {
-        alert('✅ Webhook de teste acionado com sucesso!');
-      } else {
-        alert(`❌ Erro ao acionar webhook: ${response.statusText}`);
-      }
-    } catch (error) {
-      alert(`❌ Erro ao testar webhook: ${error.message}`);
-    } finally {
-      setTestingWebhook(false);
-    }
   };
 
   const handleCloseEditDialog = () => {
@@ -371,20 +332,12 @@ export default function Integrations() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {platformIntegrations.length > 0 && platformIntegrations[0].logo_url ? (
-                      <img 
-                        src={platformIntegrations[0].logo_url} 
-                        alt={platform.name}
-                        className="w-12 h-12 rounded-xl object-contain"
-                      />
-                    ) : (
-                      <div 
-                        className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                        style={{ backgroundColor: `${platform.color}15` }}
-                      >
-                        {platform.icon}
-                      </div>
-                    )}
+                    <div 
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                      style={{ backgroundColor: `${platform.color}15` }}
+                    >
+                      {platform.icon}
+                    </div>
                     <div>
                       <CardTitle className="text-lg">{platform.name}</CardTitle>
                       <p className="text-sm text-gray-500">{platform.description}</p>
@@ -629,71 +582,22 @@ export default function Integrations() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit_logo_url">URL da Logo</Label>
-              <Input
-                id="edit_logo_url"
-                value={editFormData.logo_url}
-                onChange={(e) => setEditFormData({ ...editFormData, logo_url: e.target.value })}
-                placeholder="https://exemplo.com/logo.png"
-              />
-              {editFormData.logo_url && (
-                <img 
-                  src={editFormData.logo_url} 
-                  alt="Preview" 
-                  className="w-12 h-12 object-contain rounded border"
-                />
-              )}
-              <p className="text-xs text-gray-500">
-                Esta logo será exibida nos relatórios desta plataforma
-              </p>
-            </div>
-
             {editDialog?.auth_type === 'n8n_webhook' && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_n8n_webhook_url">URL do Webhook N8n (Produção)</Label>
-                  <Input
-                    id="edit_n8n_webhook_url"
-                    value={editFormData.settings.n8n_webhook_url}
-                    onChange={(e) => setEditFormData({ 
-                      ...editFormData, 
-                      settings: { ...editFormData.settings, n8n_webhook_url: e.target.value }
-                    })}
-                    placeholder="https://seu-n8n.com/webhook/..."
-                  />
-                  <p className="text-xs text-gray-500">
-                    URL do webhook de produção do N8n
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit_n8n_webhook_url_test">URL do Webhook N8n (Teste)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="edit_n8n_webhook_url_test"
-                      value={editFormData.settings.n8n_webhook_url_test}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        settings: { ...editFormData.settings, n8n_webhook_url_test: e.target.value }
-                      })}
-                      placeholder="https://seu-n8n.com/webhook/test-..."
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleTestWebhook}
-                      disabled={testingWebhook}
-                      className="whitespace-nowrap"
-                    >
-                      {testingWebhook ? 'Testando...' : 'Testar'}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    URL do webhook de teste - clique em "Testar" para acionar
-                  </p>
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label htmlFor="edit_n8n_webhook_url">URL do Webhook N8n</Label>
+                <Input
+                  id="edit_n8n_webhook_url"
+                  value={editFormData.settings.n8n_webhook_url}
+                  onChange={(e) => setEditFormData({ 
+                    ...editFormData, 
+                    settings: { ...editFormData.settings, n8n_webhook_url: e.target.value }
+                  })}
+                  placeholder="https://seu-n8n.com/webhook/..."
+                />
+                <p className="text-xs text-gray-500">
+                  URL do webhook do N8n que o Base44 vai chamar para testar
+                </p>
+              </div>
             )}
 
             {editDialog?.auth_type === 'n8n_webhook' && (

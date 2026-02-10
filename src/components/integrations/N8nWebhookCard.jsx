@@ -212,26 +212,6 @@ export default function N8nWebhookCard({ integration, onEdit, onDelete, onExecut
           <Button
             variant="outline"
             size="sm"
-            onClick={handleTestWebhook}
-            disabled={isTesting || !integration.settings?.n8n_webhook_url}
-            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-          >
-            {isTesting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                Testando...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4 mr-1" />
-                Testar
-              </>
-            )}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
             onClick={onSchedule}
             className={integration.schedule_enabled ? 'bg-green-50 text-green-700 border-green-200' : ''}
           >
