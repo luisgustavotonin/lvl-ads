@@ -34,6 +34,10 @@ Deno.serve(async (req) => {
     const totalSpend = todayData.reduce((sum, ad) => sum + (ad.spend || 0), 0);
     const totalConversations = todayData.reduce((sum, ad) => sum + (ad.wa_conversations_started_7d || 0), 0);
     const avgCostPerConversation = totalConversations > 0 ? totalSpend / totalConversations : 0;
+    
+    // Calcular CPM médio da conta para comparação
+    const totalImpressions = todayData.reduce((sum, ad) => sum + (ad.impressions || 0), 0);
+    const avgCPM = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
 
     // Detectar alertas
     const alerts = [];
@@ -42,29 +46,43 @@ Deno.serve(async (req) => {
       const adName = ad.ad_name || 'Anúncio sem nome';
       const adsetName = ad.adset_name || 'Conjunto sem nome';
       const campaignName = ad.campaign_name || 'Campanha sem nome';
+      const hierarchy = `${campaignName} > ${adsetName} > ${adName}`;
 
       // CTR abaixo de 1%
-      if ((ad.ctr_link || 0) < 1) {
+      if ((ad.ctr_link || 0) < 0.01 && (ad.spend || 0) > 10) {
         alerts.push({
           severity: 'medium',
-          message: `CTR baixo (${(ad.ctr_link || 0).toFixed(2)}%) em "${adName}"`
+          hierarchy,
+          message: `CTR baixo (${(ad.ctr_link * 100).toFixed(2)}%) em ${hierarchy}`
         });
       }
 
       // Custo por conversa 30% acima da média
       const costPerConv = ad.cost_per_conversation || 0;
-      if (avgCostPerConversation > 0 && costPerConv > avgCostPerConversation * 1.3) {
+      if (avgCostPerConversation > 0 && costPerConv > 0 && costPerConv > avgCostPerConversation * 1.3 && (ad.spend || 0) > 20) {
         alerts.push({
           severity: 'high',
-          message: `Custo/conversa elevado (${formatCurrency(costPerConv)}) em "${adName}"`
+          hierarchy,
+          message: `Custo/conversa 30% acima da média (${formatCurrency(costPerConv)}) em ${hierarchy}`
         });
       }
 
       // Frequência acima de 3
-      if ((ad.frequency || 0) > 3) {
+      if ((ad.frequency || 0) > 3 && (ad.spend || 0) > 10) {
         alerts.push({
           severity: 'medium',
-          message: `Frequência alta (${(ad.frequency || 0).toFixed(1)}) em "${adName}"`
+          hierarchy,
+          message: `Frequência alta (${(ad.frequency || 0).toFixed(1)}x) - risco de fadiga em ${hierarchy}`
+        });
+      }
+
+      // CPM muito acima da média (50% ou mais)
+      const adCPM = (ad.impressions || 0) > 0 ? ((ad.spend || 0) / (ad.impressions || 0)) * 1000 : 0;
+      if (avgCPM > 0 && adCPM > avgCPM * 1.5 && (ad.spend || 0) > 20) {
+        alerts.push({
+          severity: 'medium',
+          hierarchy,
+          message: `CPM 50% acima da média (${formatCurrency(adCPM)}) em ${hierarchy}`
         });
       }
 
@@ -72,7 +90,8 @@ Deno.serve(async (req) => {
       if ((ad.spend || 0) > 50 && (ad.wa_conversations_started_7d || 0) === 0) {
         alerts.push({
           severity: 'high',
-          message: `Sem conversões com R$ ${(ad.spend || 0).toFixed(2)} investidos em "${adName}"`
+          hierarchy,
+          message: `Sem conversões com ${formatCurrency(ad.spend || 0)} investidos em ${hierarchy}`
         });
       }
     });
@@ -93,29 +112,38 @@ Deno.serve(async (req) => {
       })
       .slice(0, 3);
 
-    // Gerar recomendações
+    // Gerar recomendações estratégicas
     const recommendations = [];
     
     const highSeverityAlerts = alerts.filter(a => a.severity === 'high');
     const frequencyAlerts = alerts.filter(a => a.message.includes('Frequência alta'));
     const ctrAlerts = alerts.filter(a => a.message.includes('CTR baixo'));
     const noConversionAlerts = alerts.filter(a => a.message.includes('Sem conversões'));
+    const highCostAlerts = alerts.filter(a => a.message.includes('acima da média'));
+    const highCPMAlerts = alerts.filter(a => a.message.includes('CPM'));
 
     if (frequencyAlerts.length > 0) {
       recommendations.push('Pausar anúncios com frequência acima de 3 para evitar fadiga de audiência');
     }
     if (ctrAlerts.length > 0) {
-      recommendations.push('Revisar criativos com CTR baixo e testar novas variações');
+      recommendations.push('Ajustar criativos com CTR baixo - testar novos formatos e mensagens');
     }
     if (noConversionAlerts.length > 0) {
       recommendations.push('Redistribuir orçamento dos anúncios sem conversão para os mais eficientes');
     }
-    if (highSeverityAlerts.length > 0) {
+    if (highCostAlerts.length > 0) {
       recommendations.push('Revisar segmentação dos anúncios com custo elevado por conversa');
     }
-    if (recommendations.length === 0 && topAds.length > 0) {
-      recommendations.push('Desempenho estável. Considerar escalar os anúncios com melhor performance');
-      recommendations.push('Manter monitoramento de métricas ao longo do dia');
+    if (highCPMAlerts.length > 0) {
+      recommendations.push('Analisar competição e qualidade da segmentação nos anúncios com CPM alto');
+    }
+    if (recommendations.length === 0) {
+      if (topAds.length > 0) {
+        recommendations.push('Desempenho estável - considerar escalar os anúncios com melhor performance');
+        recommendations.push('Manter monitoramento contínuo das métricas ao longo do dia');
+      } else {
+        recommendations.push('Aguardar mais dados ao longo do dia para recomendações específicas');
+      }
     }
 
     // Formatar mensagem
@@ -145,10 +173,13 @@ Deno.serve(async (req) => {
       message += `✅ Nenhum alerta detectado\n\n`;
     } else {
       message += `Total: ${alerts.length} alerta(s)\n\n`;
-      alerts.slice(0, 5).forEach((alert, idx) => {
+      alerts.slice(0, 8).forEach((alert, idx) => {
         const emoji = alert.severity === 'high' ? '🔴' : '🟡';
         message += `${emoji} ${alert.message}\n\n`;
       });
+      if (alerts.length > 8) {
+        message += `... e mais ${alerts.length - 8} alerta(s)\n\n`;
+      }
     }
     message += `━━━━━━━━━━━━━━━━━━\n\n`;
 
