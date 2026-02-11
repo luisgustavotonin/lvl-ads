@@ -73,28 +73,43 @@ export default function Integrations() {
 
   const { data: integrations = [], isLoading: integrationsLoading, refetch } = useQuery({
     queryKey: ['integrations'],
-    queryFn: () => base44.entities.Integration.list(),
+    queryFn: () => base44.entities.Integration.filter({ is_global: true }),
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Integration.create({ ...data, connection_status: 'disconnected' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      handleCloseDialog();
-    },
+  const { data: unitLinks = [], isLoading: linksLoading } = useQuery({
+    queryKey: ['integrationUnitLinks'],
+    queryFn: () => base44.entities.IntegrationUnitLink.list(),
   });
 
-  const updateMutation = useMutation({
+  const updateIntegrationMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Integration.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      setConfigDialog(null);
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Integration.delete(id),
+  const createLinkMutation = useMutation({
+    mutationFn: (data) => base44.entities.IntegrationUnitLink.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrationUnitLinks'] });
+      setAddUnitDialog(null);
+    },
+  });
+
+  const updateLinkMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.IntegrationUnitLink.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrationUnitLinks'] });
+      setEditUnitDialog(null);
+      setScheduleDialog(null);
+    },
+  });
+
+  const deleteLinkMutation = useMutation({
+    mutationFn: (id) => base44.entities.IntegrationUnitLink.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrationUnitLinks'] });
       setDeleteDialog(null);
     },
   });
