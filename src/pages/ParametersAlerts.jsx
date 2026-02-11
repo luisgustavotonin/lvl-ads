@@ -218,10 +218,21 @@ export default function ParametersAlerts() {
 
   const [telegramTemplate, setTelegramTemplate] = React.useState('');
   const [editingTemplate, setEditingTemplate] = React.useState(false);
-  const [telegramCustomTime, setTelegramCustomTime] = React.useState('');
-  const [alertCustomTime, setAlertCustomTime] = React.useState('');
   const [recentlySaved, setRecentlySaved] = React.useState({});
   const [executionLogs, setExecutionLogs] = React.useState([]);
+
+  // Sincronizar horários do banco com estado local
+  React.useEffect(() => {
+    if (telegramAlertConfig?.schedule_time) {
+      // schedule_time já vem formatado como HH:MM
+    }
+  }, [telegramAlertConfig]);
+
+  React.useEffect(() => {
+    if (alertConfig?.schedule_time) {
+      // schedule_time já vem formatado como HH:MM
+    }
+  }, [alertConfig]);
 
   React.useEffect(() => {
     const loadTemplate = async () => {
@@ -714,45 +725,39 @@ export default function ParametersAlerts() {
                           </Select>
                         </div>
                         {alertConfig?.alert_frequency === 'daily' && (
-                          <>
-                            <div className="w-20">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="23"
-                                placeholder="HH"
-                                value={alertCustomTime.split(':')[0] || ''}
-                                onChange={(e) => {
-                                  const hour = e.target.value.padStart(2, '0');
-                                  const minute = alertCustomTime.split(':')[1] || '00';
-                                  setAlertCustomTime(`${hour}:${minute}`);
-                                }}
-                                className="h-9"
-                              />
-                            </div>
-                            <span className="text-gray-500 font-bold">:</span>
-                            <div className="w-20">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="59"
-                                placeholder="MM"
-                                value={alertCustomTime.split(':')[1] || ''}
-                                onChange={(e) => {
-                                  const minute = e.target.value.padStart(2, '0');
-                                  const hour = alertCustomTime.split(':')[0] || '09';
-                                  setAlertCustomTime(`${hour}:${minute}`);
-                                }}
-                                className="h-9"
-                              />
-                            </div>
-                            <Button
-                              onClick={() => updateAlertConfigMutation.mutate({ alert_frequency: 'daily', custom_time: alertCustomTime })}
-                              className="h-9"
-                            >
-                              Salvar
-                            </Button>
-                          </>
+                           <>
+                             <div className="w-20">
+                               <Input
+                                 type="number"
+                                 min="0"
+                                 max="23"
+                                 placeholder="HH"
+                                 value={(alertConfig?.schedule_time || '').split(':')[0] || ''}
+                                 onChange={(e) => {
+                                   const hour = e.target.value.padStart(2, '0');
+                                   const minute = (alertConfig?.schedule_time || '').split(':')[1] || '00';
+                                   updateAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
+                                 }}
+                                 className="h-9"
+                               />
+                             </div>
+                             <span className="text-gray-500 font-bold">:</span>
+                             <div className="w-20">
+                               <Input
+                                 type="number"
+                                 min="0"
+                                 max="59"
+                                 placeholder="MM"
+                                 value={(alertConfig?.schedule_time || '').split(':')[1] || ''}
+                                 onChange={(e) => {
+                                   const minute = e.target.value.padStart(2, '0');
+                                   const hour = (alertConfig?.schedule_time || '').split(':')[0] || '09';
+                                   updateAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
+                                 }}
+                                 className="h-9"
+                               />
+                             </div>
+                           </>
                         )}
                       </div>
                     </div>
@@ -897,11 +902,11 @@ export default function ParametersAlerts() {
                                 min="0"
                                 max="23"
                                 placeholder="HH"
-                                value={telegramCustomTime.split(':')[0] || ''}
+                                value={(telegramAlertConfig?.schedule_time || '').split(':')[0] || ''}
                                 onChange={(e) => {
                                   const hour = e.target.value.padStart(2, '0');
-                                  const minute = telegramCustomTime.split(':')[1] || '';
-                                  setTelegramCustomTime(`${hour}:${minute}`);
+                                  const minute = (telegramAlertConfig?.schedule_time || '').split(':')[1] || '00';
+                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
                                 }}
                                 className="h-9"
                               />
@@ -913,22 +918,15 @@ export default function ParametersAlerts() {
                                 min="0"
                                 max="59"
                                 placeholder="MM"
-                                value={telegramCustomTime.split(':')[1] || ''}
+                                value={(telegramAlertConfig?.schedule_time || '').split(':')[1] || ''}
                                 onChange={(e) => {
                                   const minute = e.target.value.padStart(2, '0');
-                                  const hour = telegramCustomTime.split(':')[0] || '';
-                                  setTelegramCustomTime(`${hour}:${minute}`);
+                                  const hour = (telegramAlertConfig?.schedule_time || '').split(':')[0] || '09';
+                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
                                 }}
                                 className="h-9"
                               />
                             </div>
-                            <Button
-                              onClick={() => updateTelegramAlertConfigMutation.mutate({ alert_frequency: 'daily', custom_time: telegramCustomTime })}
-                              disabled={recentlySaved.telegram || updateTelegramAlertConfigMutation.isPending || !telegramCustomTime.includes(':')}
-                              className="h-9"
-                            >
-                              {recentlySaved.telegram ? '✓ Salvo' : 'Salvar'}
-                            </Button>
                             <Button 
                               onClick={() => testTelegramMutation.mutate()}
                               disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
