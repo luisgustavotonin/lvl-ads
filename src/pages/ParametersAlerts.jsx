@@ -209,6 +209,9 @@ export default function ParametersAlerts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['telegramAlertConfig'] });
+      queryClient.invalidateQueries({ queryKey: ['executionLogs'] });
+      setRecentlySaved({ telegram: true });
+      setTimeout(() => setRecentlySaved({}), 3000);
       toast.success('Configuração Telegram atualizada');
     }
   });
