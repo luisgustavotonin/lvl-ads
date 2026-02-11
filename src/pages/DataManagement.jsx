@@ -32,27 +32,30 @@ const PLATFORMS = [
 
 // Colunas permitidas (apenas dados da campanha, não dados técnicos)
 const CAMPAIGN_COLUMNS = [
-  { key: 'date', label: 'Data', type: 'date' },
-  { key: 'campaign_name', label: 'Campanha', type: 'string' },
-  { key: 'campaign_id', label: 'ID Campanha', type: 'string' },
-  { key: 'adset_name', label: 'Conjunto de Anúncios', type: 'string' },
-  { key: 'adset_id', label: 'ID Conjunto', type: 'string' },
-  { key: 'ad_name', label: 'Anúncio', type: 'string' },
-  { key: 'ad_id', label: 'ID Anúncio', type: 'string' },
-  { key: 'spend', label: 'Investimento', type: 'currency' },
-  { key: 'impressions', label: 'Impressões', type: 'number' },
-  { key: 'reach', label: 'Alcance', type: 'number' },
-  { key: 'clicks', label: 'Cliques', type: 'number' },
-  { key: 'link_clicks', label: 'Cliques no Link', type: 'number' },
-  { key: 'wa_conversations_started_7d', label: 'Conversas WhatsApp', type: 'number' },
-  { key: 'wa_total_messaging_connection', label: 'Total Contatos WA', type: 'number' },
-  { key: 'wa_messaging_first_reply', label: 'Primeira Resposta WA', type: 'number' },
-  { key: 'ctr_link', label: 'CTR Link', type: 'percent' },
-  { key: 'cpc_link', label: 'CPC Link', type: 'currency' },
-  { key: 'cpm', label: 'CPM', type: 'currency' },
-  { key: 'cost_per_conversation', label: 'Custo por Conversa', type: 'currency' },
-  { key: 'cost_per_total_contact', label: 'Custo por Contato Total', type: 'currency' },
-  { key: 'cost_per_first_reply', label: 'Custo por Primeira Resposta', type: 'currency' },
+  { key: 'date', label: 'date', type: 'date' },
+  { key: 'campaign_name', label: 'campaign_name', type: 'string' },
+  { key: 'campaign_id', label: 'campaign_id', type: 'string' },
+  { key: 'adset_name', label: 'adset_name', type: 'string' },
+  { key: 'adset_id', label: 'adset_id', type: 'string' },
+  { key: 'ad_name', label: 'ad_name', type: 'string' },
+  { key: 'ad_id', label: 'ad_id', type: 'string' },
+  { key: 'ad_effective_status', label: 'ad_effective_status', type: 'string' },
+  { key: 'creative_id', label: 'creative_id', type: 'string' },
+  { key: 'spend', label: 'spend', type: 'currency' },
+  { key: 'impressions', label: 'impressions', type: 'number' },
+  { key: 'reach', label: 'reach', type: 'number' },
+  { key: 'frequency', label: 'frequency', type: 'decimal' },
+  { key: 'clicks', label: 'clicks', type: 'number' },
+  { key: 'link_clicks', label: 'link_clicks', type: 'number' },
+  { key: 'ctr_link', label: 'ctr_link', type: 'percent' },
+  { key: 'cpc_link', label: 'cpc_link', type: 'currency' },
+  { key: 'cpm', label: 'cpm', type: 'currency' },
+  { key: 'wa_conversations_started_7d', label: 'wa_conversations_started_7d', type: 'number' },
+  { key: 'wa_total_messaging_connection', label: 'wa_total_messaging_connection', type: 'number' },
+  { key: 'wa_messaging_first_reply', label: 'wa_messaging_first_reply', type: 'number' },
+  { key: 'cost_per_conversation', label: 'cost_per_conversation', type: 'currency' },
+  { key: 'cost_per_total_contact', label: 'cost_per_total_contact', type: 'currency' },
+  { key: 'cost_per_first_reply', label: 'cost_per_first_reply', type: 'currency' },
 ];
 
 export default function DataManagement() {
@@ -81,12 +84,20 @@ export default function DataManagement() {
       campaign_name: true,
       adset_name: true,
       ad_name: true,
+      ad_effective_status: true,
       spend: true,
       impressions: true,
       reach: true,
+      frequency: true,
       clicks: true,
       link_clicks: true,
+      ctr_link: true,
+      cpc_link: true,
+      cpm: true,
       wa_conversations_started_7d: true,
+      wa_total_messaging_connection: true,
+      wa_messaging_first_reply: true,
+      cost_per_conversation: true,
     };
   });
 
@@ -263,6 +274,8 @@ export default function DataManagement() {
         return formatCurrency(value);
       case 'percent':
         return `${(value * 100).toFixed(2)}%`;
+      case 'decimal':
+        return typeof value === 'number' ? value.toFixed(2) : value;
       case 'number':
         return new Intl.NumberFormat('pt-BR').format(Math.round(value));
       default:
