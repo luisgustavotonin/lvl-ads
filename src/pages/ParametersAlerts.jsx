@@ -207,6 +207,8 @@ export default function ParametersAlerts() {
   const [editingTemplate, setEditingTemplate] = React.useState(false);
   const [telegramCustomTime, setTelegramCustomTime] = React.useState('');
   const [alertCustomTime, setAlertCustomTime] = React.useState('');
+  const [recentlySaved, setRecentlySaved] = React.useState({});
+  const [executionLogs, setExecutionLogs] = React.useState([]);
 
   React.useEffect(() => {
     const loadTemplate = async () => {
