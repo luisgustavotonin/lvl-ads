@@ -47,6 +47,15 @@ export default function ParametersAlerts() {
     enabled: !!selectedUnit
   });
 
+  const { data: telegramAlertConfig } = useQuery({
+    queryKey: ['telegramAlertConfig', selectedUnit],
+    queryFn: async () => {
+      const configs = await base44.entities.TelegramAlertConfig.filter({ unit_id: selectedUnit });
+      return configs[0] || null;
+    },
+    enabled: !!selectedUnit
+  });
+
   const initThresholdsMutation = useMutation({
     mutationFn: () => base44.functions.invoke('initializeDefaultKpiThresholds', { unit_id: selectedUnit }),
     onSuccess: () => {
@@ -149,6 +158,20 @@ export default function ParametersAlerts() {
     }
   });
 
+  const updateTelegramAlertConfigMutation = useMutation({
+    mutationFn: (data) => {
+      if (telegramAlertConfig?.id) {
+        return base44.entities.TelegramAlertConfig.update(telegramAlertConfig.id, data);
+      } else {
+        return base44.entities.TelegramAlertConfig.create({ ...data, unit_id: selectedUnit });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['telegramAlertConfig'] });
+      toast.success('Configuração Telegram atualizada');
+    }
+  });
+
   const groupedThresholds = thresholds.reduce((acc, t) => {
     if (!acc[t.group]) acc[t.group] = [];
     acc[t.group].push(t);
@@ -203,10 +226,11 @@ export default function ParametersAlerts() {
 
       {selectedUnit && (
         <Tabs defaultValue="thresholds" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="thresholds">Parâmetros de KPIs</TabsTrigger>
             <TabsTrigger value="rules">Regras de Diagnóstico</TabsTrigger>
             <TabsTrigger value="alerts">Alertas WhatsApp</TabsTrigger>
+            <TabsTrigger value="telegram">Alertas Telegram</TabsTrigger>
           </TabsList>
 
           <TabsContent value="thresholds" className="space-y-4">
@@ -545,6 +569,138 @@ export default function ParametersAlerts() {
                         className="mt-1"
                       />
                       <p className="text-xs text-gray-500 mt-1">Se configurado, os alertas serão enviados para este endpoint</p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="telegram" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="w-5 h-5" />
+                  Configuração de Alertas Telegram
+                </CardTitle>
+                <CardDescription>Receba alertas automáticos via Telegram quando métricas saírem do padrão</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <Label className="font-medium">Ativar Alertas Telegram</Label>
+                    <p className="text-sm text-gray-600">Receber notificações por Telegram</p>
+                  </div>
+                  <Switch
+                    checked={telegramAlertConfig?.enabled || false}
+                    onCheckedChange={(enabled) => updateTelegramAlertConfigMutation.mutate({ enabled })}
+                  />
+                </div>
+
+                {telegramAlertConfig?.enabled && (
+                  <>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-sm text-blue-900 mb-2">Como configurar:</h4>
+                      <ol className="text-xs text-blue-800 space-y-1 list-decimal ml-4">
+                        <li>Abra o Telegram e procure por <strong>@BotFather</strong></li>
+                        <li>Envie o comando <code>/newbot</code> e siga as instruções</li>
+                        <li>Copie o <strong>token</strong> fornecido e cole abaixo</li>
+                        <li>Para obter o Chat ID, envie uma mensagem para o bot e acesse: <code>https://api.telegram.org/bot{'<TOKEN>'}/getUpdates</code></li>
+                        <li>Procure por "chat":{"{"}"id": no JSON retornado</li>
+                      </ol>
+                    </div>
+
+                    <div>
+                      <Label>Token do Bot</Label>
+                      <Input
+                        type="password"
+                        placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+                        value={telegramAlertConfig?.bot_token || ''}
+                        onChange={(e) => updateTelegramAlertConfigMutation.mutate({ bot_token: e.target.value })}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Token fornecido pelo BotFather</p>
+                    </div>
+
+                    <div>
+                      <Label>Chat ID</Label>
+                      <Input
+                        placeholder="123456789"
+                        value={telegramAlertConfig?.chat_id || ''}
+                        onChange={(e) => updateTelegramAlertConfigMutation.mutate({ chat_id: e.target.value })}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">ID do chat, grupo ou canal que receberá os alertas</p>
+                    </div>
+
+                    <div>
+                      <Label>Frequência de Alertas</Label>
+                      <Select
+                        value={telegramAlertConfig?.alert_frequency || 'daily_9h'}
+                        onValueChange={(alert_frequency) => updateTelegramAlertConfigMutation.mutate({ alert_frequency })}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="immediate">Imediato</SelectItem>
+                          <SelectItem value="daily_9h">Diário às 9h</SelectItem>
+                          <SelectItem value="daily_18h">Diário às 18h</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Filtro de Severidade</Label>
+                      <Select
+                        value={telegramAlertConfig?.severity_filter || 'medium_high'}
+                        onValueChange={(severity_filter) => updateTelegramAlertConfigMutation.mutate({ severity_filter })}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="high_only">Apenas Alta</SelectItem>
+                          <SelectItem value="medium_high">Média + Alta</SelectItem>
+                          <SelectItem value="all">Todos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <Label className="font-medium">Incluir Top Anúncios</Label>
+                        <p className="text-sm text-gray-600">Mostrar os melhores anúncios no alerta</p>
+                      </div>
+                      <Switch
+                        checked={telegramAlertConfig?.include_top_ads || false}
+                        onCheckedChange={(include_top_ads) => updateTelegramAlertConfigMutation.mutate({ include_top_ads })}
+                      />
+                    </div>
+
+                    {telegramAlertConfig?.include_top_ads && (
+                      <div>
+                        <Label>Quantidade de Top Anúncios</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={telegramAlertConfig?.top_ads_quantity || 3}
+                          onChange={(e) => updateTelegramAlertConfigMutation.mutate({ top_ads_quantity: parseInt(e.target.value) })}
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>Webhook URL (opcional)</Label>
+                      <Input
+                        placeholder="https://seu-n8n.com/webhook/telegram-alerts"
+                        value={telegramAlertConfig?.webhook_url || ''}
+                        onChange={(e) => updateTelegramAlertConfigMutation.mutate({ webhook_url: e.target.value })}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Se configurado, os alertas serão enviados para este endpoint ao invés de diretamente para o Telegram</p>
                     </div>
                   </>
                 )}
