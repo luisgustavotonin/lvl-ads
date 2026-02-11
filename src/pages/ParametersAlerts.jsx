@@ -63,11 +63,67 @@ export default function ParametersAlerts() {
     }
   });
 
+  const [pendingThresholds, setPendingThresholds] = useState({});
+  const [pendingRules, setPendingRules] = useState({});
+
   const updateThresholdMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.KpiThreshold.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['thresholds'] });
-      toast.success('Parâmetro atualizado');
+      setPendingThresholds({});
+      toast.success('Parâmetros salvos');
+    }
+  });
+
+  const updateRuleMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.KpiRule.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
+      setPendingRules({});
+      toast.success('Regras salvas');
+    }
+  });
+
+  const replicateToUnitMutation = useMutation({
+    mutationFn: async (targetUnitId) => {
+      const thresholdsToReplicate = thresholds.map(t => ({
+        unit_id: targetUnitId,
+        provider: t.provider,
+        kpi_key: t.kpi_key,
+        kpi_name: t.kpi_name,
+        group: t.group,
+        direction: t.direction,
+        green_min: t.green_min,
+        green_max: t.green_max,
+        yellow_min: t.yellow_min,
+        yellow_max: t.yellow_max,
+        red_min: t.red_min,
+        red_max: t.red_max,
+        evaluation_window: t.evaluation_window,
+        min_spend_to_evaluate_7d: t.min_spend_to_evaluate_7d,
+        min_spend_to_evaluate_30d: t.min_spend_to_evaluate_30d,
+        min_impressions_to_evaluate_7d: t.min_impressions_to_evaluate_7d,
+        min_impressions_to_evaluate_30d: t.min_impressions_to_evaluate_30d,
+        enabled: t.enabled
+      }));
+
+      const rulesToReplicate = rules.map(r => ({
+        unit_id: targetUnitId,
+        provider: r.provider,
+        rule_name: r.rule_name,
+        conditions: r.conditions,
+        severity: r.severity,
+        message_title: r.message_title,
+        message_body: r.message_body,
+        recommended_actions: r.recommended_actions,
+        enabled: r.enabled
+      }));
+
+      await base44.entities.KpiThreshold.bulkCreate(thresholdsToReplicate);
+      await base44.entities.KpiRule.bulkCreate(rulesToReplicate);
+    },
+    onSuccess: () => {
+      toast.success('Parametrização replicada com sucesso');
     }
   });
 
@@ -153,12 +209,41 @@ export default function ParametersAlerts() {
                     <CardTitle>Parâmetros de KPIs</CardTitle>
                     <CardDescription>Defina faixas verde/amarelo/vermelho para cada métrica</CardDescription>
                   </div>
-                  {thresholds.length === 0 && (
-                    <Button onClick={() => initThresholdsMutation.mutate()}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Criar Padrões Recomendados
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {thresholds.length === 0 ? (
+                      <Button onClick={() => initThresholdsMutation.mutate()}>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Criar Padrões Recomendados
+                      </Button>
+                    ) : (
+                      <>
+                        <Select onValueChange={(targetUnitId) => {
+                          if (confirm('Replicar toda parametrização para esta unidade?')) {
+                            replicateToUnitMutation.mutate(targetUnitId);
+                          }
+                        }}>
+                          <SelectTrigger className="w-48">
+                            <SelectValue placeholder="Replicar para..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {units.filter(u => u.id !== selectedUnit).map(u => (
+                              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          onClick={() => {
+                            Object.entries(pendingThresholds).forEach(([id, data]) => {
+                              updateThresholdMutation.mutate({ id, data });
+                            });
+                          }}
+                          disabled={Object.keys(pendingThresholds).length === 0}
+                        >
+                          Salvar Alterações
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -198,10 +283,13 @@ export default function ParametersAlerts() {
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  value={threshold.green_min}
-                                  onChange={(e) => updateThresholdMutation.mutate({ 
-                                    id: threshold.id, 
-                                    data: { green_min: parseFloat(e.target.value) } 
+                                  value={pendingThresholds[threshold.id]?.green_min ?? threshold.green_min}
+                                  onChange={(e) => setPendingThresholds({
+                                    ...pendingThresholds,
+                                    [threshold.id]: {
+                                      ...pendingThresholds[threshold.id],
+                                      green_min: parseFloat(e.target.value)
+                                    }
                                   })}
                                   className="h-8"
                                 />
@@ -285,12 +373,25 @@ export default function ParametersAlerts() {
                     <CardTitle>Regras de Diagnóstico</CardTitle>
                     <CardDescription>Sugestões automáticas baseadas em combinações de métricas</CardDescription>
                   </div>
-                  {rules.length === 0 && (
-                    <Button onClick={() => initRulesMutation.mutate()}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Criar Regras Padrão
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {rules.length === 0 ? (
+                      <Button onClick={() => initRulesMutation.mutate()}>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Criar Regras Padrão
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={() => {
+                          Object.entries(pendingRules).forEach(([id, data]) => {
+                            updateRuleMutation.mutate({ id, data });
+                          });
+                        }}
+                        disabled={Object.keys(pendingRules).length === 0}
+                      >
+                        Salvar Alterações
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

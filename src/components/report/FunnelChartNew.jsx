@@ -1,37 +1,24 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
-export default function FunnelChartNew({ current, previous }) {
-  const stages = [
-    { 
-      key: 'impressions', 
-      label: 'Impressões',
-      value: current.impressions || 0,
-      prevValue: previous?.impressions || 0,
-      color: 'from-blue-100 to-blue-200'
-    },
-    { 
-      key: 'linkClicks', 
-      label: 'Cliques no Link',
-      value: current.linkClicks || 0,
-      prevValue: previous?.linkClicks || 0,
-      color: 'from-blue-200 to-blue-300'
-    },
-    { 
-      key: 'conversations', 
-      label: 'Conversas Iniciadas',
-      value: current.conversations || 0,
-      prevValue: previous?.conversations || 0,
-      color: 'from-blue-400 to-blue-500'
-    },
-    { 
-      key: 'totalContact', 
-      label: 'Contatos por Mensagem',
-      value: current.totalContact || 0,
-      prevValue: previous?.totalContact || 0,
-      color: 'from-blue-600 to-blue-700'
-    },
+export default function FunnelChartNew({ current, previous, stages: configStages }) {
+  const colorGradients = [
+    'from-blue-100 to-blue-200',
+    'from-blue-200 to-blue-300',
+    'from-blue-300 to-blue-400',
+    'from-blue-400 to-blue-500',
+    'from-blue-500 to-blue-600',
+    'from-blue-600 to-blue-700',
+    'from-blue-700 to-blue-800',
   ];
+
+  const stages = configStages.map((stage, idx) => ({
+    key: stage.key,
+    label: stage.label,
+    value: current[stage.key] || 0,
+    prevValue: previous?.[stage.key] || 0,
+    color: colorGradients[idx % colorGradients.length]
+  }));
 
   const formatNumber = (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v));
 

@@ -19,21 +19,26 @@ import MetaExportCSV from '@/components/meta/MetaExportCSV';
 import KPICardWithComparison from '@/components/report/KPICardWithComparison';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
 import RankingTable from '@/components/report/RankingTable';
+import FunnelEditor from '@/components/report/FunnelEditor';
 
 const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
 
 const ALL_KPIS = [
   { id: 'spend', label: 'Investimento', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Investimento' },
-  { id: 'impressions', label: 'Impressões', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Alcance' },
-  { id: 'reach', label: 'Alcance', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Alcance' },
-  { id: 'frequency', label: 'Frequência', format: (v) => v.toFixed(2), category: 'Alcance' },
+  { id: 'impressions', label: 'Impressões', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Volume' },
+  { id: 'reach', label: 'Alcance', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Volume' },
+  { id: 'frequency', label: 'Frequência', format: (v) => v.toFixed(2), category: 'Qualidade' },
   { id: 'clicks', label: 'Cliques', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Engajamento' },
   { id: 'linkClicks', label: 'Cliques no link', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Engajamento' },
   { id: 'ctrLink', label: 'CTR Link', format: (v) => `${v.toFixed(2)}%`, category: 'Eficiência' },
-  { id: 'cpcLink', label: 'CPC Link', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Eficiência' },
-  { id: 'cpm', label: 'CPM', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Eficiência' },
-  { id: 'conversations', label: 'Conversas', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'WhatsApp' },
-  { id: 'costPerConversation', label: 'Custo/Conversa', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'WhatsApp' },
+  { id: 'cpcLink', label: 'CPC Link', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Custo' },
+  { id: 'cpm', label: 'CPM', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Custo' },
+  { id: 'conversations', label: 'Conversas Iniciadas', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Conversão' },
+  { id: 'totalContact', label: 'Contatos por Mensagem', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Conversão' },
+  { id: 'firstReply', label: 'Primeira Resposta', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Conversão' },
+  { id: 'costPerConversation', label: 'Custo/Conversa', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Custo' },
+  { id: 'costPerTotalContact', label: 'Custo/Contato Total', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Custo' },
+  { id: 'costPerFirstReply', label: 'Custo/Primeira Resposta', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Custo' },
 ];
 
 export default function Reports() {
@@ -45,6 +50,13 @@ export default function Reports() {
   const [showComparison, setShowComparison] = useState(true);
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
+  const [funnelStages, setFunnelStages] = useState([
+    { key: 'impressions', label: 'Impressões' },
+    { key: 'linkClicks', label: 'Cliques no Link' },
+    { key: 'conversations', label: 'Conversas Iniciadas' },
+    { key: 'totalContact', label: 'Contatos por Mensagem' },
+    { key: 'firstReply', label: 'Primeira Resposta' },
+  ]);
 
   const { data: user } = useQuery({
     queryKey: ['currentUser'],
@@ -140,6 +152,7 @@ export default function Reports() {
     const linkClicks = currentMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
     const conversations = currentMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
     const totalContact = currentMetrics.reduce((s, m) => s + (m.wa_total_messaging_connection || 0), 0);
+    const firstReply = currentMetrics.reduce((s, m) => s + (m.wa_messaging_first_reply || 0), 0);
     
     return {
       spend,
@@ -153,7 +166,10 @@ export default function Reports() {
       frequency: reach > 0 ? impressions / reach : 0,
       conversations,
       totalContact,
+      firstReply,
       costPerConversation: conversations > 0 ? spend / conversations : 0,
+      costPerTotalContact: totalContact > 0 ? spend / totalContact : 0,
+      costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
     };
   }, [currentMetrics]);
 
@@ -165,6 +181,7 @@ export default function Reports() {
     const linkClicks = previousMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
     const conversations = previousMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
     const totalContact = previousMetrics.reduce((s, m) => s + (m.wa_total_messaging_connection || 0), 0);
+    const firstReply = previousMetrics.reduce((s, m) => s + (m.wa_messaging_first_reply || 0), 0);
     
     return {
       spend,
@@ -178,7 +195,10 @@ export default function Reports() {
       frequency: reach > 0 ? impressions / reach : 0,
       conversations,
       totalContact,
+      firstReply,
       costPerConversation: conversations > 0 ? spend / conversations : 0,
+      costPerTotalContact: totalContact > 0 ? spend / totalContact : 0,
+      costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
     };
   }, [previousMetrics]);
 
@@ -221,9 +241,25 @@ export default function Reports() {
     return `${parts[2]}/${parts[1]}`;
   };
 
+  const { data: thresholds = [] } = useQuery({
+    queryKey: ['thresholds', selectedUnit],
+    queryFn: () => selectedUnit ? base44.entities.KpiThreshold.filter({ unit_id: selectedUnit, enabled: true }) : [],
+    enabled: !!selectedUnit
+  });
+
   const getKpiLabel = (kpi) => {
     const customLabel = cardLabels.find(cl => cl.card_key === kpi.id);
     return customLabel?.custom_label || kpi.label;
+  };
+
+  const evaluateThreshold = (kpiKey, value) => {
+    const threshold = thresholds.find(t => t.kpi_key === kpiKey);
+    if (!threshold) return null;
+
+    if (value >= threshold.green_min && value <= threshold.green_max) return 'green';
+    if (value >= threshold.yellow_min && value <= threshold.yellow_max) return 'yellow';
+    if (value >= threshold.red_min && value <= threshold.red_max) return 'red';
+    return null;
   };
 
   const selectedUnitData = units.find(u => u.id === selectedUnit);
@@ -371,6 +407,7 @@ export default function Reports() {
                     formatValue={kpi.format}
                     unitId={selectedUnit}
                     isAdmin={user?.role === 'admin'}
+                    thresholdStatus={evaluateThreshold(kpi.id, current[kpi.id])}
                   />
                 );
               })}
@@ -378,8 +415,15 @@ export default function Reports() {
 
             {/* Funil */}
             <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-              <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Funil de Conversão</h3>
-              <FunnelChartNew current={current} previous={previous} />
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Funil de Conversão</h3>
+                <FunnelEditor 
+                  unitId={selectedUnit}
+                  currentStages={funnelStages}
+                  onSave={setFunnelStages}
+                />
+              </div>
+              <FunnelChartNew current={current} previous={previous} stages={funnelStages} />
             </Card>
 
             {/* Gráficos por Dia */}

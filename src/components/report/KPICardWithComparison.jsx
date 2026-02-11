@@ -15,7 +15,8 @@ export default function KPICardWithComparison({
   previousValue, 
   formatValue,
   unitId,
-  isAdmin 
+  isAdmin,
+  thresholdStatus 
 }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [customLabel, setCustomLabel] = React.useState(label);
@@ -59,6 +60,11 @@ export default function KPICardWithComparison({
   if (isNegative && isBetterHigher) indicatorColor = 'text-red-600';
   if (isNegative && isBetterLower) indicatorColor = 'text-green-600';
 
+  let valueColor = 'text-gray-900';
+  if (thresholdStatus === 'green') valueColor = 'text-green-600';
+  if (thresholdStatus === 'yellow') valueColor = 'text-yellow-600';
+  if (thresholdStatus === 'red') valueColor = 'text-red-600';
+
   return (
     <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-5">
@@ -95,7 +101,7 @@ export default function KPICardWithComparison({
           )}
         </div>
         
-        <div className="text-3xl font-bold text-gray-900 mb-2">
+        <div className={`text-3xl font-bold mb-2 ${valueColor}`}>
           {formatValue(currentValue)}
         </div>
         
