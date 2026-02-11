@@ -74,12 +74,16 @@ export default function DataManagement() {
   // Carregar ordem e visibilidade das colunas do localStorage
   const [columnOrder, setColumnOrder] = useState(() => {
     const saved = localStorage.getItem('dataManagement_columnOrder');
-    return saved ? JSON.parse(saved) : CAMPAIGN_COLUMNS.map(c => c.key);
+    const order = saved ? JSON.parse(saved) : CAMPAIGN_COLUMNS.map(c => c.key);
+    // Garantir que novas colunas sejam adicionadas
+    const allKeys = CAMPAIGN_COLUMNS.map(c => c.key);
+    const missingKeys = allKeys.filter(k => !order.includes(k));
+    return [...order, ...missingKeys];
   });
 
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('dataManagement_visibleColumns');
-    return saved ? JSON.parse(saved) : {
+    const defaultVisible = {
       date: true,
       campaign_name: true,
       adset_name: true,
@@ -99,6 +103,12 @@ export default function DataManagement() {
       wa_messaging_first_reply: true,
       cost_per_conversation: true,
     };
+    
+    if (!saved) return defaultVisible;
+    
+    const parsed = JSON.parse(saved);
+    // Mesclar com valores padrão para novas colunas
+    return { ...defaultVisible, ...parsed };
   });
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
