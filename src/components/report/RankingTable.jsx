@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings2, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const STATUS_COLORS = {
   'ACTIVE': 'bg-green-100 text-green-700',
@@ -37,8 +38,21 @@ export default function RankingTable({
 }) {
   const [limit, setLimit] = useState('10');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [columnOrder, setColumnOrder] = useState(ALL_COLUMNS.map(c => c.key));
   const [visibleColumns, setVisibleColumns] = useState(ALL_COLUMNS.map(c => c.key));
   const [sortConfig, setSortConfig] = useState({ key: 'spend', direction: 'desc' });
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(columnOrder);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setColumnOrder(items);
+  };
+
+  const orderedColumns = columnOrder
+    .map(key => ALL_COLUMNS.find(c => c.key === key))
+    .filter(c => c && visibleColumns.includes(c.key));
 
   const aggregated = useMemo(() => {
     const groups = {};
@@ -153,22 +167,48 @@ export default function RankingTable({
                 <SheetHeader>
                   <SheetTitle>Selecionar Colunas</SheetTitle>
                 </SheetHeader>
-                <div className="mt-6 space-y-3">
-                  {ALL_COLUMNS.map(col => (
-                    <div key={col.key} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={visibleColumns.includes(col.key)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setVisibleColumns([...visibleColumns, col.key]);
-                          } else {
-                            setVisibleColumns(visibleColumns.filter(k => k !== col.key));
-                          }
-                        }}
-                      />
-                      <label className="text-sm">{col.label}</label>
-                    </div>
-                  ))}
+                <div className="mt-6">
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="columns">
+                      {(provided) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                          {columnOrder.map((key, index) => {
+                            const col = ALL_COLUMNS.find(c => c.key === key);
+                            if (!col) return null;
+                            return (
+                              <Draggable key={col.key} draggableId={col.key} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    className={`flex items-center gap-2 p-2 rounded-md border ${
+                                      snapshot.isDragging ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
+                                    }`}
+                                  >
+                                    <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                      <GripVertical className="w-4 h-4 text-gray-400" />
+                                    </div>
+                                    <Checkbox
+                                      checked={visibleColumns.includes(col.key)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setVisibleColumns([...visibleColumns, col.key]);
+                                        } else {
+                                          setVisibleColumns(visibleColumns.filter(k => k !== col.key));
+                                        }
+                                      }}
+                                    />
+                                    <label className="text-sm flex-1">{col.label}</label>
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                 </div>
               </SheetContent>
             </Sheet>
@@ -181,7 +221,7 @@ export default function RankingTable({
             <thead>
               <tr className="border-b">
                 {showThumbnail && <th className="text-left py-3 px-2 font-medium text-gray-700 w-16">Criativo</th>}
-                {ALL_COLUMNS.filter(c => visibleColumns.includes(c.key)).map(col => (
+                {orderedColumns.map(col => (
                   <th 
                     key={col.key} 
                     className="text-left py-3 px-2 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
@@ -215,21 +255,17 @@ export default function RankingTable({
                       )}
                     </td>
                   )}
-                  {visibleColumns.includes('name') && (
-                    <td className="py-3 px-2 font-medium text-gray-900 max-w-xs truncate">
-                      {item.name}
-                    </td>
-                  )}
-                  {visibleColumns.includes('status') && (
-                    <td className="py-3 px-2">
-                      <Badge className={STATUS_COLORS[item.status] || 'bg-gray-100'}>
-                        {item.status}
-                      </Badge>
-                    </td>
-                  )}
-                  {ALL_COLUMNS.filter(c => visibleColumns.includes(c.key) && c.key !== 'name' && c.key !== 'status').map(col => (
-                    <td key={col.key} className="py-3 px-2 text-gray-700">
-                      {col.format(item[col.key])}
+                  {orderedColumns.map(col => (
+                    <td key={col.key} className="py-3 px-2">
+                      {col.key === 'name' ? (
+                        <span className="font-medium text-gray-900 max-w-xs truncate">{item.name}</span>
+                      ) : col.key === 'status' ? (
+                        <Badge className={STATUS_COLORS[item.status] || 'bg-gray-100'}>
+                          {item.status}
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-700">{col.format(item[col.key])}</span>
+                      )}
                     </td>
                   ))}
                 </tr>
