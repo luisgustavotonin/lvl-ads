@@ -19,16 +19,26 @@ const METRICS = [
 ];
 
 export default function RuleBuilder({ rule, onSave, onCancel }) {
-  const [formData, setFormData] = useState(rule || {
-    rule_name: '',
-    conditions: [{ id: '1', operator: 'AND', metric: '', comparison: 'greater_than', value: 0 }],
-    condition_logic: 'all',
-    severity: 'medium',
-    message_title: '',
-    message_body: '',
-    recommended_actions: [''],
-    root_cause_hints: [''],
-    notes: ''
+  const [formData, setFormData] = useState(() => {
+    if (!rule) {
+      return {
+        rule_name: '',
+        conditions: [{ id: '1', operator: 'AND', metric: '', comparison: 'greater_than', value: 0 }],
+        condition_logic: 'all',
+        severity: 'medium',
+        message_title: '',
+        message_body: '',
+        recommended_actions: [''],
+        root_cause_hints: [''],
+        notes: ''
+      };
+    }
+    return {
+      ...rule,
+      conditions: Array.isArray(rule.conditions) ? rule.conditions : [{ id: '1', operator: 'AND', metric: '', comparison: 'greater_than', value: 0 }],
+      recommended_actions: Array.isArray(rule.recommended_actions) ? rule.recommended_actions : [''],
+      root_cause_hints: Array.isArray(rule.root_cause_hints) ? rule.root_cause_hints : ['']
+    };
   });
 
   const addCondition = () => {
