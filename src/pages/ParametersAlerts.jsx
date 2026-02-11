@@ -1021,13 +1021,39 @@ export default function ParametersAlerts() {
                       />
                       <p className="text-xs text-gray-500 mt-1">Se configurado, os alertas serão enviados para este endpoint ao invés de diretamente para o Telegram</p>
                     </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      )}
-    </div>
-  );
-}
+
+                    <div className="mt-6 pt-6 border-t">
+                      <h3 className="font-semibold text-sm mb-4">Registro de Execuções</h3>
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {logs.length === 0 ? (
+                          <p className="text-xs text-gray-500 text-center py-4">Nenhum registro ainda</p>
+                        ) : (
+                          logs.map(log => (
+                            <div key={log.id} className="border rounded p-3 text-xs">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-medium flex items-center gap-2">
+                                  {log.status === 'success' && <span className="text-green-600">✓</span>}
+                                  {log.status === 'error' && <span className="text-red-600">✗</span>}
+                                  {log.status === 'pending' && <span className="text-yellow-600">⏳</span>}
+                                  {log.log_type === 'alert_sent' && 'Alerta Enviado'}
+                                  {log.log_type === 'alert_scheduled' && 'Alerta Agendado'}
+                                </span>
+                                <span className="text-gray-500">{new Date(log.execution_time).toLocaleString('pt-BR')}</span>
+                              </div>
+                              {log.message && <p className="text-gray-600">{log.message}</p>}
+                              {log.error_details && <p className="text-red-600 mt-1">{log.error_details}</p>}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                    </>
+                    )}
+                    </CardContent>
+                    </Card>
+                    </TabsContent>
+                    </Tabs>
+                    )}
+                    </div>
+                    );
+                    }
