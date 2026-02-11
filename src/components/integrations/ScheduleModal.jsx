@@ -35,6 +35,9 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
   const [dateMode, setDateMode] = useState('YESTERDAY');
   const [frequency, setFrequency] = useState('daily');
   const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [customHour, setCustomHour] = useState('09');
+  const [customMinute, setCustomMinute] = useState('00');
+  const [useCustomTime, setUseCustomTime] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
