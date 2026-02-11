@@ -119,11 +119,12 @@ export default function DataManagement() {
   const { data: allMetrics = [], refetch: refetchMetrics, isLoading: metricsLoading } = useQuery({
     queryKey: ['allMetrics', selectedUnit, dateFrom, dateTo],
     queryFn: async () => {
-      const filters = {};
-      
-      if (selectedUnit !== 'all') {
-        filters.unit_id = selectedUnit;
+      // NUNCA buscar sem unidade selecionada
+      if (selectedUnit === 'all') {
+        return [];
       }
+
+      const filters = { unit_id: selectedUnit };
       
       if (dateFrom || dateTo) {
         filters.date = {};
@@ -131,12 +132,10 @@ export default function DataManagement() {
         if (dateTo) filters.date.$lte = dateTo;
       }
       
-      // Se houver filtros, busca TUDO do período, senão busca os últimos 100
-      const hasFilters = Object.keys(filters).length > 0;
-      return hasFilters 
-        ? base44.entities.MetaAdDaily.filter(filters, '-date', 10000)
-        : base44.entities.MetaAdDaily.list('-created_date', 100);
+      // Buscar TODOS os registros da unidade selecionada no período
+      return base44.entities.MetaAdDaily.filter(filters, '-date', 50000);
     },
+    enabled: selectedUnit !== 'all',
   });
 
   const { data: webhookLogs = [], refetch: refetchLogs } = useQuery({
@@ -152,23 +151,35 @@ export default function DataManagement() {
   }, [columnOrder]);
 
   const deleteMetricsMutation = useMutation({
-    mutationFn: async (metricIds) => {
-      // Exclusão em lote - coletar todas as datas afetadas ANTES
-      const affectedDates = new Set();
-      metricIds.forEach(id => {
-        const record = allMetrics.find(m => m.id === id);
-        if (record) affectedDates.add(`${record.unit_id}_${record.date}`);
-      });
-      
-      // Deletar tudo em paralelo (ignorando erros de registros não encontrados)
-      const deleteResults = await Promise.allSettled(
-        metricIds.map(id => base44.entities.MetaAdDaily.delete(id))
+    mutationFn: async ({ metricIds, unitId }) => {
+      // VALIDAÇÃO DE SEGURANÇA: Garantir que todos os registros são da unidade correta
+      const recordsToDelete = allMetrics.filter(m => 
+        metricIds.includes(m.id) && m.unit_id === unitId
       );
       
-      // Contar quantos foram realmente deletados (ignorando os que não existem mais)
-      const deletedCount = deleteResults.filter(r => r.status === 'fulfilled').length;
+      if (recordsToDelete.length !== metricIds.length) {
+        throw new Error('Tentativa de excluir registros de outra unidade bloqueada');
+      }
       
-      // Reagregar ou limpar em paralelo
+      // Coletar datas afetadas
+      const affectedDates = new Set();
+      recordsToDelete.forEach(record => {
+        affectedDates.add(`${record.unit_id}_${record.date}`);
+      });
+      
+      // Deletar em lotes de 100 para evitar timeout
+      const batchSize = 100;
+      let deletedCount = 0;
+      
+      for (let i = 0; i < recordsToDelete.length; i += batchSize) {
+        const batch = recordsToDelete.slice(i, i + batchSize);
+        const deleteResults = await Promise.allSettled(
+          batch.map(record => base44.entities.MetaAdDaily.delete(record.id))
+        );
+        deletedCount += deleteResults.filter(r => r.status === 'fulfilled').length;
+      }
+      
+      // Reagregar ou limpar
       await Promise.all(
         Array.from(affectedDates).map(async (key) => {
           const [unit_id, date] = key.split('_');
@@ -197,11 +208,15 @@ export default function DataManagement() {
   });
 
   const getFilteredMetrics = () => {
+    // VALIDAÇÃO: Só retorna dados se uma unidade específica estiver selecionada
+    if (selectedUnit === 'all') {
+      return [];
+    }
+    
     return allMetrics.filter(m => {
-      const matchUnit = selectedUnit === 'all' || m.unit_id === selectedUnit;
-      const matchPlatform = selectedPlatform === 'all' || selectedPlatform === 'META'; // MetaAdDaily é sempre META
-      
-      // Comparação de STRING (lexicográfica funciona para YYYY-MM-DD)
+      // Garantir que é da unidade selecionada
+      const matchUnit = m.unit_id === selectedUnit;
+      const matchPlatform = selectedPlatform === 'all' || selectedPlatform === 'META';
       const matchDate = (!dateFrom || m.date >= dateFrom) && (!dateTo || m.date <= dateTo);
       
       return matchUnit && matchPlatform && matchDate;
@@ -325,14 +340,16 @@ export default function DataManagement() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="space-y-2">
-              <Label>Unidade</Label>
+              <Label>Unidade *</Label>
               <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione uma unidade" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
                   {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {selectedUnit === 'all' && (
+                <p className="text-xs text-amber-600">⚠️ Selecione uma unidade para visualizar e gerenciar dados</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -377,11 +394,13 @@ export default function DataManagement() {
       </Card>
 
       {/* Resumo dos dados filtrados */}
-      {filtered.length > 0 && (
+      {selectedUnit !== 'all' && filtered.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">Resultado: {filtered.length} registros</CardTitle>
+              <CardTitle className="text-lg">
+                Resultado: {filtered.length} registros de {getUnitName(selectedUnit)}
+              </CardTitle>
               <Button 
                 variant="destructive"
                 onClick={() => setConfirmDelete(true)}
@@ -393,7 +412,7 @@ export default function DataManagement() {
                 ) : (
                   <Trash2 className="w-4 h-4" />
                 )}
-                Excluir {filtered.length}
+                Excluir Todos ({filtered.length})
               </Button>
             </div>
           </CardHeader>
@@ -471,13 +490,16 @@ export default function DataManagement() {
                 </SheetContent>
               </Sheet>
 
-              {selectedMetrics.length > 0 && (
+              {selectedMetrics.length > 0 && selectedUnit !== 'all' && (
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => {
-                    if (confirm(`Excluir ${selectedMetrics.length} selecionados?`)) {
-                      deleteMetricsMutation.mutate(selectedMetrics);
+                    if (confirm(`Excluir ${selectedMetrics.length} selecionados de ${getUnitName(selectedUnit)}?`)) {
+                      deleteMetricsMutation.mutate({ 
+                        metricIds: selectedMetrics,
+                        unitId: selectedUnit 
+                      });
                     }
                   }}
                 >
@@ -494,18 +516,25 @@ export default function DataManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto max-h-[600px]">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b sticky top-0">
-                <tr>
-                  <th className="px-3 py-2 text-center">
-                    <input
-                      type="checkbox"
-                      checked={sorted.length > 0 && selectedMetrics.length === sorted.length}
-                      onChange={(e) => setSelectedMetrics(e.target.checked ? sorted.map(m => m.id) : [])}
-                      className="w-4 h-4"
-                    />
-                  </th>
+          {selectedUnit === 'all' ? (
+            <div className="text-center py-12 text-gray-500">
+              <Database className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">Selecione uma unidade para visualizar os dados</p>
+              <p className="text-sm mt-2">Use o filtro acima para escolher a unidade que deseja gerenciar</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-[600px]">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={sorted.length > 0 && selectedMetrics.length === sorted.length}
+                        onChange={(e) => setSelectedMetrics(e.target.checked ? sorted.map(m => m.id) : [])}
+                        className="w-4 h-4"
+                      />
+                    </th>
                   {orderedColumns.filter(col => visibleColumns[col.key] !== false).map(col => (
                     <th 
                       key={col.key}
@@ -576,9 +605,12 @@ export default function DataManagement() {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            💡 Clique em "Colunas" para reordenar com drag & drop e escolher quais exibir
-          </p>
+          )}
+          {selectedUnit !== 'all' && (
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Clique em "Colunas" para reordenar com drag & drop e escolher quais exibir
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -591,7 +623,16 @@ export default function DataManagement() {
               Confirmar Exclusão
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Excluir {filtered.length} registros permanentemente? Esta ação não pode ser desfeita.
+              <div className="space-y-2">
+                <p>Você está prestes a excluir permanentemente:</p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li><strong>{filtered.length} registros</strong></li>
+                  <li>Da unidade: <strong>{getUnitName(selectedUnit)}</strong></li>
+                  {dateFrom && <li>A partir de: <strong>{formatDateString(dateFrom)}</strong></li>}
+                  {dateTo && <li>Até: <strong>{formatDateString(dateTo)}</strong></li>}
+                </ul>
+                <p className="text-red-600 font-semibold mt-3">Esta ação não pode ser desfeita!</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -600,11 +641,14 @@ export default function DataManagement() {
               className="bg-red-600 hover:bg-red-700"
               disabled={deleteMetricsMutation.isPending}
               onClick={async () => {
-                await deleteMetricsMutation.mutateAsync(filtered.map(m => m.id));
+                await deleteMetricsMutation.mutateAsync({ 
+                  metricIds: filtered.map(m => m.id),
+                  unitId: selectedUnit 
+                });
                 setConfirmDelete(false);
               }}
             >
-              {deleteMetricsMutation.isPending ? 'Excluindo...' : 'Excluir'}
+              {deleteMetricsMutation.isPending ? 'Excluindo...' : 'Confirmar Exclusão'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
