@@ -110,16 +110,16 @@ Deno.serve(async (req) => {
     // Top 3 anúncios (melhor custo por conversa CALCULADO MANUALMENTE)
     const adsWithConversions = todayData.filter(ad => (ad.wa_conversations_started_7d || 0) > 0);
     
-    const adsWithCalculatedCost = adsWithConversations.map(ad => {
+    const adsWithCalculatedCost = adsWithConversions.length > 0 ? adsWithConversions.map(ad => {
       const convs = ad.wa_conversations_started_7d || 0;
       const spend = ad.spend || 0;
       const calculatedCost = convs > 0 ? spend / convs : Infinity;
       return { ...ad, calculatedCostPerConv: calculatedCost };
-    });
+    }) : [];
     
-    const topAds = adsWithCalculatedCost
-      .sort((a, b) => a.calculatedCostPerConv - b.calculatedCostPerConv)
-      .slice(0, 3);
+    const topAds = adsWithCalculatedCost.length > 0
+      ? adsWithCalculatedCost.sort((a, b) => a.calculatedCostPerConv - b.calculatedCostPerConv).slice(0, 3)
+      : [];
 
     // Gerar recomendações estratégicas
     const recommendations = [];
