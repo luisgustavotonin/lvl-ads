@@ -900,7 +900,7 @@ export default function ParametersAlerts() {
                                 value={telegramCustomTime.split(':')[0] || ''}
                                 onChange={(e) => {
                                   const hour = e.target.value.padStart(2, '0');
-                                  const minute = telegramCustomTime.split(':')[1] || '00';
+                                  const minute = telegramCustomTime.split(':')[1] || '';
                                   setTelegramCustomTime(`${hour}:${minute}`);
                                 }}
                                 className="h-9"
@@ -916,7 +916,7 @@ export default function ParametersAlerts() {
                                 value={telegramCustomTime.split(':')[1] || ''}
                                 onChange={(e) => {
                                   const minute = e.target.value.padStart(2, '0');
-                                  const hour = telegramCustomTime.split(':')[0] || '09';
+                                  const hour = telegramCustomTime.split(':')[0] || '';
                                   setTelegramCustomTime(`${hour}:${minute}`);
                                 }}
                                 className="h-9"
@@ -924,9 +924,10 @@ export default function ParametersAlerts() {
                             </div>
                             <Button
                               onClick={() => updateTelegramAlertConfigMutation.mutate({ alert_frequency: 'daily', custom_time: telegramCustomTime })}
+                              disabled={recentlySaved.telegram || updateTelegramAlertConfigMutation.isPending || !telegramCustomTime.includes(':')}
                               className="h-9"
                             >
-                              Salvar
+                              {recentlySaved.telegram ? '✓ Salvo' : 'Salvar'}
                             </Button>
                             <Button 
                               onClick={() => testTelegramMutation.mutate()}
