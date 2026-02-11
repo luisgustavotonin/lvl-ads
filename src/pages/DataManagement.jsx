@@ -60,17 +60,18 @@ const CAMPAIGN_COLUMNS = [
 ];
 
 export default function DataManagement() {
-  const queryClient = useQueryClient();
-  const [selectedUnit, setSelectedUnit] = useState('all');
-  const [selectedPlatform, setSelectedPlatform] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState(null);
-  const [selectedMetrics, setSelectedMetrics] = useState([]);
-  const [sortField, setSortField] = useState('created_date');
-  const [sortDirection, setSortDirection] = useState('desc');
+   const queryClient = useQueryClient();
+   const [selectedUnit, setSelectedUnit] = useState('all');
+   const [selectedPlatform, setSelectedPlatform] = useState('all');
+   const [dateFrom, setDateFrom] = useState('');
+   const [dateTo, setDateTo] = useState('');
+   const [confirmDelete, setConfirmDelete] = useState(false);
+   const [isSearching, setIsSearching] = useState(false);
+   const [searchResults, setSearchResults] = useState(null);
+   const [selectedMetrics, setSelectedMetrics] = useState([]);
+   const [sortField, setSortField] = useState('created_date');
+   const [sortDirection, setSortDirection] = useState('desc');
+   const [activeTab, setActiveTab] = useState('executions');
   
   // Carregar ordem e visibilidade das colunas do localStorage
   const [columnOrder, setColumnOrder] = useState(() => {
@@ -432,23 +433,46 @@ export default function DataManagement() {
         </Card>
       )}
 
-      {/* Logs de Execução */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Histórico de Execuções</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {selectedUnit === 'all' ? (
-            <div className="text-center py-8 text-gray-500">
-              <p className="text-sm">Selecione uma unidade para visualizar o histórico</p>
-            </div>
-          ) : (
-            <ExecutionLogViewer unitId={selectedUnit} limit={15} />
-          )}
-        </CardContent>
-      </Card>
+      {/* Abas: Histórico de Execuções vs Dados */}
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('executions')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'executions'
+              ? 'text-blue-600 border-b-blue-600'
+              : 'text-gray-600 border-b-transparent hover:text-gray-900'
+          }`}
+        >
+          Histórico de Execuções
+        </button>
+        <button
+          onClick={() => setActiveTab('data')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'data'
+              ? 'text-blue-600 border-b-blue-600'
+              : 'text-gray-600 border-b-transparent hover:text-gray-900'
+          }`}
+        >
+          Dados (Últimos 100)
+        </button>
+      </div>
 
-      {/* Tabela com Auto-Colunas */}
+      {/* Conteúdo das Abas */}
+      {activeTab === 'executions' && (
+        <Card>
+          <CardContent className="pt-6">
+            {selectedUnit === 'all' ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">Selecione uma unidade para visualizar o histórico</p>
+              </div>
+            ) : (
+              <ExecutionLogViewer unitId={selectedUnit} limit={15} />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'data' && (
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -628,10 +652,11 @@ export default function DataManagement() {
               💡 Clique em "Colunas" para reordenar com drag & drop e escolher quais exibir
             </p>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+          </Card>
+          )}
 
-      {/* Dialog de Confirmação */}
+          {/* Dialog de Confirmação */}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
