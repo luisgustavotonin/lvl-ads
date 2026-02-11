@@ -64,7 +64,11 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
         schedule_frequency: frequency,
         schedule_time: timeToSave
       });
-      onClose();
+      // Atualizar estado local para mostrar o horário salvo
+      setScheduleTime(timeToSave);
+      setCustomHour(timeToSave.split(':')[0]);
+      setCustomMinute(timeToSave.split(':')[1]);
+      // Não fechar o diálogo, deixar usuário ver o que foi salvo
     } catch (error) {
       console.error('Erro ao salvar agendamento:', error);
     } finally {
@@ -220,17 +224,17 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isLoading ? 'Salvando...' : 'Salvar Configurações'}
-          </Button>
-        </DialogFooter>
+           <Button variant="outline" onClick={onClose} disabled={isLoading}>
+             Fechar
+           </Button>
+           <Button 
+             onClick={handleSave} 
+             disabled={isLoading}
+             className="bg-blue-600 hover:bg-blue-700"
+           >
+             {isLoading ? 'Salvando...' : 'Salvar Configurações'}
+           </Button>
+         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
