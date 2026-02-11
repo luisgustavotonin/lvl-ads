@@ -137,19 +137,71 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
               {(frequency === 'daily' || frequency === 'weekly') && (
                 <div className="space-y-2">
                   <Label htmlFor="schedule_time">Horário de Execução</Label>
-                  <Select value={scheduleTime} onValueChange={setScheduleTime}>
-                    <SelectTrigger id="schedule_time">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {EXECUTION_TIMES.map(time => (
-                        <SelectItem key={time} value={time}>
-                          <Clock className="w-3 h-3 inline mr-2" />
-                          {time}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-end">
+                    {!useCustomTime ? (
+                      <>
+                        <div className="flex-1">
+                          <Select value={scheduleTime} onValueChange={setScheduleTime}>
+                            <SelectTrigger id="schedule_time">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-60">
+                              {EXECUTION_TIMES.map(time => (
+                                <SelectItem key={time} value={time}>
+                                  <Clock className="w-3 h-3 inline mr-2" />
+                                  {time}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUseCustomTime(true)}
+                          className="h-9"
+                        >
+                          Manual
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-20">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="23"
+                            placeholder="HH"
+                            value={customHour}
+                            onChange={(e) => setCustomHour(e.target.value)}
+                            className="h-9 text-center"
+                          />
+                        </div>
+                        <span className="text-gray-500 font-bold">:</span>
+                        <div className="w-20">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="59"
+                            placeholder="MM"
+                            value={customMinute}
+                            onChange={(e) => setCustomMinute(e.target.value)}
+                            className="h-9 text-center"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUseCustomTime(false)}
+                          className="h-9"
+                        >
+                          Lista
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
 
