@@ -48,11 +48,15 @@ export default function Dashboard() {
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false,
   });
 
   const { data: integrations = [], isLoading: integrationsLoading } = useQuery({
     queryKey: ['integrations'],
     queryFn: () => base44.entities.Integration.list(),
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false,
   });
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
@@ -66,6 +70,8 @@ export default function Dashboard() {
       }, '-date', 5000);
       return data;
     },
+    staleTime: 2 * 60 * 1000, // 2 minutos
+    refetchOnWindowFocus: false,
   });
 
 
