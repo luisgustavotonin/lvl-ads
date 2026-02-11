@@ -1,8 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ImageIcon } from 'lucide-react';
+import AdPreviewModal from './AdPreviewModal';
 
 export default function MetaAdsTable({ metaAdDaily }) {
+  const [selectedAd, setSelectedAd] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
   const ads = useMemo(() => {
     const byAd = {};
     
@@ -13,6 +18,8 @@ export default function MetaAdsTable({ metaAdDaily }) {
           ad_id: ad.ad_id,
           ad_name: ad.ad_name,
           ad_effective_status: ad.ad_effective_status,
+          creative_id: ad.creative_id,
+          creative_thumbnail_url: ad.creative_thumbnail_url,
           spend: 0,
           impressions: 0,
           reach: 0,
@@ -48,7 +55,18 @@ export default function MetaAdsTable({ metaAdDaily }) {
     return 'bg-gray-100 text-gray-700';
   };
 
+  const handleAdClick = (ad) => {
+    setSelectedAd(ad);
+    setModalOpen(true);
+  };
+
   return (
+    <>
+      <AdPreviewModal 
+        ad={selectedAd} 
+        open={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+      />
     <Card className="bg-white border border-gray-200 shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl">Anúncios em Destaque</CardTitle>
@@ -58,6 +76,7 @@ export default function MetaAdsTable({ metaAdDaily }) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Criativo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Anúncio</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Investimento</th>
@@ -72,7 +91,30 @@ export default function MetaAdsTable({ metaAdDaily }) {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {ads.slice(0, 20).map((a, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
+                <tr 
+                  key={idx} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleAdClick(a)}
+                >
+                  <td className="px-4 py-3">
+                    {a.creative_thumbnail_url ? (
+                      <img 
+                        src={a.creative_thumbnail_url} 
+                        alt={a.ad_name}
+                        className="w-12 h-12 object-cover rounded border border-gray-200"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '';
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center"><svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center border border-gray-200">
+                        <ImageIcon className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-900 font-medium">{a.ad_name}</td>
                   <td className="px-4 py-3">
                     <Badge className={`text-xs ${getStatusColor(a.ad_effective_status)}`}>
@@ -94,5 +136,6 @@ export default function MetaAdsTable({ metaAdDaily }) {
         </div>
       </CardContent>
     </Card>
+    </>
   );
 }
