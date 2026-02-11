@@ -41,23 +41,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Bot token e Chat ID são obrigatórios' }, { status: 400 });
     }
 
-    // Gerar relatório
-    let message;
-    
-    try {
-      const reportResponse = await base44.asServiceRole.functions.invoke('generateDailyTelegramAlert', {
-        unit_id
-      });
-      
-      message = reportResponse?.data?.message;
-      
-      if (!message) {
-        return Response.json({ error: 'Falha ao gerar mensagem' }, { status: 500 });
-      }
-    } catch (genError) {
-      console.error('Erro ao gerar alerta:', genError);
-      return Response.json({ error: 'Erro ao gerar relatório: ' + genError.message }, { status: 500 });
-    }
+    // Mensagem simples do alerta
+    const message = `📊 <b>Alerta de Performance</b>\n\nUnidade: ${unit_id}\nHora: ${new Date().toLocaleString('pt-BR')}\n\nVerifique a dashboard para mais detalhes.`;
 
     // Se houver webhook, enviar para lá
     if (config.webhook_url && config.webhook_url.trim()) {
