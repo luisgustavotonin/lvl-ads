@@ -172,6 +172,19 @@ export default function ParametersAlerts() {
     }
   });
 
+  const testTelegramMutation = useMutation({
+    mutationFn: () => base44.functions.invoke('sendTelegramAlert', { 
+      unit_id: selectedUnit, 
+      test_mode: true 
+    }),
+    onSuccess: () => {
+      toast.success('Mensagem de teste enviada! Verifique o Telegram.');
+    },
+    onError: (error) => {
+      toast.error('Erro ao enviar: ' + error.message);
+    }
+  });
+
   const groupedThresholds = thresholds.reduce((acc, t) => {
     if (!acc[t.group]) acc[t.group] = [];
     acc[t.group].push(t);
@@ -635,19 +648,28 @@ export default function ParametersAlerts() {
 
                     <div>
                       <Label>Frequência de Alertas</Label>
-                      <Select
-                        value={telegramAlertConfig?.alert_frequency || 'daily_9h'}
-                        onValueChange={(alert_frequency) => updateTelegramAlertConfigMutation.mutate({ alert_frequency })}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="immediate">Imediato</SelectItem>
-                          <SelectItem value="daily_9h">Diário às 9h</SelectItem>
-                          <SelectItem value="daily_18h">Diário às 18h</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2 mt-1">
+                        <Select
+                          value={telegramAlertConfig?.alert_frequency || 'daily_9h'}
+                          onValueChange={(alert_frequency) => updateTelegramAlertConfigMutation.mutate({ alert_frequency })}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="immediate">Imediato</SelectItem>
+                            <SelectItem value="daily_9h">Diário às 9h</SelectItem>
+                            <SelectItem value="daily_18h">Diário às 18h</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          onClick={() => testTelegramMutation.mutate()}
+                          disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
+                          variant="outline"
+                        >
+                          {testTelegramMutation.isPending ? 'Enviando...' : 'Testar'}
+                        </Button>
+                      </div>
                     </div>
 
                     <div>
@@ -691,6 +713,20 @@ export default function ParametersAlerts() {
                         />
                       </div>
                     )}
+
+                    <div>
+                      <Label>Template da Mensagem (opcional)</Label>
+                      <textarea
+                        placeholder={`🔔 *Alerta de Performance - {{unit_name}}*\n\n📅 Data: {{date}}\n⚠️ Alertas: {{alert_count}}\n\n{{alerts}}`}
+                        value={telegramAlertConfig?.message_template || ''}
+                        onChange={(e) => updateTelegramAlertConfigMutation.mutate({ message_template: e.target.value })}
+                        className="mt-1 w-full min-h-32 p-2 border rounded-md text-sm font-mono"
+                        rows="6"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Variáveis disponíveis: <code>{'{{unit_name}}'}</code>, <code>{'{{date}}'}</code>, <code>{'{{alert_count}}'}</code>, <code>{'{{alerts}}'}</code>
+                      </p>
+                    </div>
 
                     <div>
                       <Label>Webhook URL (opcional)</Label>
