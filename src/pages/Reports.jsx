@@ -15,12 +15,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import PeriodFilter from '@/components/report/PeriodFilter';
-import MetaCampaignsTable from '@/components/meta/MetaCampaignsTable';
-import MetaAdsetsTable from '@/components/meta/MetaAdsetsTable';
 import MetaExportPDF from '@/components/meta/MetaExportPDF';
 import MetaExportCSV from '@/components/meta/MetaExportCSV';
-import MetaAdsRankingNew from '@/components/meta/MetaAdsRankingNew';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
+import RankingTableConfigurable from '@/components/meta/RankingTableConfigurable';
 
 const DEFAULT_CARD_LABELS = {
   spend: 'Investimento',
@@ -215,6 +213,123 @@ export default function Reports() {
     });
 
     return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+  }, [currentMetrics]);
+
+  // Dados agregados para rankings
+  const campaignsData = useMemo(() => {
+    const byCampaign = {};
+    currentMetrics.forEach(ad => {
+      const key = ad.campaign_id;
+      if (!byCampaign[key]) {
+        byCampaign[key] = {
+          name: ad.campaign_name,
+          status: ad.ad_effective_status,
+          spend: 0, impressions: 0, reach: 0, frequency: 0, clicks: 0,
+          link_clicks: 0, conversations: 0, total_contacts: 0, first_reply: 0,
+          count: 0
+        };
+      }
+      byCampaign[key].spend += ad.spend || 0;
+      byCampaign[key].impressions += ad.impressions || 0;
+      byCampaign[key].reach += ad.reach || 0;
+      byCampaign[key].frequency += ad.frequency || 0;
+      byCampaign[key].clicks += ad.clicks || 0;
+      byCampaign[key].link_clicks += ad.link_clicks || 0;
+      byCampaign[key].conversations += ad.wa_conversations_started_7d || 0;
+      byCampaign[key].total_contacts += ad.wa_total_messaging_connection || 0;
+      byCampaign[key].first_reply += ad.wa_messaging_first_reply || 0;
+      byCampaign[key].count += 1;
+    });
+
+    return Object.values(byCampaign).map(c => ({
+      ...c,
+      frequency: c.count > 0 ? c.frequency / c.count : 0,
+      ctr_link: c.impressions > 0 ? (c.link_clicks / c.impressions) * 100 : 0,
+      cpc_link: c.link_clicks > 0 ? c.spend / c.link_clicks : 0,
+      cpm: c.impressions > 0 ? (c.spend / c.impressions) * 1000 : 0,
+      cost_per_conversation: c.conversations > 0 ? c.spend / c.conversations : 0,
+      cost_per_contact: c.total_contacts > 0 ? c.spend / c.total_contacts : 0,
+      cost_per_first_reply: c.first_reply > 0 ? c.spend / c.first_reply : 0,
+    }));
+  }, [currentMetrics]);
+
+  const adsetsData = useMemo(() => {
+    const byAdset = {};
+    currentMetrics.forEach(ad => {
+      const key = ad.adset_id;
+      if (!byAdset[key]) {
+        byAdset[key] = {
+          name: ad.adset_name,
+          status: ad.ad_effective_status,
+          spend: 0, impressions: 0, reach: 0, frequency: 0, clicks: 0,
+          link_clicks: 0, conversations: 0, total_contacts: 0, first_reply: 0,
+          count: 0
+        };
+      }
+      byAdset[key].spend += ad.spend || 0;
+      byAdset[key].impressions += ad.impressions || 0;
+      byAdset[key].reach += ad.reach || 0;
+      byAdset[key].frequency += ad.frequency || 0;
+      byAdset[key].clicks += ad.clicks || 0;
+      byAdset[key].link_clicks += ad.link_clicks || 0;
+      byAdset[key].conversations += ad.wa_conversations_started_7d || 0;
+      byAdset[key].total_contacts += ad.wa_total_messaging_connection || 0;
+      byAdset[key].first_reply += ad.wa_messaging_first_reply || 0;
+      byAdset[key].count += 1;
+    });
+
+    return Object.values(byAdset).map(a => ({
+      ...a,
+      frequency: a.count > 0 ? a.frequency / a.count : 0,
+      ctr_link: a.impressions > 0 ? (a.link_clicks / a.impressions) * 100 : 0,
+      cpc_link: a.link_clicks > 0 ? a.spend / a.link_clicks : 0,
+      cpm: a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0,
+      cost_per_conversation: a.conversations > 0 ? a.spend / a.conversations : 0,
+      cost_per_contact: a.total_contacts > 0 ? a.spend / a.total_contacts : 0,
+      cost_per_first_reply: a.first_reply > 0 ? a.spend / a.first_reply : 0,
+    }));
+  }, [currentMetrics]);
+
+  const adsData = useMemo(() => {
+    const byAd = {};
+    currentMetrics.forEach(ad => {
+      const key = ad.ad_id;
+      if (!byAd[key]) {
+        byAd[key] = {
+          ad_id: ad.ad_id,
+          name: ad.ad_name,
+          ad_effective_status: ad.ad_effective_status,
+          creative_thumbnail_url: ad.creative_thumbnail_url,
+          spend: 0, impressions: 0, reach: 0, frequency: 0, clicks: 0,
+          link_clicks: 0, conversations: 0, total_contacts: 0, first_reply: 0,
+          count: 0
+        };
+      }
+      byAd[key].spend += ad.spend || 0;
+      byAd[key].impressions += ad.impressions || 0;
+      byAd[key].reach += ad.reach || 0;
+      byAd[key].frequency += ad.frequency || 0;
+      byAd[key].clicks += ad.clicks || 0;
+      byAd[key].link_clicks += ad.link_clicks || 0;
+      byAd[key].conversations += ad.wa_conversations_started_7d || 0;
+      byAd[key].total_contacts += ad.wa_total_messaging_connection || 0;
+      byAd[key].first_reply += ad.wa_messaging_first_reply || 0;
+      byAd[key].count += 1;
+      
+      if (ad.creative_thumbnail_url) byAd[key].creative_thumbnail_url = ad.creative_thumbnail_url;
+      if (ad.ad_effective_status) byAd[key].ad_effective_status = ad.ad_effective_status;
+    });
+
+    return Object.values(byAd).map(a => ({
+      ...a,
+      frequency: a.count > 0 ? a.frequency / a.count : 0,
+      ctr_link: a.impressions > 0 ? (a.link_clicks / a.impressions) * 100 : 0,
+      cpc_link: a.link_clicks > 0 ? a.spend / a.link_clicks : 0,
+      cpm: a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0,
+      cost_per_conversation: a.conversations > 0 ? a.spend / a.conversations : 0,
+      cost_per_contact: a.total_contacts > 0 ? a.spend / a.total_contacts : 0,
+      cost_per_first_reply: a.first_reply > 0 ? a.spend / a.first_reply : 0,
+    }));
   }, [currentMetrics]);
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -418,12 +533,27 @@ export default function Reports() {
           </Card>
         </div>
 
-        {/* Ranking de Anúncios (com thumbnail + status) */}
-        <MetaAdsRankingNew metaAdDaily={currentMetrics} />
-
-        {/* Tabelas de Ranking */}
-        <MetaCampaignsTable metaAdDaily={currentMetrics} />
-        <MetaAdsetsTable metaAdDaily={currentMetrics} />
+        {/* Rankings Configuráveis */}
+        <RankingTableConfigurable 
+          data={campaignsData}
+          title="Ranking de Campanhas"
+          type="campaigns"
+          defaultColumns={['name', 'status', 'spend', 'impressions', 'conversations', 'cost_per_conversation']}
+        />
+        
+        <RankingTableConfigurable 
+          data={adsetsData}
+          title="Ranking de Conjuntos de Anúncios"
+          type="adsets"
+          defaultColumns={['name', 'status', 'spend', 'impressions', 'conversations', 'cost_per_conversation']}
+        />
+        
+        <RankingTableConfigurable 
+          data={adsData}
+          title="Ranking de Anúncios"
+          type="ads"
+          defaultColumns={['thumbnail', 'name', 'status', 'spend', 'impressions', 'link_clicks', 'ctr_link', 'conversations', 'cost_per_conversation']}
+        />
       </div>
 
       {/* Modal de Edição de Label */}
