@@ -203,13 +203,19 @@ export default function ParametersAlerts() {
     }
   });
 
+  const [telegramTemplate, setTelegramTemplate] = React.useState('');
+  const [editingTemplate, setEditingTemplate] = React.useState(false);
+
   const testTelegramMutation = useMutation({
     mutationFn: async () => {
       const configs = await base44.entities.TelegramAlertConfig.filter({ unit_id: selectedUnit });
       if (!configs || configs.length === 0) throw new Error('Configuração não encontrada');
       
       const config = configs[0];
-      const alertResponse = await base44.functions.invoke('generateTelegramAlert', { unit_id: selectedUnit });
+      const alertResponse = await base44.functions.invoke('generateTelegramAlertLegacy', { 
+        unit_id: selectedUnit,
+        template: editingTemplate && telegramTemplate ? telegramTemplate : null
+      });
       
       await base44.functions.invoke('sendTelegramMessage', {
         unit_id: selectedUnit,
@@ -798,31 +804,59 @@ export default function ParametersAlerts() {
                     </div>
 
                     <div>
-                      <Label>Frequência de Alertas</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Select
-                          value={telegramAlertConfig?.alert_frequency || 'daily_9h'}
-                          onValueChange={(alert_frequency) => updateTelegramAlertConfigMutation.mutate({ alert_frequency })}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="immediate">Imediato</SelectItem>
-                            <SelectItem value="daily_9h">Diário às 9h</SelectItem>
-                            <SelectItem value="daily_18h">Diário às 18h</SelectItem>
-                          </SelectContent>
-                        </Select>
+                       <Label>Frequência de Alertas</Label>
+                       <div className="flex gap-2 mt-1">
+                         <Select
+                           value={telegramAlertConfig?.alert_frequency || 'daily_9h'}
+                           onValueChange={(alert_frequency) => updateTelegramAlertConfigMutation.mutate({ alert_frequency })}
+                         >
+                           <SelectTrigger className="flex-1">
+                             <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="immediate">Imediato</SelectItem>
+                             <SelectItem value="daily_9h">Diário às 9h</SelectItem>
+                             <SelectItem value="daily_18h">Diário às 18h</SelectItem>
+                           </SelectContent>
+                         </Select>
+                         <Button 
+                           onClick={() => testTelegramMutation.mutate()}
+                           disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
+                           variant="outline"
+                           className="gap-2"
+                         >
+                           {testTelegramMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                           {testTelegramMutation.isPending ? 'Enviando...' : 'Testar'}
+                         </Button>
+                       </div>
+                     </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>Template do Alerta</Label>
                         <Button 
-                          onClick={() => testTelegramMutation.mutate()}
-                          disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
-                          variant="outline"
-                          className="gap-2"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingTemplate(!editingTemplate)}
                         >
-                          {testTelegramMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                          {testTelegramMutation.isPending ? 'Enviando...' : 'Testar'}
+                          {editingTemplate ? 'Cancelar' : 'Editar'}
                         </Button>
                       </div>
+                      {editingTemplate ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            placeholder="Personalize seu template de alerta..."
+                            value={telegramTemplate}
+                            onChange={(e) => setTelegramTemplate(e.target.value)}
+                            className="font-mono text-xs h-32"
+                          />
+                          <p className="text-xs text-gray-500">Deixe vazio para usar o template padrão</p>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 border rounded p-3 text-xs whitespace-pre-wrap text-gray-700 max-h-40 overflow-y-auto">
+                          {telegramTemplate || '🔔 ALERTA DE PERFORMANCE\n\n📍 Unidade: [Nome]\n📅 Data: [Data]\n\n━━━━━━━━━━━━━━━━━━\n\n📊 RESUMO DO DIA\n...(template padrão)'}
+                        </div>
+                      )}
                     </div>
 
                     <div>
