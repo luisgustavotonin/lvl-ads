@@ -96,10 +96,34 @@ Deno.serve(async (req) => {
 
     if (!telegramResult.ok) {
       console.error('Telegram API error:', telegramResult);
+      
+      // Registrar falha no ExecutionLog
+      await base44.asServiceRole.entities.ExecutionLog.create({
+        unit_id: unit_id,
+        log_type: 'alert_sent',
+        status: 'error',
+        trigger_type: 'manual',
+        execution_time: new Date().toISOString(),
+        alert_channel: 'telegram',
+        message: 'Falha ao enviar alerta via Telegram',
+        error_details: JSON.stringify(telegramResult)
+      });
+      
       return Response.json({ 
         error: 'Falha ao enviar via Telegram: ' + JSON.stringify(telegramResult)
       }, { status: 500 });
     }
+
+    // Registrar sucesso no ExecutionLog
+    await base44.asServiceRole.entities.ExecutionLog.create({
+      unit_id: unit_id,
+      log_type: 'alert_sent',
+      status: 'success',
+      trigger_type: 'manual',
+      execution_time: new Date().toISOString(),
+      alert_channel: 'telegram',
+      message: 'Alerta enviado com sucesso via Telegram'
+    });
 
     return Response.json({ 
       success: true,
