@@ -224,6 +224,15 @@ export default function ParametersAlerts() {
                         Criar Padrões Recomendados
                       </Button>
                     ) : (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => syncKpisMutation.mutate()}
+                          disabled={syncKpisMutation.isPending}
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Sincronizar KPIs
+                        </Button>
                         <Select onValueChange={(targetUnitId) => {
                           if (confirm('Replicar toda parametrização para esta unidade?')) {
                             replicateToUnitMutation.mutate(targetUnitId);
