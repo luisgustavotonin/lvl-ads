@@ -65,7 +65,7 @@ export default function KPICardWithComparison({
   let borderColor = 'border-gray-200';
 
   return (
-    <Card className={`${bgColor} border ${borderColor} shadow-sm hover:shadow-md transition-shadow`}>
+    <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-2">
           <div className="text-sm text-gray-600 font-medium">{customLabel}</div>
