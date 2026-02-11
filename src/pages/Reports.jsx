@@ -264,11 +264,23 @@ export default function Reports() {
 
   const evaluateThreshold = (kpiKey, value) => {
     const threshold = thresholds.find(t => t.kpi_key === kpiKey);
-    if (!threshold) return null;
+    if (!threshold || value === null || value === undefined) return null;
 
-    if (value >= threshold.green_min && value <= threshold.green_max) return 'green';
-    if (value >= threshold.yellow_min && value <= threshold.yellow_max) return 'yellow';
-    if (value >= threshold.red_min && value <= threshold.red_max) return 'red';
+    // Verificar green
+    const greenMin = threshold.green_min !== null && threshold.green_min !== undefined ? threshold.green_min : -Infinity;
+    const greenMax = threshold.green_max !== null && threshold.green_max !== undefined ? threshold.green_max : Infinity;
+    if (value >= greenMin && value <= greenMax) return 'green';
+
+    // Verificar yellow
+    const yellowMin = threshold.yellow_min !== null && threshold.yellow_min !== undefined ? threshold.yellow_min : -Infinity;
+    const yellowMax = threshold.yellow_max !== null && threshold.yellow_max !== undefined ? threshold.yellow_max : Infinity;
+    if (value >= yellowMin && value <= yellowMax) return 'yellow';
+
+    // Verificar red
+    const redMin = threshold.red_min !== null && threshold.red_min !== undefined ? threshold.red_min : -Infinity;
+    const redMax = threshold.red_max !== null && threshold.red_max !== undefined ? threshold.red_max : Infinity;
+    if (value >= redMin && value <= redMax) return 'red';
+
     return null;
   };
 
