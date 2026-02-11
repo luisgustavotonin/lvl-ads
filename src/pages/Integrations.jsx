@@ -381,111 +381,73 @@ export default function Integrations() {
         })}
       </div>
 
-      {/* Create Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Config Dialog */}
+      <Dialog open={!!configDialog} onOpenChange={() => setConfigDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Integração</DialogTitle>
+            <DialogTitle>Configurar {getPlatformInfo(configDialog?.platform_id).name}</DialogTitle>
             <DialogDescription>
-              Conecte uma nova conta de anúncios.
+              Configure as credenciais globais desta plataforma.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Unidade *</Label>
-              <Select
-                value={formData.unit_id}
-                onValueChange={(value) => setFormData({ ...formData, unit_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a unidade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Plataforma *</Label>
-              <Select
-                value={formData.platform_id}
-                onValueChange={(value) => setFormData({ ...formData, platform_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a plataforma" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORMS.map((platform) => (
-                    <SelectItem key={platform.id} value={platform.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{platform.icon}</span>
-                        {platform.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="account_name">Nome da Conta</Label>
+              <Label htmlFor="n8n_webhook_url">URL do Webhook N8n *</Label>
               <Input
-                id="account_name"
-                value={formData.account_name}
-                onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                placeholder="Ex: Conta Principal"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="account_reference">ID da Conta *</Label>
-              <Input
-                id="account_reference"
-                value={formData.account_reference}
-                onChange={(e) => setFormData({ ...formData, account_reference: e.target.value })}
-                placeholder="Ex: act_123456789"
+                id="n8n_webhook_url"
+                value={configForm.n8n_webhook_url}
+                onChange={(e) => setConfigForm({ ...configForm, n8n_webhook_url: e.target.value })}
+                placeholder="https://seu-n8n.com/webhook/..."
               />
               <p className="text-xs text-gray-500">
-                O ID da conta de anúncios da plataforma selecionada.
+                URL do webhook do N8n que será chamado para buscar dados
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>Tipo de Autenticação *</Label>
-              <Select
-                value={formData.auth_type}
-                onValueChange={(value) => setFormData({ ...formData, auth_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="token">Access Token</SelectItem>
-                  <SelectItem value="oauth">OAuth 2.0</SelectItem>
-                  <SelectItem value="api_key">API Key</SelectItem>
-                  <SelectItem value="n8n_webhook">N8n Webhook</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="n8n_secret_token">Secret Token *</Label>
+              <Input
+                id="n8n_secret_token"
+                type="password"
+                value={configForm.n8n_secret_token}
+                onChange={(e) => setConfigForm({ ...configForm, n8n_secret_token: e.target.value })}
+                placeholder="Token de segurança (ex: abc123xyz)"
+              />
+              <p className="text-xs text-gray-500">
+                Token único para validação de requisições
+              </p>
             </div>
 
-            {formData.auth_type === 'n8n_webhook' && (
-              <div className="space-y-2">
-                <Label htmlFor="integration_purpose">Propósito da Integração *</Label>
-                <Input
-                  id="integration_purpose"
-                  value={formData.integration_purpose}
-                  onChange={(e) => setFormData({ ...formData, integration_purpose: e.target.value })}
-                  placeholder="Ex: Dados Gerais, Criativos, Imagens de Anúncios"
-                />
-                <p className="text-xs text-gray-500">
-                  Defina o propósito para diferenciar múltiplas integrações N8n
-                </p>
+            <div className="space-y-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs font-medium text-blue-900">URLs para configurar no N8n:</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-blue-700">URL para enviar dados (POST):</span>
+                  <button 
+                    type="button"
+                    className="text-xs text-blue-600 underline font-mono"
+                    onClick={() => {
+                      navigator.clipboard.writeText(webhookUrl);
+                      alert('✓ URL copiada');
+                    }}
+                  >
+                    {webhookUrl}
+                  </button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      navigator.clipboard.writeText(webhookUrl);
+                      alert('✓ URL copiada');
+                    }}
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           <DialogFooter>
