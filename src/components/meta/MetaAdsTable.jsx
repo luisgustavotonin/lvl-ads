@@ -25,7 +25,10 @@ export default function MetaAdsTable({ metaAdDaily }) {
           reach: 0,
           clicks: 0,
           link_clicks: 0,
-          conversations: 0,
+          wa_conversations_started_7d: 0,
+          wa_total_messaging_connection: 0,
+          wa_messaging_first_reply: 0,
+          cpm: 0,
         };
       }
       
@@ -34,20 +37,27 @@ export default function MetaAdsTable({ metaAdDaily }) {
       byAd[key].reach += ad.reach || 0;
       byAd[key].clicks += ad.clicks || 0;
       byAd[key].link_clicks += ad.link_clicks || 0;
-      byAd[key].conversations += ad.wa_conversations_started_7d || 0;
+      byAd[key].wa_conversations_started_7d += ad.wa_conversations_started_7d || 0;
+      byAd[key].wa_total_messaging_connection += ad.wa_total_messaging_connection || 0;
+      byAd[key].wa_messaging_first_reply += ad.wa_messaging_first_reply || 0;
+      byAd[key].cpm += ad.cpm || 0;
     });
     
     return Object.values(byAd).map(a => ({
       ...a,
+      frequency: a.reach > 0 ? a.impressions / a.reach : 0,
       ctr_link: a.impressions > 0 ? (a.link_clicks / a.impressions) * 100 : 0,
       cpc_link: a.link_clicks > 0 ? a.spend / a.link_clicks : 0,
-      cost_per_conversation: a.conversations > 0 ? a.spend / a.conversations : 0,
+      cost_per_conversation: a.wa_conversations_started_7d > 0 ? a.spend / a.wa_conversations_started_7d : 0,
+      cost_per_total_contact: a.wa_total_messaging_connection > 0 ? a.spend / a.wa_total_messaging_connection : 0,
+      cost_per_first_reply: a.wa_messaging_first_reply > 0 ? a.spend / a.wa_messaging_first_reply : 0,
     })).sort((a, b) => b.spend - a.spend);
   }, [metaAdDaily]);
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   const formatNumber = (val) => new Intl.NumberFormat('pt-BR').format(Math.round(val));
   const formatPercent = (val) => `${val.toFixed(2)}%`;
+  const formatDecimal = (val) => val.toFixed(2);
 
   const getStatusColor = (status) => {
     if (status === 'ACTIVE') return 'bg-green-100 text-green-700';
@@ -79,14 +89,21 @@ export default function MetaAdsTable({ metaAdDaily }) {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Criativo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Anúncio</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Investimento</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Impressões</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Alcance</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cliques no link</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CTR Link</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CPC Link</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Conversas</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Custo/Conversa</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">spend</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">impressions</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">reach</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">frequency</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">clicks</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">link_clicks</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">ctr_link</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">cpc_link</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">cpm</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">wa_conversations_started_7d</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">wa_total_messaging_connection</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">wa_messaging_first_reply</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">cost_per_conversation</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">cost_per_total_contact</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">cost_per_first_reply</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -124,11 +141,18 @@ export default function MetaAdsTable({ metaAdDaily }) {
                   <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatCurrency(a.spend)}</td>
                   <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.impressions)}</td>
                   <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.reach)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatDecimal(a.frequency)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.clicks)}</td>
                   <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.link_clicks)}</td>
                   <td className="px-4 py-3 text-right text-gray-900">{formatPercent(a.ctr_link)}</td>
                   <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cpc_link)}</td>
-                  <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.conversations)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cpm)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.wa_conversations_started_7d)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.wa_total_messaging_connection)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatNumber(a.wa_messaging_first_reply)}</td>
                   <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cost_per_conversation)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cost_per_total_contact)}</td>
+                  <td className="px-4 py-3 text-right text-gray-900">{formatCurrency(a.cost_per_first_reply)}</td>
                 </tr>
               ))}
             </tbody>
