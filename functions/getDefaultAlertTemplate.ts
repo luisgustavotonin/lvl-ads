@@ -12,79 +12,52 @@ Deno.serve(async (req) => {
     const defaultTemplate = `🔔 ALERTA DE PERFORMANCE
 
 📍 Unidade: [Nome da Unidade]
-📅 Data: [Data]
+📅 Data: [Data do Dia]
 ⏰ Período: Hoje (00:00 até agora)
 
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 RESUMO DO DIA
 
-💰 Investimento: R$ [Valor]
-💬 Conversas: [Número]
-📈 Custo/Conversa: R$ [Valor]
+💰 Investimento: R$ [Gasto Total]
+💬 Conversas: [Total Conversas]
+📈 Custo/Conversa: R$ [Custo por Conversa]
 
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ ALERTAS DETECTADOS
 
 [Alertas ou "Nenhum alerta detectado"]
 
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📈 TOP 3 CAMPANHAS
+📈 TOP 3 ANÚNCIOS DO DIA
 
-🥇 [Nome Campanha]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
+🥇 [Nome Campanha] - PÁGINA OFICIAL
+   └─ [Nome Conjunto]
+   └─ [Nome Anúncio]
 
-🥈 [Nome Campanha]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
+💰 Investimento: R$ [Valor]
+💬 Conversas: [Número]
+📊 Custo/Conversa: R$ [Valor]
 
-🥉 [Nome Campanha]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
+🥈 [Nome Campanha] - PÁGINA OFICIAL
+   └─ [Nome Conjunto]
+   └─ [Nome Anúncio]
 
-━━━━━━━━━━━━━━━━━━
+💰 Investimento: R$ [Valor]
+💬 Conversas: [Número]
+📊 Custo/Conversa: R$ [Valor]
 
-📈 TOP 3 CONJUNTOS
+🥉 [Nome Campanha] - PÁGINA OFICIAL
+   └─ [Nome Conjunto]
+   └─ [Nome Anúncio]
 
-🥇 [Nome Conjunto]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
+💰 Investimento: R$ [Valor]
+💬 Conversas: [Número]
+📊 Custo/Conversa: R$ [Valor]
 
-🥈 [Nome Conjunto]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
-
-🥉 [Nome Conjunto]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
-
-━━━━━━━━━━━━━━━━━━
-
-📈 TOP 3 ANÚNCIOS
-
-🥇 [Nome Anúncio]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
-
-🥈 [Nome Anúncio]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]
-
-🥉 [Nome Anúncio]
-   💰 Investimento: R$ [Valor]
-   💬 Conversas: [Número]
-   📊 Custo/Conversa: R$ [Valor]`;
+━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
     return Response.json({ template: defaultTemplate });
 
