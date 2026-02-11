@@ -27,15 +27,13 @@ export default function ParametersAlerts() {
   });
 
   const { data: thresholds = [] } = useQuery({
-    queryKey: ['thresholds', selectedUnit],
-    queryFn: () => base44.entities.KpiThreshold.filter(selectedUnit ? { unit_id: selectedUnit } : {}),
-    enabled: !!selectedUnit
+    queryKey: ['thresholds'],
+    queryFn: () => base44.entities.KpiThreshold.filter({ unit_id: 'global' })
   });
 
   const { data: rules = [] } = useQuery({
-    queryKey: ['rules', selectedUnit],
-    queryFn: () => base44.entities.KpiRule.filter(selectedUnit ? { unit_id: selectedUnit } : {}),
-    enabled: !!selectedUnit
+    queryKey: ['rules'],
+    queryFn: () => base44.entities.KpiRule.filter({ unit_id: 'global' })
   });
 
   const { data: alertConfig } = useQuery({
@@ -48,7 +46,7 @@ export default function ParametersAlerts() {
   });
 
   const initThresholdsMutation = useMutation({
-    mutationFn: () => base44.functions.invoke('initializeDefaultKpiThresholds', { unit_id: selectedUnit }),
+    mutationFn: () => base44.functions.invoke('initializeDefaultKpiThresholds', { unit_id: 'global' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['thresholds'] });
       toast.success('Parâmetros padrão criados com sucesso');
@@ -56,7 +54,7 @@ export default function ParametersAlerts() {
   });
 
   const initRulesMutation = useMutation({
-    mutationFn: () => base44.functions.invoke('initializeDefaultKpiRules', { unit_id: selectedUnit }),
+    mutationFn: () => base44.functions.invoke('initializeDefaultKpiRules', { unit_id: 'global' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rules'] });
       toast.success('Regras de diagnóstico criadas com sucesso');
@@ -114,31 +112,13 @@ export default function ParametersAlerts() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Parâmetros & Alertas</h1>
-          <p className="text-gray-600 mt-1">Configure thresholds de KPIs, regras de diagnóstico e alertas por WhatsApp</p>
+          <p className="text-gray-600 mt-1">Configure thresholds globais de KPIs, regras de diagnóstico e alertas por WhatsApp</p>
+          <p className="text-sm text-blue-600 mt-1">Os parâmetros se aplicam a todas as unidades</p>
         </div>
         <Settings className="w-8 h-8 text-blue-600" />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Selecionar Unidade</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-            <SelectTrigger className="w-full max-w-md">
-              <SelectValue placeholder="Escolha uma unidade" />
-            </SelectTrigger>
-            <SelectContent>
-              {units.map(u => (
-                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {selectedUnit && (
-        <Tabs defaultValue="thresholds" className="w-full">
+      <Tabs defaultValue="thresholds" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="thresholds">Parâmetros de KPIs</TabsTrigger>
             <TabsTrigger value="rules">Regras de Diagnóstico</TabsTrigger>
@@ -335,7 +315,23 @@ export default function ParametersAlerts() {
                 </CardTitle>
                 <CardDescription>Receba alertas automáticos quando métricas saírem do padrão</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                <div>
+                  <Label>Selecionar Unidade</Label>
+                  <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                    <SelectTrigger className="w-full max-w-md mt-1">
+                      <SelectValue placeholder="Escolha uma unidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map(u => (
+                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedUnit && (
+                  <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
                     <Label className="font-medium">Ativar Alertas</Label>
@@ -431,11 +427,12 @@ export default function ParametersAlerts() {
                     </div>
                   </>
                 )}
+                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-      )}
     </div>
   );
 }
