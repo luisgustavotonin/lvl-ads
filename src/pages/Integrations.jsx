@@ -451,281 +451,150 @@ export default function Integrations() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
+            <Button variant="outline" onClick={() => setConfigDialog(null)}>
               Cancelar
             </Button>
             <Button 
-              onClick={() => createMutation.mutate(formData)}
-              disabled={!formData.unit_id || !formData.platform_id || !formData.account_reference || createMutation.isPending}
+              onClick={handleSaveConfig}
+              disabled={!configForm.n8n_webhook_url || !configForm.n8n_secret_token || updateIntegrationMutation.isPending}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Criar Integração
+              Salvar Configuração
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editDialog} onOpenChange={() => setEditDialog(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Add Unit Dialog */}
+      <Dialog open={!!addUnitDialog} onOpenChange={() => setAddUnitDialog(null)}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Configurar Integração</DialogTitle>
+            <DialogTitle>Adicionar Unidade ao {getPlatformInfo(addUnitDialog?.platform_id).name}</DialogTitle>
             <DialogDescription>
-              Configure as credenciais de acesso para {getPlatformInfo(editDialog?.platform_id).name}
+              Vincule uma unidade a esta integração.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit_account_name">Nome da Conta</Label>
-              <Input
-                id="edit_account_name"
-                value={editFormData.account_name}
-                onChange={(e) => setEditFormData({ ...editFormData, account_name: e.target.value })}
-                placeholder="Ex: Conta Principal"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit_account_reference">ID da Conta</Label>
-              <Input
-                id="edit_account_reference"
-                value={editFormData.account_reference}
-                onChange={(e) => setEditFormData({ ...editFormData, account_reference: e.target.value })}
-                placeholder="Ex: act_123456789"
-              />
-            </div>
-
-            {editDialog?.auth_type === 'n8n_webhook' && (
-              <div className="space-y-2">
-                <Label htmlFor="edit_n8n_webhook_url">URL do Webhook N8n</Label>
-                <Input
-                  id="edit_n8n_webhook_url"
-                  value={editFormData.settings.n8n_webhook_url}
-                  onChange={(e) => setEditFormData({ 
-                    ...editFormData, 
-                    settings: { ...editFormData.settings, n8n_webhook_url: e.target.value }
-                  })}
-                  placeholder="https://seu-n8n.com/webhook/..."
-                />
-                <p className="text-xs text-gray-500">
-                  URL do webhook do N8n que o Base44 vai chamar para testar
-                </p>
-              </div>
-            )}
-
-            {editDialog?.auth_type === 'n8n_webhook' && (
-              <div className="space-y-2">
-                <Label htmlFor="edit_integration_purpose">Propósito da Integração</Label>
-                <Input
-                  id="edit_integration_purpose"
-                  value={editFormData.integration_purpose}
-                  onChange={(e) => setEditFormData({ ...editFormData, integration_purpose: e.target.value })}
-                  placeholder="Ex: Dados Gerais, Criativos, Imagens"
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Tipo de Autenticação</Label>
+              <Label>Unidade *</Label>
               <Select
-                value={editFormData.auth_type}
-                onValueChange={(value) => setEditFormData({ ...editFormData, auth_type: value })}
+                value={unitForm.unit_id}
+                onValueChange={(value) => setUnitForm({ ...unitForm, unit_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione a unidade" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="token">Access Token</SelectItem>
-                  <SelectItem value="oauth">OAuth 2.0</SelectItem>
-                  <SelectItem value="api_key">API Key</SelectItem>
-                  <SelectItem value="n8n_webhook">N8n Webhook</SelectItem>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="border-t pt-4 mt-4">
-              <h4 className="font-medium mb-3 text-gray-900">Credenciais</h4>
-              
-              {editFormData.auth_type === 'token' && (
-                <div className="space-y-2">
-                  <Label htmlFor="access_token">Access Token *</Label>
-                  <Input
-                    id="access_token"
-                    type="password"
-                    value={editFormData.settings.access_token}
-                    onChange={(e) => setEditFormData({ 
-                      ...editFormData, 
-                      settings: { ...editFormData.settings, access_token: e.target.value }
-                    })}
-                    placeholder="Cole seu token de acesso aqui"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Token gerado no painel da plataforma
-                  </p>
-                </div>
-              )}
-
-              {editFormData.auth_type === 'api_key' && (
-                <div className="space-y-2">
-                  <Label htmlFor="api_key">API Key *</Label>
-                  <Input
-                    id="api_key"
-                    type="password"
-                    value={editFormData.settings.api_key}
-                    onChange={(e) => setEditFormData({ 
-                      ...editFormData, 
-                      settings: { ...editFormData.settings, api_key: e.target.value }
-                    })}
-                    placeholder="Cole sua chave de API aqui"
-                  />
-                </div>
-              )}
-
-              {editFormData.auth_type === 'oauth' && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="client_id">Client ID *</Label>
-                    <Input
-                      id="client_id"
-                      value={editFormData.settings.client_id}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        settings: { ...editFormData.settings, client_id: e.target.value }
-                      })}
-                      placeholder="Client ID do app OAuth"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="client_secret">Client Secret *</Label>
-                    <Input
-                      id="client_secret"
-                      type="password"
-                      value={editFormData.settings.client_secret}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        settings: { ...editFormData.settings, client_secret: e.target.value }
-                      })}
-                      placeholder="Client Secret do app OAuth"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="refresh_token">Refresh Token</Label>
-                    <Input
-                      id="refresh_token"
-                      type="password"
-                      value={editFormData.settings.refresh_token}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        settings: { ...editFormData.settings, refresh_token: e.target.value }
-                      })}
-                      placeholder="Token de atualização (opcional)"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {editFormData.auth_type === 'n8n_webhook' && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>URL do Webhook Base44 (use esta no N8n)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={webhookUrl}
-                        readOnly
-                        className="font-mono text-xs"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          navigator.clipboard.writeText(webhookUrl);
-                          alert('URL copiada!');
-                        }}
-                      >
-                        Copiar
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Use esta URL como destino do HTTP Request no seu workflow N8n
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="n8n_secret_token">Token de Segurança *</Label>
-                    <Input
-                      id="n8n_secret_token"
-                      type="password"
-                      autoComplete="off"
-                      value={editFormData.settings.n8n_secret_token}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        settings: { ...editFormData.settings, n8n_secret_token: e.target.value }
-                      })}
-                      placeholder="Gere um token único (ex: abc123xyz)"
-                    />
-                    <p className="text-xs text-gray-500">
-                      Crie um token único e envie-o no corpo do POST do N8n
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="n8n_access_token">Access Token *</Label>
-                    <Input
-                      id="n8n_access_token"
-                      type="password"
-                      autoComplete="off"
-                      value={editFormData.settings.access_token}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        settings: { ...editFormData.settings, access_token: e.target.value }
-                      })}
-                      placeholder="Cole seu access token aqui"
-                    />
-                    <p className="text-xs text-gray-500">
-                      Token de acesso da plataforma - será enviado para o N8n
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="integration_id_display">ID da Integração</Label>
-                    <Input
-                      id="integration_id_display"
-                      value={editDialog?.id || 'Salve primeiro para gerar'}
-                      readOnly
-                      className="font-mono text-xs bg-gray-50"
-                    />
-                    <p className="text-xs text-gray-500">
-                      Use este ID no campo "integration_id" do JSON enviado pelo N8n
-                    </p>
-                  </div>
-
-
-                </div>
-              )}
-
-              {editFormData.auth_type !== 'n8n_webhook' && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-800">
-                    <strong>Onde encontrar:</strong> Acesse o painel da plataforma e gere as credenciais de desenvolvedor/API.
-                  </p>
-                </div>
-              )}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-xs text-yellow-800">
+                <strong>Importante:</strong> O Account ID e Access Token devem ser configurados diretamente na edição da unidade.
+              </p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseEditDialog}>
+            <Button variant="outline" onClick={() => setAddUnitDialog(null)}>
               Cancelar
             </Button>
             <Button 
-              onClick={handleSaveEdit}
-              disabled={updateMutation.isPending}
+              onClick={handleAddUnit}
+              disabled={!unitForm.unit_id || createLinkMutation.isPending}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Salvar Configuração
+              Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Dialog */}
+      <Dialog open={!!scheduleDialog} onOpenChange={() => setScheduleDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agendamento - {getUnitName(scheduleDialog?.unit_id)}</DialogTitle>
+            <DialogDescription>
+              Configure a execução automática desta integração.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={scheduleForm.schedule_enabled}
+                onChange={(e) => setScheduleForm({ ...scheduleForm, schedule_enabled: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <Label>Ativar agendamento automático</Label>
+            </div>
+
+            {scheduleForm.schedule_enabled && (
+              <>
+                <div className="space-y-2">
+                  <Label>Frequência</Label>
+                  <Select
+                    value={scheduleForm.schedule_frequency}
+                    onValueChange={(value) => setScheduleForm({ ...scheduleForm, schedule_frequency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hourly">A cada hora</SelectItem>
+                      <SelectItem value="daily">Diariamente</SelectItem>
+                      <SelectItem value="weekly">Semanalmente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Horário</Label>
+                  <Input
+                    type="time"
+                    value={scheduleForm.schedule_time}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, schedule_time: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Período de Dados</Label>
+                  <Select
+                    value={scheduleForm.schedule_date_mode}
+                    onValueChange={(value) => setScheduleForm({ ...scheduleForm, schedule_date_mode: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TODAY">Hoje</SelectItem>
+                      <SelectItem value="YESTERDAY">Ontem</SelectItem>
+                      <SelectItem value="LAST_7D">Últimos 7 dias</SelectItem>
+                      <SelectItem value="LAST_30D">Últimos 30 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleDialog(null)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSaveSchedule}
+              disabled={updateLinkMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -735,52 +604,22 @@ export default function Integrations() {
       <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir integração?</AlertDialogTitle>
+            <AlertDialogTitle>Remover unidade?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação removerá a conexão com a conta "{deleteDialog?.account_name || deleteDialog?.account_reference}".
+              Esta ação removerá o vínculo da unidade "{getUnitName(deleteDialog?.unit_id)}" com esta integração.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              onClick={() => deleteMutation.mutate(deleteDialog.id)}
+              onClick={() => deleteLinkMutation.mutate(deleteDialog.id)}
             >
-              Excluir
+              Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Data Fetch Modal */}
-      {fetchDataModal && (
-        <DataFetchModal
-          open={!!fetchDataModal}
-          onClose={() => setFetchDataModal(null)}
-          integration={fetchDataModal}
-          onFetch={handleFetchData}
-        />
-      )}
-
-      {/* Execution Modal */}
-      {executionModal && (
-        <ExecutionModal
-          open={!!executionModal}
-          onClose={() => setExecutionModal(null)}
-          integration={executionModal}
-          onExecute={handleExecuteIntegration}
-        />
-      )}
-
-      {/* Schedule Modal */}
-      {scheduleModal && (
-        <ScheduleModal
-          open={!!scheduleModal}
-          onClose={() => setScheduleModal(null)}
-          integration={scheduleModal}
-          onSave={handleSaveSchedule}
-        />
-      )}
     </div>
   );
 }
