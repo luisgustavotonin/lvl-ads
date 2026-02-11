@@ -58,7 +58,13 @@ export default function SpendChart({ data, title = "Investimento por Dia" }) {
               name="Investimento"
               stroke="#3B82F6" 
               strokeWidth={2}
-              fill="url(#colorSpend)" 
+              fill="url(#colorSpend)"
+              label={{ 
+                position: 'top',
+                formatter: (value) => `R$${(value / 1000).toFixed(1)}k`,
+                fontSize: 11,
+                fill: '#3B82F6'
+              }}
             />
           </AreaChart>
         </ResponsiveContainer>

@@ -133,7 +133,7 @@ export default function PdfExportModal({
             </div>
 
             {/* Report Content */}
-            <div className="p-8">
+            <div className="p-6 space-y-4">
               {children}
             </div>
 
