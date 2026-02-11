@@ -258,18 +258,18 @@ export default function ParametersAlerts() {
               {testResult?.success ? (
                 <><CheckCircle2 className="w-5 h-5 text-green-600" /> Sucesso!</>
               ) : (
-                <><AlertCircle className="w-5 h-5 text-red-600" /> Erro ao Enviar</>
+                <><AlertCircle className="w-5 h-5 text-red-600" /> Erro</>
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {testResult?.success 
-                ? 'Sua mensagem de teste foi enviada para o Telegram. Verifique seu chat ou grupo!'
-                : `Houve um problema: ${testResult?.message}`
+                ? 'Teste enviado para o Telegram! Verifique seu chat.'
+                : `Problema: ${testResult?.error}`
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogAction onClick={() => setShowTestResult(false)}>
-            Entendi
+            OK
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
