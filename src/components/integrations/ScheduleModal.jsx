@@ -52,11 +52,12 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
   const handleSave = async () => {
     setIsLoading(true);
     try {
+      const timeToSave = useCustomTime ? `${customHour.padStart(2, '0')}:${customMinute.padStart(2, '0')}` : scheduleTime;
       await onSave({
         schedule_enabled: scheduleEnabled,
         schedule_date_mode: dateMode,
         schedule_frequency: frequency,
-        schedule_time: scheduleTime
+        schedule_time: timeToSave
       });
       onClose();
     } catch (error) {
