@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Link2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Trash2, Settings, Play } from 'lucide-react';
+import { Plus, Settings, Play, Calendar, Copy, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import DataFetchModal from '../components/integrations/DataFetchModal';
-import N8nWebhookCard from '../components/integrations/N8nWebhookCard';
-import ExecutionModal from '../components/integrations/ExecutionModal';
-import ScheduleModal from '../components/integrations/ScheduleModal';
 import {
   Dialog,
   DialogContent,
@@ -37,48 +33,38 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 
 const PLATFORMS = [
   { id: 'META', name: 'Meta Ads', icon: '📘', color: '#1877F2', description: 'Facebook e Instagram Ads' },
   { id: 'GOOGLE_ADS', name: 'Google Ads', icon: '🔍', color: '#34A853', description: 'Search, Display e YouTube' },
   { id: 'TIKTOK_ADS', name: 'TikTok Ads', icon: '🎵', color: '#000000', description: 'Anúncios em vídeo TikTok' },
-  { id: 'YOUTUBE', name: 'YouTube', icon: '▶️', color: '#FF0000', description: 'YouTube Analytics' },
 ];
 
 export default function Integrations() {
   const queryClient = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editDialog, setEditDialog] = useState(null);
+  const [configDialog, setConfigDialog] = useState(null);
+  const [addUnitDialog, setAddUnitDialog] = useState(null);
+  const [editUnitDialog, setEditUnitDialog] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState(null);
-  const [fetchDataModal, setFetchDataModal] = useState(null);
-  const [executionModal, setExecutionModal] = useState(null);
-  const [scheduleModal, setScheduleModal] = useState(null);
-  const [selectedUnit, setSelectedUnit] = useState('');
-  const [formData, setFormData] = useState({
+  const [scheduleDialog, setScheduleDialog] = useState(null);
+  
+  const [configForm, setConfigForm] = useState({
+    n8n_webhook_url: '',
+    n8n_secret_token: '',
+  });
+  
+  const [unitForm, setUnitForm] = useState({
     unit_id: '',
-    platform_id: '',
-    account_reference: '',
-    account_name: '',
-    auth_type: 'token',
-    integration_purpose: '',
+    account_id: '',
+    access_token: '',
   });
-  const [editFormData, setEditFormData] = useState({
-    account_name: '',
-    account_reference: '',
-    auth_type: 'token',
-    integration_purpose: '',
-    settings: {
-      access_token: '',
-      api_key: '',
-      client_id: '',
-      client_secret: '',
-      refresh_token: '',
-      n8n_webhook_url: '',
-      n8n_secret_token: '',
-    }
+  
+  const [scheduleForm, setScheduleForm] = useState({
+    schedule_enabled: false,
+    schedule_frequency: 'daily',
+    schedule_time: '09:00',
+    schedule_date_mode: 'YESTERDAY',
   });
-  const [webhookUrl, setWebhookUrl] = useState('');
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
