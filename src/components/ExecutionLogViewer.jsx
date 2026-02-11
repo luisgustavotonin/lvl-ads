@@ -46,9 +46,13 @@ export default function ExecutionLogViewer({ unitId, logType = null, limit = 10 
   return (
     <div className="space-y-2">
       {logs.map((log) => {
+        if (!log.status || !log.trigger_type) return null;
+        
         const statusCfg = statusConfig[log.status] || statusConfig.pending;
-        const triggerCfg = triggerConfig[log.trigger_type] || { label: '❓ Desconhecido', color: 'bg-gray-100 text-gray-800' };
-        const Icon = statusCfg.icon;
+        const triggerCfg = triggerConfig[log.trigger_type] || { label: '❓ Unknown', color: 'bg-gray-100 text-gray-800' };
+        const Icon = statusCfg?.icon;
+
+        if (!Icon) return null;
 
         return (
           <div
