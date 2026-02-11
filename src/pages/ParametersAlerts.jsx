@@ -906,6 +906,11 @@ export default function ParametersAlerts() {
                                 onChange={(e) => {
                                   const hour = e.target.value.padStart(2, '0');
                                   const minute = (telegramAlertConfig?.schedule_time || '').split(':')[1] || '00';
+                                  setRecentlySaved({ telegram: false });
+                                }}
+                                onBlur={(e) => {
+                                  const hour = e.target.value.padStart(2, '0');
+                                  const minute = (telegramAlertConfig?.schedule_time || '').split(':')[1] || '00';
                                   updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
                                 }}
                                 className="h-9"
@@ -922,11 +927,29 @@ export default function ParametersAlerts() {
                                 onChange={(e) => {
                                   const minute = e.target.value.padStart(2, '0');
                                   const hour = (telegramAlertConfig?.schedule_time || '').split(':')[0] || '09';
+                                  setRecentlySaved({ telegram: false });
+                                }}
+                                onBlur={(e) => {
+                                  const minute = e.target.value.padStart(2, '0');
+                                  const hour = (telegramAlertConfig?.schedule_time || '').split(':')[0] || '09';
                                   updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
                                 }}
                                 className="h-9"
                               />
                             </div>
+                            <Button
+                              onClick={() => {
+                                const hour = (telegramAlertConfig?.schedule_time || '').split(':')[0] || '';
+                                const minute = (telegramAlertConfig?.schedule_time || '').split(':')[1] || '';
+                                if (hour && minute) {
+                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` });
+                                }
+                              }}
+                              disabled={recentlySaved.telegram || updateTelegramAlertConfigMutation.isPending || !((telegramAlertConfig?.schedule_time || '').includes(':'))}
+                              className="h-9"
+                            >
+                              {recentlySaved.telegram ? '✓ Salvo' : 'Salvar'}
+                            </Button>
                             <Button 
                               onClick={() => testTelegramMutation.mutate()}
                               disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
@@ -1021,30 +1044,27 @@ export default function ParametersAlerts() {
                     </div>
 
                     <div className="mt-6 pt-6 border-t">
-                      <h3 className="font-semibold text-sm mb-4">Registro de Execuções</h3>
-                      <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {logs.length === 0 ? (
-                          <p className="text-xs text-gray-500 text-center py-4">Nenhum registro ainda</p>
-                        ) : (
-                          logs.map(log => (
-                            <div key={log.id} className="border rounded p-3 text-xs">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-medium flex items-center gap-2">
-                                  {log.status === 'success' && <span className="text-green-600">✓</span>}
-                                  {log.status === 'error' && <span className="text-red-600">✗</span>}
-                                  {log.status === 'pending' && <span className="text-yellow-600">⏳</span>}
-                                  {log.log_type === 'alert_sent' && 'Alerta Enviado'}
-                                  {log.log_type === 'alert_scheduled' && 'Alerta Agendado'}
-                                </span>
-                                <span className="text-gray-500">{new Date(log.execution_time).toLocaleString('pt-BR')}</span>
-                              </div>
-                              {log.message && <p className="text-gray-600">{log.message}</p>}
-                              {log.error_details && <p className="text-red-600 mt-1">{log.error_details}</p>}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
+                       <h3 className="font-semibold text-sm mb-4">Registro de Execuções</h3>
+                       <div className="space-y-1 max-h-80 overflow-y-auto">
+                         {logs.length === 0 ? (
+                           <p className="text-xs text-gray-500 text-center py-4">Nenhum registro ainda</p>
+                         ) : (
+                           logs.map(log => (
+                             <div key={log.id} className="border-l-2 border-gray-200 px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between">
+                               <span className="flex items-center gap-2">
+                                 {log.trigger_type === 'manual' && <Badge variant="outline" className="text-blue-700">Manual</Badge>}
+                                 {log.trigger_type === 'scheduled' && <Badge variant="outline" className="text-purple-700">Agendado</Badge>}
+                                 {log.status === 'success' && <span className="text-green-600 font-bold">✓</span>}
+                                 {log.status === 'error' && <span className="text-red-600 font-bold">✗</span>}
+                                 {log.status === 'pending' && <span className="text-yellow-600 font-bold">⏳</span>}
+                                 <span className="text-gray-700">{log.message || 'Alerta Telegram'}</span>
+                               </span>
+                               <span className="text-gray-500 text-xs ml-2">{new Date(log.execution_time).toLocaleString('pt-BR')}</span>
+                             </div>
+                           ))
+                         )}
+                       </div>
+                     </div>
                     </>
                     )}
                     </CardContent>
