@@ -35,14 +35,15 @@ Deno.serve(async (req) => {
     const unit = await base44.asServiceRole.entities.Unit.filter({ id: unit_id });
     const unitName = unit[0]?.name || 'Unidade';
 
-    // Buscar alertas reais dos últimos dias
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    // Buscar dados dos últimos 7 dias para ter mais dados
+    const today = new Date();
+    const last7Days = new Date(today);
+    last7Days.setDate(last7Days.getDate() - 7);
+    const last7DaysStr = last7Days.toISOString().split('T')[0];
 
     const alertLogs = await base44.asServiceRole.entities.AlertLog.filter({
       unit_id,
-      sent_at: { $gte: yesterdayStr }
+      sent_at: { $gte: last7DaysStr }
     });
 
     // Filtrar por severidade
@@ -53,14 +54,32 @@ Deno.serve(async (req) => {
       filteredAlerts = alertLogs.filter(a => a.severity === 'high' || a.severity === 'medium');
     }
 
-    // Buscar top anúncios
-    const topAds = await base44.asServiceRole.entities.MetaAdDaily.filter({
+    // Buscar todos os anúncios dos últimos 7 dias
+    const allAds = await base44.asServiceRole.entities.MetaAdDaily.filter({
       unit_id,
-      date: yesterdayStr
+      date: { $gte: last7DaysStr }
     });
 
-    // Ordenar por conversas e pegar top N
-    const sortedAds = topAds
+    // Agrupar por ad_id e somar métricas
+    const adsMap = {};
+    allAds.forEach(ad => {
+      if (!adsMap[ad.ad_id]) {
+        adsMap[ad.ad_id] = {
+          ad_id: ad.ad_id,
+          ad_name: ad.ad_name,
+          spend: 0,
+          wa_conversations_started_7d: 0,
+          impressions: 0
+        };
+      }
+      adsMap[ad.ad_id].spend += ad.spend || 0;
+      adsMap[ad.ad_id].wa_conversations_started_7d += ad.wa_conversations_started_7d || 0;
+      adsMap[ad.ad_id].impressions += ad.impressions || 0;
+    });
+
+    // Converter para array e ordenar por conversas
+    const topAds = Object.values(adsMap)
+      .filter(ad => ad.spend > 0)
       .sort((a, b) => (b.wa_conversations_started_7d || 0) - (a.wa_conversations_started_7d || 0))
       .slice(0, config.top_ads_quantity || 3);
 
@@ -74,8 +93,8 @@ Deno.serve(async (req) => {
 
     // Montar string de top anúncios
     let topAdsText = '';
-    if (sortedAds.length > 0) {
-      topAdsText = sortedAds.map((ad, idx) => {
+    if (topAds.length > 0) {
+      topAdsText = topAds.map((ad, idx) => {
         const medals = ['🥇', '🥈', '🥉'];
         const medal = medals[idx] || '🏆';
         const spend = ad.spend?.toFixed(2) || '0.00';
@@ -91,11 +110,40 @@ Deno.serve(async (req) => {
       topAdsText = '_Nenhum anúncio encontrado no período_';
     }
 
+    // Montar recomendações baseadas nos alertas detectados
+    let recommendationsText = '';
+    if (filteredAlerts.length > 0) {
+      const recommendations = [];
+      
+      // Verificar tipos de alertas para sugerir recomendações
+      const hasLowCtr = filteredAlerts.some(a => a.message?.toLowerCase().includes('ctr'));
+      const hasHighCpm = filteredAlerts.some(a => a.message?.toLowerCase().includes('cpm'));
+      const hasHighFreq = filteredAlerts.some(a => a.message?.toLowerCase().includes('frequência') || a.message?.toLowerCase().includes('frequencia'));
+      
+      if (hasLowCtr) recommendations.push('• Revisar anúncios com CTR abaixo de 1%');
+      if (hasHighCpm) recommendations.push('• Ajustar segmentação em campanhas com CPM elevado');
+      if (hasHighFreq) recommendations.push('• Pausar anúncios com frequência acima de 3.0');
+      
+      if (recommendations.length === 0) {
+        recommendations.push('• Revisar métricas dos anúncios alertados');
+        recommendations.push('• Considerar ajustes de segmentação');
+      }
+      
+      recommendationsText = `━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 *Recomendações:*
+${recommendations.join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+    }
+
     // Template padrão se não houver customizado
     const defaultTemplate = `🔔 *ALERTA DE PERFORMANCE - {{unit_name}}*
 
 📅 *Data:* {{date}}
-⏰ *Período:* Últimas 24 horas
+⏰ *Período:* Últimos 7 dias
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -105,20 +153,13 @@ Deno.serve(async (req) => {
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
-📊 *TOP ${config.top_ads_quantity || 3} ANÚNCIOS DO DIA*
+📊 *TOP ${config.top_ads_quantity || 3} ANÚNCIOS DO PERÍODO*
 
 {{top_ads}}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
-💡 *Recomendações:*
-• Revisar anúncios com CTR abaixo de 1%
-• Ajustar segmentação em campanhas com CPM elevado
-• Pausar anúncios com frequência acima de 3.0
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔗 _Acesse o painel para detalhes completos_`;
+{{recommendations}}🔗 _Acesse o painel para detalhes completos_`;
 
     const template = config.message_template || defaultTemplate;
 
@@ -128,7 +169,8 @@ Deno.serve(async (req) => {
       .replace(/{{date}}/g, new Date().toLocaleDateString('pt-BR'))
       .replace(/{{alert_count}}/g, filteredAlerts.length.toString())
       .replace(/{{alerts}}/g, alertsText)
-      .replace(/{{top_ads}}/g, config.include_top_ads ? topAdsText : '_Top anúncios desabilitado_');
+      .replace(/{{top_ads}}/g, config.include_top_ads ? topAdsText : '_Top anúncios desabilitado_')
+      .replace(/{{recommendations}}/g, recommendationsText);
 
     // Payload simples para webhook ou Telegram
     const payload = {
