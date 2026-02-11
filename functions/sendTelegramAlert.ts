@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
         log_type: 'alert_sent',
         status: 'error',
         trigger_type: 'manual',
-        execution_time: new Date().toISOString(),
+        execution_time: getBrasiliaDate().toISOString(),
         alert_channel: 'telegram',
         message: 'Falha ao enviar alerta via Telegram',
         error_details: JSON.stringify(telegramResult)
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       log_type: 'alert_sent',
       status: 'success',
       trigger_type: 'manual',
-      execution_time: new Date().toISOString(),
+      execution_time: getBrasiliaDate().toISOString(),
       alert_channel: 'telegram',
       message: 'Alerta enviado com sucesso via Telegram'
     });
