@@ -154,8 +154,7 @@ Deno.serve(async (req) => {
             const errorText = await n8nResponse.text();
             await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
                 status: 'error',
-                error_message: `N8n returned ${n8nResponse.status}: ${errorText}`,
-                completed_at: getBrasiliaDate().toISOString()
+                error_details: `N8n returned ${n8nResponse.status}: ${errorText}`
             });
 
             return Response.json({
@@ -164,9 +163,9 @@ Deno.serve(async (req) => {
             }, { status: 500 });
         }
 
-        // Atualizar log como running
+        // Atualizar log como agendado
         await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
-            status: 'running'
+            status: 'scheduled'
         });
 
         const n8nData = await n8nResponse.json();
