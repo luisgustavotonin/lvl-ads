@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     topAds.forEach((ad, idx) => {
       const medals = ['🥇', '🥈', '🥉'];
       const costPerAd = ad.conversations > 0 ? ad.spend / ad.conversations : 0;
-      msg += `\n\n${medals[idx]} ${ad.name}\n   ↳ ${ad.adset_name}\n\n   💰 Investimento: R$ ${ad.spend.toFixed(2)}\n   💬 Conversas: ${ad.conversations}\n   📊 Custo/Conversa: R$ ${costPerAd.toFixed(2)}`;
+      msg += `\n\n${medals[idx]} ${ad.campaign_name}\n   └─ ${ad.adset_name}\n   └─ ${ad.name}\n\n   💰 Investimento: R$ ${ad.spend.toFixed(2)}\n   💬 Conversas: ${ad.conversations}\n   📊 Custo/Conversa: R$ ${costPerAd.toFixed(2)}`;
     });
 
     return Response.json({ message: msg });
