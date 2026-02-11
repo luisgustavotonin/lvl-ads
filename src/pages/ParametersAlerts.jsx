@@ -9,7 +9,6 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { AlertCircle, CheckCircle2, RefreshCw, Settings, Bell, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -61,44 +60,6 @@ export default function ParametersAlerts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rules'] });
       toast.success('Regras de diagnóstico criadas com sucesso');
-    }
-  });
-
-  const replicateThresholdsMutation = useMutation({
-    mutationFn: async ({ targetUnitId }) => {
-      // Buscar thresholds da unidade atual
-      const sourceThresholds = await base44.entities.KpiThreshold.filter({ unit_id: selectedUnit });
-      
-      // Deletar thresholds existentes na unidade alvo
-      const existingTarget = await base44.entities.KpiThreshold.filter({ unit_id: targetUnitId });
-      for (const t of existingTarget) {
-        await base44.entities.KpiThreshold.delete(t.id);
-      }
-      
-      // Criar novos thresholds na unidade alvo
-      const newThresholds = sourceThresholds.map(t => {
-        const { id, created_date, updated_date, created_by, ...rest } = t;
-        return { ...rest, unit_id: targetUnitId };
-      });
-      
-      await base44.entities.KpiThreshold.bulkCreate(newThresholds);
-      
-      // Replicar regras também
-      const sourceRules = await base44.entities.KpiRule.filter({ unit_id: selectedUnit });
-      const existingRules = await base44.entities.KpiRule.filter({ unit_id: targetUnitId });
-      for (const r of existingRules) {
-        await base44.entities.KpiRule.delete(r.id);
-      }
-      
-      const newRules = sourceRules.map(r => {
-        const { id, created_date, updated_date, created_by, ...rest } = r;
-        return { ...rest, unit_id: targetUnitId };
-      });
-      
-      await base44.entities.KpiRule.bulkCreate(newRules);
-    },
-    onSuccess: () => {
-      toast.success('Parâmetros replicados com sucesso');
     }
   });
 
@@ -162,7 +123,7 @@ export default function ParametersAlerts() {
         <CardHeader>
           <CardTitle>Selecionar Unidade</CardTitle>
         </CardHeader>
-        <CardContent className="flex gap-4">
+        <CardContent>
           <Select value={selectedUnit} onValueChange={setSelectedUnit}>
             <SelectTrigger className="w-full max-w-md">
               <SelectValue placeholder="Escolha uma unidade" />
@@ -173,37 +134,6 @@ export default function ParametersAlerts() {
               ))}
             </SelectContent>
           </Select>
-          
-          {selectedUnit && thresholds.length > 0 && (
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline">Replicar para outra unidade</Button>
-              </SheetTrigger>
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle>Replicar Parâmetros</SheetTitle>
-                  <SheetDescription>Copiar configurações desta unidade para outra</SheetDescription>
-                </SheetHeader>
-                <div className="mt-6 space-y-4">
-                  <Label>Unidade de destino</Label>
-                  <Select onValueChange={(targetId) => {
-                    if (window.confirm(`Replicar parâmetros para a unidade selecionada? Os parâmetros atuais dela serão substituídos.`)) {
-                      replicateThresholdsMutation.mutate({ targetUnitId: targetId });
-                    }
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Escolha a unidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {units.filter(u => u.id !== selectedUnit).map(u => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
         </CardContent>
       </Card>
 
