@@ -71,15 +71,15 @@ Deno.serve(async (req) => {
 
         // Criar log de execução
         const executionLog = await base44.asServiceRole.entities.ExecutionLog.create({
-            integration_id: integration_id,
             unit_id: integration.unit_id,
-            provider: provider,
-            execution_type: 'manual',
-            date_mode: date_mode,
-            since: since || null,
-            until: until || null,
+            log_type: 'integration_execution',
             status: 'pending',
-            started_at: getBrasiliaDate().toISOString()
+            trigger_type: 'manual',
+            execution_time: getBrasiliaDate().toISOString(),
+            integration_id: integration_id,
+            platform: integration.platform_id,
+            message: `Integração ${integration.account_name} disparada manualmente`,
+            records_processed: 0
         });
 
         // Calcular datas baseadas no horário de Brasília
