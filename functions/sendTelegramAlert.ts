@@ -17,61 +17,72 @@ Deno.serve(async (req) => {
 
     // Buscar configuração do Telegram
     const configs = await base44.asServiceRole.entities.TelegramAlertConfig.filter({ 
-      unit_id,
-      enabled: true 
+      unit_id
     });
     
-    if (configs.length === 0) {
-      return Response.json({ error: 'Configuração Telegram não encontrada ou desabilitada' }, { status: 400 });
+    if (!configs || configs.length === 0) {
+      return Response.json({ error: 'Configuração Telegram não encontrada' }, { status: 404 });
     }
 
     const config = configs[0];
+
+    if (!config.enabled) {
+      return Response.json({ error: 'Alertas Telegram desabilitados' }, { status: 400 });
+    }
 
     if (!config.bot_token || !config.chat_id) {
       return Response.json({ error: 'Bot token e Chat ID são obrigatórios' }, { status: 400 });
     }
 
-    // Gerar relatório usando a nova função
-    const reportResponse = await base44.asServiceRole.functions.invoke('generateDailyTelegramAlert', {
-      unit_id
-    });
-
-    if (!reportResponse?.data?.success) {
-      throw new Error('Erro ao gerar relatório: ' + JSON.stringify(reportResponse?.data));
-    }
-
-    const message = reportResponse?.data?.message;
-
-    // Payload simples para webhook ou Telegram
-    const payload = {
-      chat_id: config.chat_id,
-      message: message
-    };
-
-    // Se houver webhook configurado, enviar para lá
-    if (config.webhook_url) {
-      const webhookResponse = await fetch(config.webhook_url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!webhookResponse.ok) {
-        throw new Error('Erro ao enviar para webhook: ' + await webhookResponse.text());
-      }
-
-      return Response.json({ 
-        ok: true, 
-        message: 'Alerta enviado via webhook com sucesso',
-        via: 'webhook',
-        payload
-      });
-    }
-
-    // Enviar direto via API do Telegram
-    const telegramApiUrl = `https://api.telegram.org/bot${config.bot_token}/sendMessage`;
+    // Gerar relatório
+    let message;
     
-    const telegramResponse = await fetch(telegramApiUrl, {
+    try {
+      const reportResponse = await base44.asServiceRole.functions.invoke('generateDailyTelegramAlert', {
+        unit_id
+      });
+      
+      message = reportResponse?.data?.message;
+      
+      if (!message) {
+        return Response.json({ error: 'Falha ao gerar mensagem' }, { status: 500 });
+      }
+    } catch (genError) {
+      console.error('Erro ao gerar alerta:', genError);
+      return Response.json({ error: 'Erro ao gerar relatório: ' + genError.message }, { status: 500 });
+    }
+
+    // Se houver webhook, enviar para lá
+    if (config.webhook_url && config.webhook_url.trim()) {
+      try {
+        const webhookResponse = await fetch(config.webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: config.chat_id,
+            text: message,
+            parse_mode: 'Markdown'
+          })
+        });
+
+        if (webhookResponse.ok) {
+          return Response.json({ 
+            success: true,
+            message: 'Alerta enviado via webhook',
+            via: 'webhook'
+          });
+        } else {
+          console.warn('Webhook retornou:', webhookResponse.status);
+        }
+      } catch (webhookError) {
+        console.error('Erro ao enviar webhook:', webhookError.message);
+      }
+    }
+
+    // Fallback: enviar direto via API do Telegram
+    const telegramUrl = `https://api.telegram.org/bot${config.bot_token}/sendMessage`;
+    
+    const telegramResponse = await fetch(telegramUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -81,25 +92,25 @@ Deno.serve(async (req) => {
       })
     });
 
-    const result = await telegramResponse.json();
+    const telegramResult = await telegramResponse.json();
 
-    if (!result.ok) {
-      throw new Error('Erro da API Telegram: ' + JSON.stringify(result));
+    if (!telegramResult.ok) {
+      console.error('Telegram API error:', telegramResult);
+      return Response.json({ 
+        error: 'Falha ao enviar via Telegram: ' + JSON.stringify(telegramResult)
+      }, { status: 500 });
     }
 
     return Response.json({ 
-      ok: true, 
+      success: true,
       message: 'Alerta enviado com sucesso',
-      via: 'telegram_api',
-      telegram_response: result,
-      payload
+      via: 'telegram_api'
     });
 
   } catch (error) {
-    console.error('❌ Erro ao enviar alerta Telegram:', error);
+    console.error('Erro geral:', error);
     return Response.json({ 
-      error: error.message,
-      details: error.toString()
+      error: error.message || 'Erro ao enviar alerta'
     }, { status: 500 });
   }
 });
