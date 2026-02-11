@@ -10,13 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { AlertCircle, CheckCircle2, RefreshCw, Settings, Bell, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, RefreshCw, Settings, Bell, TrendingUp, TrendingDown, Loader2, Edit, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import RuleBuilder from '@/components/report/RuleBuilder';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ParametersAlerts() {
   const [selectedUnit, setSelectedUnit] = useState('');
   const [showTestResult, setShowTestResult] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [editingRule, setEditingRule] = useState(null);
+  const [showRuleBuilder, setShowRuleBuilder] = useState(false);
+  const [viewingNotes, setViewingNotes] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -80,6 +85,29 @@ export default function ParametersAlerts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rules'] });
       toast.success('Regras de diagnóstico criadas com sucesso');
+    }
+  });
+
+  const saveRuleMutation = useMutation({
+    mutationFn: (ruleData) => {
+      if (editingRule?.id) {
+        return base44.entities.KpiRule.update(editingRule.id, {
+          ...ruleData,
+          unit_id: selectedUnit
+        });
+      } else {
+        return base44.entities.KpiRule.create({
+          ...ruleData,
+          unit_id: selectedUnit,
+          provider: 'META'
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
+      setShowRuleBuilder(false);
+      setEditingRule(null);
+      toast.success(editingRule ? 'Regra atualizada' : 'Regra criada');
     }
   });
 
@@ -242,6 +270,22 @@ export default function ParametersAlerts() {
           </AlertDialogHeader>
           <AlertDialogAction onClick={() => setShowTestResult(false)}>
             Entendi
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de Notas da Regra */}
+      <AlertDialog open={!!viewingNotes} onOpenChange={() => setViewingNotes(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{viewingNotes?.rule_name}</AlertDialogTitle>
+            <AlertDialogDescription>Notas e Justificativa</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="p-4 bg-gray-50 rounded-lg border">
+            <p className="text-sm whitespace-pre-wrap">{viewingNotes?.notes}</p>
+          </div>
+          <AlertDialogAction onClick={() => setViewingNotes(null)}>
+            Fechar
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
@@ -454,40 +498,50 @@ export default function ParametersAlerts() {
           </TabsContent>
 
           <TabsContent value="rules" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Regras de Diagnóstico</CardTitle>
-                    <CardDescription>Sugestões automáticas baseadas em combinações de métricas</CardDescription>
+            {showRuleBuilder ? (
+              <RuleBuilder
+                rule={editingRule}
+                onSave={(data) => saveRuleMutation.mutate(data)}
+                onCancel={() => {
+                  setShowRuleBuilder(false);
+                  setEditingRule(null);
+                }}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Regras de Diagnóstico</CardTitle>
+                      <CardDescription>Regras com múltiplas condições (AND/OR) e análise de causa raiz</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      {rules.length > 0 && (
+                        <Button 
+                          onClick={() => {
+                            setEditingRule(null);
+                            setShowRuleBuilder(true);
+                          }}
+                          variant="outline"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Nova Regra
+                        </Button>
+                      )}
+                      {rules.length === 0 ? (
+                        <Button onClick={() => initRulesMutation.mutate()}>
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Criar Regras Padrão
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {rules.length === 0 ? (
-                      <Button onClick={() => initRulesMutation.mutate()}>
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Criar Regras Padrão
-                      </Button>
-                    ) : (
-                      <Button 
-                        onClick={() => {
-                          Object.entries(pendingRules).forEach(([id, data]) => {
-                            updateRuleMutation.mutate({ id, data });
-                          });
-                        }}
-                        disabled={Object.keys(pendingRules).length === 0}
-                      >
-                        Salvar Alterações
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {rules.map(rule => (
-                  <div key={rule.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {rules.map(rule => (
+                    <div key={rule.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
                           <h4 className="font-semibold">{rule.rule_name}</h4>
                           <Badge variant={
                             rule.severity === 'high' ? 'destructive' : 
@@ -497,22 +551,77 @@ export default function ParametersAlerts() {
                             {rule.severity}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">{rule.message_body}</p>
-                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                          <p className="text-xs font-medium text-blue-900 mb-2">Ações Recomendadas:</p>
-                          <ul className="text-xs text-blue-800 space-y-1">
-                            {rule.recommended_actions?.map((action, idx) => (
-                              <li key={idx}>• {action}</li>
+                        <div className="flex gap-2">
+                          {rule.notes && (
+                            <Button
+                              onClick={() => setViewingNotes(rule)}
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() => {
+                              setEditingRule(rule);
+                              setShowRuleBuilder(true);
+                            }}
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Switch
+                            checked={rule.enabled}
+                            onCheckedChange={(enabled) => 
+                              updateRuleMutation.mutate({ id: rule.id, data: { enabled } })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-3">{rule.message_body}</p>
+
+                      {rule.conditions && rule.conditions.length > 0 && (
+                        <div className="bg-gray-50 border border-gray-200 rounded p-3 mb-3">
+                          <p className="text-xs font-medium text-gray-700 mb-2">Condições ({rule.condition_logic === 'all' ? 'AND' : 'OR'}):</p>
+                          <ul className="text-xs text-gray-600 space-y-1">
+                            {rule.conditions.map((cond, idx) => (
+                              <li key={idx}>
+                                {idx > 0 && <span className="font-bold text-blue-600 mr-1">{cond.operator}</span>}
+                                {cond.metric} {cond.comparison.replace('_', ' ')} {cond.value}
+                              </li>
                             ))}
                           </ul>
                         </div>
+                      )}
+
+                      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                        <p className="text-xs font-medium text-blue-900 mb-2">Ações Recomendadas:</p>
+                        <ul className="text-xs text-blue-800 space-y-1">
+                          {rule.recommended_actions?.map((action, idx) => (
+                            <li key={idx}>• {action}</li>
+                          ))}
+                        </ul>
                       </div>
-                      <Switch checked={rule.enabled} />
+
+                      {rule.root_cause_hints && rule.root_cause_hints.length > 0 && (
+                        <div className="bg-orange-50 border border-orange-200 rounded p-3">
+                          <p className="text-xs font-medium text-orange-900 mb-2">Possíveis Causas Raiz:</p>
+                          <ul className="text-xs text-orange-800 space-y-1">
+                            {rule.root_cause_hints.map((hint, idx) => (
+                              <li key={idx}>• {hint}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="alerts" className="space-y-4">
