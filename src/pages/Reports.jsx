@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { subDays, format } from 'date-fns';
+import { subDays, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Download, TrendingUp, TrendingDown, Minus, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,15 +14,11 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import PeriodFilter from '@/components/report/PeriodFilter';
-import MetaCampaignsTable from '@/components/meta/MetaCampaignsTable';
-import MetaAdsetsTable from '@/components/meta/MetaAdsetsTable';
-import MetaAdsTable from '@/components/meta/MetaAdsTable';
-import MetaBreakdownPlacement from '@/components/meta/MetaBreakdownPlacement';
-import MetaBreakdownDemographics from '@/components/meta/MetaBreakdownDemographics';
-import MetaBreakdownDevices from '@/components/meta/MetaBreakdownDevices';
 import MetaExportPDF from '@/components/meta/MetaExportPDF';
 import MetaExportCSV from '@/components/meta/MetaExportCSV';
-import FunnelChart from '@/components/report/FunnelChart';
+import KPICardWithComparison from '@/components/report/KPICardWithComparison';
+import FunnelChartNew from '@/components/report/FunnelChartNew';
+import RankingTable from '@/components/report/RankingTable';
 
 const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
 
@@ -50,9 +46,20 @@ export default function Reports() {
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
 
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
+  });
+
+  const { data: cardLabels = [] } = useQuery({
+    queryKey: ['cardLabels', selectedUnit],
+    queryFn: () => selectedUnit ? base44.entities.CardLabel.filter({ unit_id: selectedUnit }) : [],
+    enabled: !!selectedUnit
   });
 
   React.useEffect(() => {
@@ -71,6 +78,31 @@ export default function Reports() {
         date: { 
           $gte: format(period.start, 'yyyy-MM-dd'), 
           $lte: format(period.end, 'yyyy-MM-dd') 
+        }
+      }, '-date', 10000);
+    },
+    enabled: !!selectedUnit,
+  });
+
+  // Calcular período anterior
+  const previousPeriod = useMemo(() => {
+    const days = differenceInDays(period.end, period.start) + 1;
+    return {
+      start: subDays(period.start, days),
+      end: subDays(period.start, 1)
+    };
+  }, [period]);
+
+  const { data: previousMetrics = [] } = useQuery({
+    queryKey: ['previousMetrics', selectedUnit, previousPeriod.start, previousPeriod.end, selectedPlatforms],
+    queryFn: async () => {
+      if (!selectedUnit) return [];
+      if (!selectedPlatforms.includes('META')) return [];
+      return base44.entities.MetaAdDaily.filter({
+        unit_id: selectedUnit,
+        date: { 
+          $gte: format(previousPeriod.start, 'yyyy-MM-dd'), 
+          $lte: format(previousPeriod.end, 'yyyy-MM-dd') 
         }
       }, '-date', 10000);
     },
@@ -107,6 +139,7 @@ export default function Reports() {
     const clicks = currentMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
     const linkClicks = currentMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
     const conversations = currentMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
+    const totalContact = currentMetrics.reduce((s, m) => s + (m.wa_total_messaging_connection || 0), 0);
     
     return {
       spend,
@@ -119,9 +152,35 @@ export default function Reports() {
       cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
       frequency: reach > 0 ? impressions / reach : 0,
       conversations,
+      totalContact,
       costPerConversation: conversations > 0 ? spend / conversations : 0,
     };
   }, [currentMetrics]);
+
+  const previous = useMemo(() => {
+    const spend = previousMetrics.reduce((s, m) => s + (m.spend || 0), 0);
+    const impressions = previousMetrics.reduce((s, m) => s + (m.impressions || 0), 0);
+    const reach = previousMetrics.reduce((s, m) => s + (m.reach || 0), 0);
+    const clicks = previousMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
+    const linkClicks = previousMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
+    const conversations = previousMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
+    const totalContact = previousMetrics.reduce((s, m) => s + (m.wa_total_messaging_connection || 0), 0);
+    
+    return {
+      spend,
+      impressions,
+      reach,
+      clicks,
+      linkClicks,
+      ctrLink: impressions > 0 ? (linkClicks / impressions) * 100 : 0,
+      cpcLink: linkClicks > 0 ? spend / linkClicks : 0,
+      cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+      frequency: reach > 0 ? impressions / reach : 0,
+      conversations,
+      totalContact,
+      costPerConversation: conversations > 0 ? spend / conversations : 0,
+    };
+  }, [previousMetrics]);
 
   const dailyCharts = useMemo(() => {
     const byDate = {};
@@ -162,17 +221,9 @@ export default function Reports() {
     return `${parts[2]}/${parts[1]}`;
   };
 
-  const KPICard = ({ kpi }) => {
-    const value = current[kpi.id];
-    
-    return (
-      <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-        <CardContent className="p-5">
-          <div className="text-sm text-gray-600 font-medium mb-2">{kpi.label}</div>
-          <div className="text-3xl font-bold text-gray-900">{kpi.format(value)}</div>
-        </CardContent>
-      </Card>
-    );
+  const getKpiLabel = (kpi) => {
+    const customLabel = cardLabels.find(cl => cl.card_key === kpi.id);
+    return customLabel?.custom_label || kpi.label;
   };
 
   const selectedUnitData = units.find(u => u.id === selectedUnit);
@@ -187,12 +238,12 @@ export default function Reports() {
         {/* Header */}
         <Card className="p-8 bg-white border border-gray-200 shadow-sm">
           <div className="flex items-start justify-between mb-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
               {selectedUnitData?.logo_url && (
                 <img 
                   src={selectedUnitData.logo_url} 
                   alt={selectedUnitData.name}
-                  className="w-16 h-16 object-cover rounded-lg"
+                  className="w-32 h-32 object-contain rounded-lg"
                 />
               )}
               <div>
@@ -308,14 +359,27 @@ export default function Reports() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-pdf-section>
               {selectedKPIs.map(kpiId => {
                 const kpi = ALL_KPIS.find(k => k.id === kpiId);
-                return kpi ? <KPICard key={kpi.id} kpi={kpi} /> : null;
+                if (!kpi) return null;
+                
+                return (
+                  <KPICardWithComparison
+                    key={kpi.id}
+                    kpiKey={kpi.id}
+                    label={getKpiLabel(kpi)}
+                    currentValue={current[kpi.id]}
+                    previousValue={previous[kpi.id]}
+                    formatValue={kpi.format}
+                    unitId={selectedUnit}
+                    isAdmin={user?.role === 'admin'}
+                  />
+                );
               })}
             </div>
 
             {/* Funil */}
             <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Funil de Conversão</h3>
-              <FunnelChart data={current} />
+              <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Funil de Conversão</h3>
+              <FunnelChartNew current={current} previous={previous} />
             </Card>
 
             {/* Gráficos por Dia */}
@@ -412,18 +476,30 @@ export default function Reports() {
             </div>
 
             {/* Tabelas de Ranking */}
-            <MetaCampaignsTable metaAdDaily={currentMetrics} />
-            <MetaAdsetsTable metaAdDaily={currentMetrics} />
-            <MetaAdsTable metaAdDaily={currentMetrics} />
-
-            {/* Breakdowns */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Análise por Segmento</h2>
-              <div className="space-y-6">
-                <MetaBreakdownPlacement metaAdDaily={currentMetrics} />
-                <MetaBreakdownDemographics metaAdDaily={currentMetrics} />
-                <MetaBreakdownDevices metaAdDaily={currentMetrics} />
-              </div>
+            <div className="space-y-6">
+              <RankingTable 
+                title="Campanhas em Destaque"
+                data={currentMetrics}
+                groupKey="campaign_id"
+                nameKey="campaign_name"
+                showThumbnail={false}
+              />
+              
+              <RankingTable 
+                title="Conjuntos de Anúncios em Destaque"
+                data={currentMetrics}
+                groupKey="adset_id"
+                nameKey="adset_name"
+                showThumbnail={false}
+              />
+              
+              <RankingTable 
+                title="Anúncios em Destaque"
+                data={currentMetrics}
+                groupKey="ad_id"
+                nameKey="ad_name"
+                showThumbnail={true}
+              />
             </div>
           </>
         )}
