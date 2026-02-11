@@ -30,10 +30,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Calcular métricas totais do dia
+    // Calcular métricas totais do dia (SEM usar campos pré-calculados)
     const totalSpend = todayData.reduce((sum, ad) => sum + (ad.spend || 0), 0);
     const totalConversations = todayData.reduce((sum, ad) => sum + (ad.wa_conversations_started_7d || 0), 0);
-    const avgCostPerConversation = totalConversations > 0 ? totalSpend / totalConversations : 0;
+    
+    // Custo real por conversa = investimento total / conversas totais (sem usar campo pré-calculado)
+    const realCostPerConversation = totalConversations > 0 ? totalSpend / totalConversations : 0;
     
     // Calcular CPM médio da conta para comparação
     const totalImpressions = todayData.reduce((sum, ad) => sum + (ad.impressions || 0), 0);
@@ -57,13 +59,16 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Custo por conversa 30% acima da média
-      const costPerConv = ad.cost_per_conversation || 0;
-      if (avgCostPerConversation > 0 && costPerConv > 0 && costPerConv > avgCostPerConversation * 1.3 && (ad.spend || 0) > 20) {
+      // Custo por conversa 30% acima da média (CALCULAR MANUALMENTE)
+      const adConversations = ad.wa_conversations_started_7d || 0;
+      const adSpend = ad.spend || 0;
+      const realCostPerConv = adConversations > 0 ? adSpend / adConversations : 0;
+      
+      if (realCostPerConversation > 0 && realCostPerConv > 0 && realCostPerConv > realCostPerConversation * 1.3 && adSpend > 20) {
         alerts.push({
           severity: 'high',
           hierarchy,
-          message: `Custo/conversa 30% acima da média (${formatCurrency(costPerConv)}) em ${hierarchy}`
+          message: `Custo/conversa 30% acima da média (${formatCurrency(realCostPerConv)}) em ${hierarchy}`
         });
       }
 
@@ -102,14 +107,18 @@ Deno.serve(async (req) => {
       return order[a.severity] - order[b.severity];
     });
 
-    // Top 3 anúncios (melhor custo por conversa)
+    // Top 3 anúncios (melhor custo por conversa CALCULADO MANUALMENTE)
     const adsWithConversions = todayData.filter(ad => (ad.wa_conversations_started_7d || 0) > 0);
-    const topAds = adsWithConversions
-      .sort((a, b) => {
-        const costA = a.cost_per_conversation || Infinity;
-        const costB = b.cost_per_conversation || Infinity;
-        return costA - costB;
-      })
+    
+    const adsWithCalculatedCost = adsWithConversations.map(ad => {
+      const convs = ad.wa_conversations_started_7d || 0;
+      const spend = ad.spend || 0;
+      const calculatedCost = convs > 0 ? spend / convs : Infinity;
+      return { ...ad, calculatedCostPerConv: calculatedCost };
+    });
+    
+    const topAds = adsWithCalculatedCost
+      .sort((a, b) => a.calculatedCostPerConv - b.calculatedCostPerConv)
       .slice(0, 3);
 
     // Gerar recomendações estratégicas
@@ -164,7 +173,7 @@ Deno.serve(async (req) => {
     message += `📊 *RESUMO DO DIA*\n\n`;
     message += `💰 Investimento: ${formatCurrency(totalSpend)}\n`;
     message += `💬 Conversas: ${totalConversations}\n`;
-    message += `📈 Custo/Conversa: ${formatCurrency(avgCostPerConversation)}\n\n`;
+    message += `📈 Custo/Conversa: ${totalConversations > 0 ? formatCurrency(realCostPerConversation) : 'N/A'}\n\n`;
     message += `━━━━━━━━━━━━━━━━━━\n\n`;
 
     // Alertas
@@ -195,7 +204,7 @@ Deno.serve(async (req) => {
         message += `   ↳ ${ad.ad_name || 'Anúncio'}\n\n`;
         message += `   💰 Investimento: ${formatCurrency(ad.spend || 0)}\n`;
         message += `   💬 Conversas: ${ad.wa_conversations_started_7d || 0}\n`;
-        message += `   📊 Custo/Conversa: ${formatCurrency(ad.cost_per_conversation || 0)}\n\n`;
+        message += `   📊 Custo/Conversa: ${formatCurrency(ad.calculatedCostPerConv || 0)}\n\n`;
       });
     }
     message += `━━━━━━━━━━━━━━━━━━\n\n`;
