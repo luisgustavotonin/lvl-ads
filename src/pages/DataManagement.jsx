@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import ExecutionLogViewer from '../components/ExecutionLogViewer';
 
 // HELPER: Formatar data STRING (YYYY-MM-DD) para DD/MM/YYYY SEM criar Date()
 const formatDateString = (dateStr) => {
