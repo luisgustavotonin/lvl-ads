@@ -183,7 +183,7 @@ export default function ParametersAlerts() {
     onSuccess: (result) => {
       setTestResult({ 
         success: true, 
-        message: result.data?.message || 'Mensagem de teste enviada com sucesso!' 
+        message: result?.data?.message || 'Mensagem de teste enviada com sucesso!' 
       });
       setShowTestResult(true);
     },
