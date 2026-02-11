@@ -120,6 +120,8 @@ Deno.serve(async (req) => {
                 adset_name, 
                 ad_name,
                 ad_effective_status,
+                creative_id,
+                creative_thumbnail_url,
                 metrics = {},
                 breakdowns = {}
             } = ad;
@@ -157,6 +159,8 @@ Deno.serve(async (req) => {
                 ad_id: ad_id,
                 ad_name: ad_name || ad_id,
                 ad_effective_status: ad_effective_status || 'UNKNOWN',
+                creative_id: creative_id || '',
+                creative_thumbnail_url: creative_thumbnail_url || '',
                 adset_id: adset_id || '',
                 adset_name: adset_name || '',
                 campaign_id: campaign_id || '',
