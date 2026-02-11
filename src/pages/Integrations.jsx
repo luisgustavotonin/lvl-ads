@@ -114,83 +114,57 @@ export default function Integrations() {
     },
   });
 
-  const handleOpenDialog = () => {
-    setFormData({
-      unit_id: units[0]?.id || '',
-      platform_id: '',
-      account_reference: '',
-      account_name: '',
-      auth_type: 'token',
-      integration_purpose: '',
+  const handleOpenConfig = (integration) => {
+    setConfigForm({
+      n8n_webhook_url: integration.settings?.n8n_webhook_url || '',
+      n8n_secret_token: integration.settings?.n8n_secret_token || '',
     });
-    setDialogOpen(true);
+    setConfigDialog(integration);
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-  };
-
-  const handleOpenEditDialog = (integration) => {
-    setEditFormData({
-      account_name: integration.account_name || '',
-      account_reference: integration.account_reference || '',
-      auth_type: integration.auth_type || 'token',
-      integration_purpose: integration.integration_purpose || '',
-      settings: {
-        access_token: integration.settings?.access_token || '',
-        api_key: integration.settings?.api_key || '',
-        client_id: integration.settings?.client_id || '',
-        client_secret: integration.settings?.client_secret || '',
-        refresh_token: integration.settings?.refresh_token || '',
-        n8n_webhook_url: integration.settings?.n8n_webhook_url || '',
-        n8n_secret_token: integration.settings?.n8n_secret_token || '',
+  const handleSaveConfig = () => {
+    updateIntegrationMutation.mutate({
+      id: configDialog.id,
+      data: {
+        settings: {
+          n8n_webhook_url: configForm.n8n_webhook_url,
+          n8n_secret_token: configForm.n8n_secret_token,
+        }
       }
     });
-    setEditDialog(integration);
-    
-    // Generate webhook URL for this integration
-    const baseUrl = window.location.origin;
-    const webhookPath = `/api/functions/receiveN8nData`;
-    setWebhookUrl(`${baseUrl}${webhookPath}`);
   };
 
-  const handleCloseEditDialog = () => {
-    setEditDialog(null);
-  };
-
-  const handleSaveEdit = () => {
-    updateMutation.mutate({
-      id: editDialog.id,
-      data: editFormData
+  const handleOpenAddUnit = (integration) => {
+    setUnitForm({
+      unit_id: '',
+      account_id: '',
+      access_token: '',
     });
-    handleCloseEditDialog();
+    setAddUnitDialog(integration);
   };
 
-  const handleTestConnection = async (integration) => {
+  const handleAddUnit = () => {
+    createLinkMutation.mutate({
+      integration_id: addUnitDialog.id,
+      unit_id: unitForm.unit_id,
+      account_id: unitForm.account_id,
+      is_active: true,
+    });
+  };
+
+  const handleExecute = async (link) => {
     try {
-      const response = await base44.functions.invoke('testIntegrationConnection', {
-        integration_id: integration.id
+      const integration = integrations.find(i => i.id === link.integration_id);
+      const unit = units.find(u => u.id === link.unit_id);
+      
+      const response = await base44.functions.invoke('triggerN8nIntegration', {
+        integration_id: link.integration_id,
+        unit_id: link.unit_id,
+        account_id: link.account_id,
       });
-
+      
       if (response.data.success) {
-        alert(`✅ ${response.data.message}`);
-      } else {
-        alert(`❌ Erro: ${response.data.message || response.data.error}`);
-      }
-
-      // Recarregar integrações para ver o novo status
-      refetch();
-    } catch (error) {
-      alert(`❌ Erro ao testar conexão: ${error.message}`);
-    }
-  };
-
-  const handleFetchData = async (params) => {
-    try {
-      const response = await base44.functions.invoke('fetchMetaAdsMetrics', params);
-      if (response.data.success) {
-        alert(`✅ ${response.data.message}`);
-        refetch();
+        alert(`✅ Execução iniciada para ${unit?.name}`);
       } else {
         alert(`❌ ${response.data.error}`);
       }
@@ -199,36 +173,22 @@ export default function Integrations() {
     }
   };
 
-  const handleExecuteIntegration = async (params) => {
-    try {
-      const response = await base44.functions.invoke('triggerN8nIntegration', params);
-      if (response.data.success) {
-        alert(`✅ ${response.data.message}`);
-        refetch();
-      } else {
-        alert(`❌ ${response.data.error}`);
-      }
-    } catch (error) {
-      alert(`❌ Erro: ${error.message}`);
-    }
+  const handleOpenSchedule = (link) => {
+    setScheduleForm({
+      schedule_enabled: link.schedule_enabled || false,
+      schedule_frequency: link.schedule_frequency || 'daily',
+      schedule_time: link.schedule_time || '09:00',
+      schedule_date_mode: link.schedule_date_mode || 'YESTERDAY',
+    });
+    setScheduleDialog(link);
   };
 
-  const handleSaveSchedule = async (scheduleData) => {
-    try {
-      await updateMutation.mutateAsync({
-        id: scheduleModal.id,
-        data: scheduleData
-      });
-      alert('✅ Agendamento salvo com sucesso!');
-      refetch();
-    } catch (error) {
-      alert(`❌ Erro ao salvar: ${error.message}`);
-    }
+  const handleSaveSchedule = () => {
+    updateLinkMutation.mutate({
+      id: scheduleDialog.id,
+      data: scheduleForm
+    });
   };
-
-  const filteredIntegrations = selectedUnit
-    ? integrations.filter(i => i.unit_id === selectedUnit)
-    : [];
 
   const getUnitName = (unitId) => {
     return units.find(u => u.id === unitId)?.name || 'Unidade';
@@ -238,33 +198,11 @@ export default function Integrations() {
     return PLATFORMS.find(p => p.id === platformId) || { name: platformId, icon: '📊', color: '#6B7280' };
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'connected':
-        return (
-          <Badge className="bg-green-50 text-green-700 border-green-200">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            Conectado
-          </Badge>
-        );
-      case 'error':
-        return (
-          <Badge className="bg-red-50 text-red-700 border-red-200">
-            <XCircle className="w-3 h-3 mr-1" />
-            Erro
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-gray-50 text-gray-500 border-gray-200">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Desconectado
-          </Badge>
-        );
-    }
+  const getLinksForIntegration = (integrationId) => {
+    return unitLinks.filter(l => l.integration_id === integrationId);
   };
 
-  if (unitsLoading || integrationsLoading) {
+  if (unitsLoading || integrationsLoading || linksLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
