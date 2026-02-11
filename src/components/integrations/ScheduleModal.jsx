@@ -148,7 +148,7 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
                         <div className="flex-1">
                           <Select value={scheduleTime} onValueChange={setScheduleTime}>
                             <SelectTrigger id="schedule_time">
-                              <SelectValue />
+                              <SelectValue placeholder="Selecione um horário" />
                             </SelectTrigger>
                             <SelectContent className="max-h-60">
                               {EXECUTION_TIMES.map(time => (
@@ -179,7 +179,7 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
                             max="23"
                             placeholder="HH"
                             value={customHour}
-                            onChange={(e) => setCustomHour(e.target.value)}
+                            onChange={(e) => setCustomHour(e.target.value.padStart(2, '0'))}
                             className="h-9 text-center"
                           />
                         </div>
@@ -191,7 +191,7 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
                             max="59"
                             placeholder="MM"
                             value={customMinute}
-                            onChange={(e) => setCustomMinute(e.target.value)}
+                            onChange={(e) => setCustomMinute(e.target.value.padStart(2, '0'))}
                             className="h-9 text-center"
                           />
                         </div>
