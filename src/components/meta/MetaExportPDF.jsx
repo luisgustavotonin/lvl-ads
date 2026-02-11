@@ -13,35 +13,117 @@ export default function MetaExportPDF({ unitName, period, onExport }) {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
       
-      // Header
+      // Página 1: KPIs
       pdf.setFontSize(20);
-      pdf.text(`Meta Ads Dashboard - ${unitName}`, 15, 20);
-      
+      pdf.text(`Relatório - ${unitName}`, margin, 20);
       pdf.setFontSize(10);
-      pdf.text(`Período: ${period.start.toLocaleDateString('pt-BR')} - ${period.end.toLocaleDateString('pt-BR')}`, 15, 28);
-      pdf.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 15, 34);
+      pdf.text(`Período: ${period.start.toLocaleDateString('pt-BR')} - ${period.end.toLocaleDateString('pt-BR')}`, margin, 28);
       
-      // Capture dashboard sections
-      const sections = document.querySelectorAll('[data-pdf-section]');
-      let yOffset = 45;
-      
-      for (const section of sections) {
-        const canvas = await html2canvas(section, { scale: 2 });
+      const kpiSection = document.querySelector('[data-pdf-section]:first-of-type');
+      if (kpiSection) {
+        const canvas = await html2canvas(kpiSection, { scale: 1.5 });
         const imgData = canvas.toDataURL('image/png');
-        const imgWidth = pageWidth - 30;
+        const imgWidth = pageWidth - (margin * 2);
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        if (yOffset + imgHeight > pageHeight - 20) {
-          pdf.addPage();
-          yOffset = 15;
-        }
-        
-        pdf.addImage(imgData, 'PNG', 15, yOffset, imgWidth, imgHeight);
-        yOffset += imgHeight + 10;
+        pdf.addImage(imgData, 'PNG', margin, 35, imgWidth, imgHeight);
       }
       
-      pdf.save(`meta-dashboard-${unitName}-${new Date().toISOString().split('T')[0]}.pdf`);
+      // Página 2: Funil (metade superior) + 2 gráficos (metade inferior)
+      pdf.addPage();
+      
+      const funnelSection = document.querySelectorAll('[data-pdf-section]')[1];
+      if (funnelSection) {
+        const canvas = await html2canvas(funnelSection, { scale: 1.5 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pageWidth - (margin * 2);
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const maxHeight = (pageHeight / 2) - margin;
+        const finalHeight = Math.min(imgHeight, maxHeight);
+        pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, finalHeight);
+      }
+      
+      // 2 gráficos lado a lado (Investimento e Impressões)
+      const chartSections = document.querySelectorAll('[data-pdf-section]');
+      const investChart = chartSections[2]; // Investimento
+      const impressChart = chartSections[3]; // Impressões
+      
+      const halfWidth = (pageWidth - (margin * 3)) / 2;
+      const yPosCharts = (pageHeight / 2) + 5;
+      
+      if (investChart) {
+        const canvas = await html2canvas(investChart, { scale: 1.2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgHeight = (canvas.height * halfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', margin, yPosCharts, halfWidth, imgHeight);
+      }
+      
+      if (impressChart) {
+        const canvas = await html2canvas(impressChart, { scale: 1.2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgHeight = (canvas.height * halfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', margin + halfWidth + margin, yPosCharts, halfWidth, imgHeight);
+      }
+      
+      // Página 3: 4 gráficos (Alcance, CTR, Conversas, Custo)
+      pdf.addPage();
+      
+      const reachChart = chartSections[4];
+      const ctrChart = chartSections[5];
+      const convChart = chartSections[6];
+      const costChart = chartSections[7];
+      
+      const chartHeight = (pageHeight - (margin * 3)) / 2;
+      
+      if (reachChart) {
+        const canvas = await html2canvas(reachChart, { scale: 1.2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgHeight = (canvas.height * halfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', margin, margin, halfWidth, Math.min(imgHeight, chartHeight));
+      }
+      
+      if (ctrChart) {
+        const canvas = await html2canvas(ctrChart, { scale: 1.2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgHeight = (canvas.height * halfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', margin + halfWidth + margin, margin, halfWidth, Math.min(imgHeight, chartHeight));
+      }
+      
+      if (convChart) {
+        const canvas = await html2canvas(convChart, { scale: 1.2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgHeight = (canvas.height * halfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', margin, margin + chartHeight + margin, halfWidth, Math.min(imgHeight, chartHeight));
+      }
+      
+      if (costChart) {
+        const canvas = await html2canvas(costChart, { scale: 1.2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgHeight = (canvas.height * halfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', margin + halfWidth + margin, margin + chartHeight + margin, halfWidth, Math.min(imgHeight, chartHeight));
+      }
+      
+      // Páginas seguintes: Tabelas (Campanhas, Conjuntos, Anúncios)
+      const tables = Array.from(chartSections).slice(8);
+      for (const table of tables) {
+        pdf.addPage();
+        const canvas = await html2canvas(table, { scale: 1.5 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pageWidth - (margin * 2);
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let yOffset = margin;
+        if (imgHeight > pageHeight - (margin * 2)) {
+          // Se a tabela for muito alta, dividir em páginas
+          const maxHeight = pageHeight - (margin * 2);
+          pdf.addImage(imgData, 'PNG', margin, yOffset, imgWidth, maxHeight);
+        } else {
+          pdf.addImage(imgData, 'PNG', margin, yOffset, imgWidth, imgHeight);
+        }
+      }
+      
+      pdf.save(`relatorio-${unitName}-${new Date().toISOString().split('T')[0]}.pdf`);
       if (onExport) onExport('pdf');
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);

@@ -61,12 +61,27 @@ export default function KPICardWithComparison({
   if (isNegative && isBetterLower) indicatorColor = 'text-green-600';
 
   let valueColor = 'text-gray-900';
-  if (thresholdStatus === 'green') valueColor = 'text-green-600';
-  if (thresholdStatus === 'yellow') valueColor = 'text-yellow-600';
-  if (thresholdStatus === 'red') valueColor = 'text-red-600';
+  let bgColor = 'bg-white';
+  let borderColor = 'border-gray-200';
+  
+  if (thresholdStatus === 'green') {
+    valueColor = 'text-green-700';
+    bgColor = 'bg-green-50';
+    borderColor = 'border-green-200';
+  }
+  if (thresholdStatus === 'yellow') {
+    valueColor = 'text-yellow-700';
+    bgColor = 'bg-yellow-50';
+    borderColor = 'border-yellow-200';
+  }
+  if (thresholdStatus === 'red') {
+    valueColor = 'text-red-700';
+    bgColor = 'bg-red-50';
+    borderColor = 'border-red-200';
+  }
 
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+    <Card className={`${bgColor} border ${borderColor} shadow-sm hover:shadow-md transition-shadow`}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-2">
           <div className="text-sm text-gray-600 font-medium">{customLabel}</div>

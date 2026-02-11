@@ -459,7 +459,13 @@ export default function Reports() {
                       <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="spend" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 3 }} />
+                      <Line type="monotone" dataKey="spend" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 3 }}>
+                        {dailyCharts.map((entry, index) => (
+                          <text key={index} x={0} y={0} dy={-10} fontSize={10} fill="#3B82F6" textAnchor="middle">
+                            {formatCurrency(entry.spend)}
+                          </text>
+                        ))}
+                      </Line>
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -474,7 +480,7 @@ export default function Reports() {
                       <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="impressions" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 3 }} />
+                      <Line type="monotone" dataKey="impressions" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#10B981' }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -489,7 +495,7 @@ export default function Reports() {
                       <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="reach" stroke="#8B5CF6" strokeWidth={2} dot={{ fill: '#8B5CF6', r: 3 }} />
+                      <Line type="monotone" dataKey="reach" stroke="#8B5CF6" strokeWidth={2} dot={{ fill: '#8B5CF6', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#8B5CF6' }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -504,7 +510,7 @@ export default function Reports() {
                       <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => formatPercent(v)} />
-                      <Line type="monotone" dataKey="ctr_link" stroke="#F59E0B" strokeWidth={2} dot={{ fill: '#F59E0B', r: 3 }} />
+                      <Line type="monotone" dataKey="ctr_link" stroke="#F59E0B" strokeWidth={2} dot={{ fill: '#F59E0B', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#F59E0B', formatter: (v) => v.toFixed(1) + '%' }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -519,7 +525,7 @@ export default function Reports() {
                       <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="conversations" stroke="#EC4899" strokeWidth={2} dot={{ fill: '#EC4899', r: 3 }} />
+                      <Line type="monotone" dataKey="conversations" stroke="#EC4899" strokeWidth={2} dot={{ fill: '#EC4899', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#EC4899' }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -534,7 +540,7 @@ export default function Reports() {
                       <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="cost_per_conversation" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 3 }} />
+                      <Line type="monotone" dataKey="cost_per_conversation" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#EF4444', formatter: (v) => 'R$' + v.toFixed(2) }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
