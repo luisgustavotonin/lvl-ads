@@ -34,9 +34,9 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [dateMode, setDateMode] = useState('YESTERDAY');
   const [frequency, setFrequency] = useState('daily');
-  const [scheduleTime, setScheduleTime] = useState('09:00');
-  const [customHour, setCustomHour] = useState('09');
-  const [customMinute, setCustomMinute] = useState('00');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [customHour, setCustomHour] = useState('');
+  const [customMinute, setCustomMinute] = useState('');
   const [useCustomTime, setUseCustomTime] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,7 +45,12 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
       setScheduleEnabled(integration.schedule_enabled || false);
       setDateMode(integration.schedule_date_mode || 'YESTERDAY');
       setFrequency(integration.schedule_frequency || 'daily');
-      setScheduleTime(integration.schedule_time || '09:00');
+      setScheduleTime(integration.schedule_time || '');
+      if (integration.schedule_time) {
+        const [hour, minute] = integration.schedule_time.split(':');
+        setCustomHour(hour || '');
+        setCustomMinute(minute || '');
+      }
     }
   }, [integration, open]);
 
