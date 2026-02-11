@@ -149,6 +149,25 @@ Deno.serve(async (req) => {
                 continue;
             }
 
+            // Extrair métricas brutas
+            const spend = parseFloat(metrics.spend || 0);
+            const impressions = parseInt(metrics.impressions || 0);
+            const reach = parseInt(metrics.reach || 0);
+            const clicks = parseInt(metrics.clicks || 0);
+            const link_clicks = parseInt(metrics.link_clicks || 0);
+            const wa_conversations = parseInt(metrics.wa_conversations_started_7d || 0);
+            const wa_total_contact = parseInt(metrics.wa_total_messaging_connection || 0);
+            const wa_first_reply = parseInt(metrics.wa_messaging_first_reply || 0);
+
+            // CALCULAR métricas derivadas (N8n não envia calculadas)
+            const frequency = reach > 0 ? impressions / reach : 0;
+            const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
+            const cpc_link = link_clicks > 0 ? spend / link_clicks : 0;
+            const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+            const cost_per_conversation = wa_conversations > 0 ? spend / wa_conversations : 0;
+            const cost_per_total_contact = wa_total_contact > 0 ? spend / wa_total_contact : 0;
+            const cost_per_first_reply = wa_first_reply > 0 ? spend / wa_first_reply : 0;
+
             // Preparar record
             const adRecord = {
                 unit_id: unit_id,
@@ -161,20 +180,21 @@ Deno.serve(async (req) => {
                 adset_name: adset_name || '',
                 campaign_id: campaign_id || '',
                 campaign_name: campaign_name || '',
-                spend: parseFloat(metrics.spend || 0),
-                impressions: parseInt(metrics.impressions || 0),
-                reach: parseInt(metrics.reach || 0),
-                clicks: parseInt(metrics.clicks || 0),
-                link_clicks: parseInt(metrics.link_clicks || 0),
-                wa_conversations_started_7d: parseInt(metrics.wa_conversations_started_7d || 0),
-                wa_total_messaging_connection: parseInt(metrics.wa_total_messaging_connection || 0),
-                wa_messaging_first_reply: parseInt(metrics.wa_messaging_first_reply || 0),
-                ctr_link: parseFloat(metrics.ctr_link || 0),
-                cpc_link: parseFloat(metrics.cpc_link || 0),
-                cpm: parseFloat(metrics.cpm || 0),
-                cost_per_conversation: parseFloat(metrics.cost_per_conversation || 0),
-                cost_per_total_contact: parseFloat(metrics.cost_per_total_contact || 0),
-                cost_per_first_reply: parseFloat(metrics.cost_per_first_reply || 0),
+                spend: spend,
+                impressions: impressions,
+                reach: reach,
+                frequency: frequency,
+                clicks: clicks,
+                link_clicks: link_clicks,
+                ctr_link: ctr_link,
+                cpc_link: cpc_link,
+                cpm: cpm,
+                wa_conversations_started_7d: wa_conversations,
+                wa_total_messaging_connection: wa_total_contact,
+                wa_messaging_first_reply: wa_first_reply,
+                cost_per_conversation: cost_per_conversation,
+                cost_per_total_contact: cost_per_total_contact,
+                cost_per_first_reply: cost_per_first_reply,
                 demographics_json: ensureObject(breakdowns.demographics),
                 placement_json: ensureObject(breakdowns.placement),
                 devices_json: ensureObject(breakdowns.devices),
