@@ -50,6 +50,8 @@ export default function Units() {
     color: COLORS[0],
     default_period: 'last_30_days',
     status: 'active',
+    account_id: '',
+    secret_token: '',
   });
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -96,6 +98,8 @@ export default function Units() {
         color: unit.color || COLORS[0],
         default_period: unit.default_period || 'last_30_days',
         status: unit.status || 'active',
+        account_id: unit.account_id || '',
+        secret_token: unit.secret_token || '',
       });
     } else {
       setEditingUnit(null);
@@ -105,6 +109,8 @@ export default function Units() {
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         default_period: 'last_30_days',
         status: 'active',
+        account_id: '',
+        secret_token: '',
       });
     }
     setDialogOpen(true);
@@ -194,20 +200,20 @@ export default function Units() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
                  <div className="flex items-center gap-3">
-                   {unit.logo_url ? (
-                     <img 
-                       src={unit.logo_url} 
-                       alt={unit.name}
-                       className="w-12 h-12 rounded-xl object-cover"
-                     />
-                   ) : (
-                     <div 
-                       className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-bold"
-                       style={{ backgroundColor: unit.color || '#3B82F6' }}
-                     >
-                       {unit.name?.charAt(0)?.toUpperCase()}
-                     </div>
-                   )}
+                  {unit.logo_url ? (
+                    <img 
+                      src={unit.logo_url} 
+                      alt={unit.name}
+                      className="w-16 h-16 rounded-xl object-contain"
+                    />
+                  ) : (
+                    <div 
+                      className="w-16 h-16 rounded-xl flex items-center justify-center text-white text-xl font-bold"
+                      style={{ backgroundColor: unit.color || '#3B82F6' }}
+                    >
+                      {unit.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                  )}
                     <div>
                       <h3 className="font-semibold text-gray-900">{unit.name}</h3>
                       <Badge 
@@ -327,6 +333,29 @@ export default function Units() {
                   <SelectItem value="inactive">Inativo</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="account_id">ID da Conta de Anúncios</Label>
+              <Input
+                id="account_id"
+                value={formData.account_id}
+                onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
+                placeholder="Ex: act_1234567890"
+              />
+              <p className="text-xs text-gray-500">ID da conta Meta Ads (act_...)</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="secret_token">Token Secreto</Label>
+              <Input
+                id="secret_token"
+                type="password"
+                value={formData.secret_token}
+                onChange={(e) => setFormData({ ...formData, secret_token: e.target.value })}
+                placeholder="Digite o token secreto"
+              />
+              <p className="text-xs text-gray-500">Token para autenticação de webhooks/integrações</p>
             </div>
           </div>
 

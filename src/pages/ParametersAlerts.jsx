@@ -55,6 +55,14 @@ export default function ParametersAlerts() {
     }
   });
 
+  const syncKpisMutation = useMutation({
+    mutationFn: () => base44.functions.invoke('syncKpiThresholdsFromReports', { unit_id: selectedUnit }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['thresholds'] });
+      toast.success(`${result.data.created} novos KPIs sincronizados`);
+    }
+  });
+
   const initRulesMutation = useMutation({
     mutationFn: () => base44.functions.invoke('initializeDefaultKpiRules', { unit_id: selectedUnit }),
     onSuccess: () => {
@@ -216,7 +224,6 @@ export default function ParametersAlerts() {
                         Criar Padrões Recomendados
                       </Button>
                     ) : (
-                      <>
                         <Select onValueChange={(targetUnitId) => {
                           if (confirm('Replicar toda parametrização para esta unidade?')) {
                             replicateToUnitMutation.mutate(targetUnitId);

@@ -49,7 +49,6 @@
  */
 import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
-import Integrations from './pages/Integrations';
 import ParametersAlerts from './pages/ParametersAlerts';
 import Profiles from './pages/Profiles';
 import ReportModel from './pages/ReportModel';
@@ -58,13 +57,13 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
+import Integrations from './pages/Integrations';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "Dashboard": Dashboard,
     "DataManagement": DataManagement,
-    "Integrations": Integrations,
     "ParametersAlerts": ParametersAlerts,
     "Profiles": Profiles,
     "ReportModel": ReportModel,
@@ -73,6 +72,7 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
+    "Integrations": Integrations,
 }
 
 export const pagesConfig = {
