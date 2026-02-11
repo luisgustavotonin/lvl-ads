@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
       totalConversations += ad.wa_conversations_started_7d || 0;
       
       ads.push({
+        campaign_name: ad.campaign_name || 'Sem campanha',
         name: ad.ad_name || 'Sem nome',
         adset_name: ad.adset_name || '',
         spend: ad.spend || 0,
