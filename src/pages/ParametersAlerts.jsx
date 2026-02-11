@@ -681,30 +681,66 @@ export default function ParametersAlerts() {
                       <p className="text-xs text-gray-500 mt-1">Formato: 5511999999999 (código país + DDD + número)</p>
                     </div>
 
-                    <div>
-                       <Label>Frequência de Alertas</Label>
-                       <div className="space-y-3 mt-1">
-                         <Select
-                           value={alertConfig?.alert_frequency || 'daily'}
-                           onValueChange={(alert_frequency) => updateAlertConfigMutation.mutate({ alert_frequency })}
-                         >
-                           <SelectTrigger>
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="immediate">Imediato</SelectItem>
-                             <SelectItem value="daily">Diário</SelectItem>
-                           </SelectContent>
-                         </Select>
-                         {alertConfig?.alert_frequency === 'daily' && (
-                           <Input
-                             placeholder="Horário (ex: 9, 14:30, 18:00)"
-                             value={alertCustomTime}
-                             onChange={(e) => setAlertCustomTime(e.target.value)}
-                           />
-                         )}
-                       </div>
-                     </div>
+                    <div className="space-y-2">
+                      <Label>Frequência de Alertas</Label>
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-1">
+                          <Select
+                            value={alertConfig?.alert_frequency || 'daily'}
+                            onValueChange={(alert_frequency) => updateAlertConfigMutation.mutate({ alert_frequency })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="immediate">Imediato</SelectItem>
+                              <SelectItem value="daily">Diário</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {alertConfig?.alert_frequency === 'daily' && (
+                          <>
+                            <div className="w-20">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="23"
+                                placeholder="HH"
+                                value={alertCustomTime.split(':')[0] || ''}
+                                onChange={(e) => {
+                                  const hour = e.target.value.padStart(2, '0');
+                                  const minute = alertCustomTime.split(':')[1] || '00';
+                                  setAlertCustomTime(`${hour}:${minute}`);
+                                }}
+                                className="h-9"
+                              />
+                            </div>
+                            <span className="text-gray-500 font-bold">:</span>
+                            <div className="w-20">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="59"
+                                placeholder="MM"
+                                value={alertCustomTime.split(':')[1] || ''}
+                                onChange={(e) => {
+                                  const minute = e.target.value.padStart(2, '0');
+                                  const hour = alertCustomTime.split(':')[0] || '09';
+                                  setAlertCustomTime(`${hour}:${minute}`);
+                                }}
+                                className="h-9"
+                              />
+                            </div>
+                            <Button
+                              onClick={() => updateAlertConfigMutation.mutate({ alert_frequency: 'daily', custom_time: alertCustomTime })}
+                              className="h-9"
+                            >
+                              Salvar
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
                     <div>
                       <Label>Filtro de Severidade</Label>
