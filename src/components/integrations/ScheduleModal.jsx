@@ -28,6 +28,8 @@ const EXECUTION_TIMES = [
   '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'
 ];
 
+import { Input } from '@/components/ui/input';
+
 export default function ScheduleModal({ open, onClose, integration, onSave }) {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [dateMode, setDateMode] = useState('YESTERDAY');
