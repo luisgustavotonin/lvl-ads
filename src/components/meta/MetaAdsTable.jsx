@@ -28,6 +28,7 @@ export default function MetaAdsTable({ metaAdDaily }) {
           wa_conversations_started_7d: 0,
           wa_total_messaging_connection: 0,
           wa_messaging_first_reply: 0,
+          frequency: 0,
           cpm: 0,
         };
       }
@@ -35,6 +36,7 @@ export default function MetaAdsTable({ metaAdDaily }) {
       byAd[key].spend += ad.spend || 0;
       byAd[key].impressions += ad.impressions || 0;
       byAd[key].reach += ad.reach || 0;
+      byAd[key].frequency += ad.frequency || 0;
       byAd[key].clicks += ad.clicks || 0;
       byAd[key].link_clicks += ad.link_clicks || 0;
       byAd[key].wa_conversations_started_7d += ad.wa_conversations_started_7d || 0;
@@ -45,7 +47,6 @@ export default function MetaAdsTable({ metaAdDaily }) {
     
     return Object.values(byAd).map(a => ({
       ...a,
-      frequency: a.reach > 0 ? a.impressions / a.reach : 0,
       ctr_link: a.impressions > 0 ? (a.link_clicks / a.impressions) * 100 : 0,
       cpc_link: a.link_clicks > 0 ? a.spend / a.link_clicks : 0,
       cost_per_conversation: a.wa_conversations_started_7d > 0 ? a.spend / a.wa_conversations_started_7d : 0,
