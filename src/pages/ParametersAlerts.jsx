@@ -204,22 +204,29 @@ export default function ParametersAlerts() {
   });
 
   const testTelegramMutation = useMutation({
-    mutationFn: () => base44.functions.invoke('sendTelegramAlert', { 
-      unit_id: selectedUnit, 
-      test_mode: true 
-    }),
-    onSuccess: (result) => {
-      setTestResult({ 
-        success: true, 
-        message: result?.data?.message || 'Mensagem de teste enviada com sucesso!' 
+    mutationFn: async () => {
+      const configs = await base44.entities.TelegramAlertConfig.filter({ unit_id: selectedUnit });
+      if (!configs || configs.length === 0) throw new Error('Configuração não encontrada');
+      
+      const config = configs[0];
+      const alertResponse = await base44.functions.invoke('generateTelegramAlert', { unit_id: selectedUnit });
+      
+      await base44.functions.invoke('sendTelegramMessage', {
+        unit_id: selectedUnit,
+        bot_token: config.bot_token,
+        chat_id: config.chat_id,
+        message: alertResponse.data.message
       });
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      setTestResult({ success: true });
       setShowTestResult(true);
+      toast.success('Alerta de teste enviado!');
     },
     onError: (error) => {
-      setTestResult({ 
-        success: false, 
-        message: error.message || 'Erro ao enviar a mensagem' 
-      });
+      setTestResult({ success: false, error: error.message });
       setShowTestResult(true);
     }
   });
