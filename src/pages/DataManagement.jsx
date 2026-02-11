@@ -160,27 +160,37 @@ export default function DataManagement() {
         if (record) affectedDates.add(`${record.unit_id}_${record.date}`);
       });
       
-      // Deletar tudo em paralelo (sem await em loop)
-      await Promise.all(metricIds.map(id => base44.entities.MetaAdDaily.delete(id)));
+      // Deletar tudo em paralelo (ignorando erros de registros não encontrados)
+      const deleteResults = await Promise.allSettled(
+        metricIds.map(id => base44.entities.MetaAdDaily.delete(id))
+      );
+      
+      // Contar quantos foram realmente deletados (ignorando os que não existem mais)
+      const deletedCount = deleteResults.filter(r => r.status === 'fulfilled').length;
       
       // Reagregar ou limpar em paralelo
       await Promise.all(
         Array.from(affectedDates).map(async (key) => {
           const [unit_id, date] = key.split('_');
-          const remaining = await base44.entities.MetaAdDaily.filter({ unit_id, date });
           
-          if (remaining.length === 0) {
-            const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, provider: 'meta' });
-            await Promise.all(metricsDaily.map(m => base44.entities.MetricsDaily.delete(m.id)));
-          } else {
-            await base44.functions.invoke('aggregateMetaToMetricsDaily', { unit_id, date_from: date, date_to: date });
+          try {
+            const remaining = await base44.entities.MetaAdDaily.filter({ unit_id, date });
+            
+            if (remaining.length === 0) {
+              const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, provider: 'meta' });
+              await Promise.allSettled(metricsDaily.map(m => base44.entities.MetricsDaily.delete(m.id)));
+            } else {
+              await base44.functions.invoke('aggregateMetaToMetricsDaily', { unit_id, date_from: date, date_to: date });
+            }
+          } catch (error) {
+            console.warn(`Erro ao processar agregação para ${key}:`, error);
           }
         })
       );
       
-      return metricIds.length;
+      return deletedCount;
     },
-    onSuccess: () => {
+    onSuccess: (deletedCount) => {
       queryClient.invalidateQueries({ queryKey: ['allMetrics'] });
       setSelectedMetrics([]);
     },
