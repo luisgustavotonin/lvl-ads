@@ -1,5 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+// Helper para obter data atual em Brasília
+function getBrasiliaDate() {
+    const now = new Date();
+    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    return brasiliaTime;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
