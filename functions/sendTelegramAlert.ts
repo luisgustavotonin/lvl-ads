@@ -36,11 +36,11 @@ Deno.serve(async (req) => {
       unit_id
     });
 
-    if (!reportResponse.data?.success) {
-      throw new Error('Erro ao gerar relatório: ' + JSON.stringify(reportResponse.data));
+    if (!reportResponse?.data?.success) {
+      throw new Error('Erro ao gerar relatório: ' + JSON.stringify(reportResponse?.data));
     }
 
-    const message = reportResponse.data.message;
+    const message = reportResponse?.data?.message;
 
     // Payload simples para webhook ou Telegram
     const payload = {
