@@ -64,6 +64,16 @@ export default function ParametersAlerts() {
     enabled: !!selectedUnit
   });
 
+  const { data: logs = [] } = useQuery({
+    queryKey: ['executionLogs', selectedUnit],
+    queryFn: async () => {
+      const response = await base44.entities.ExecutionLog.filter({ unit_id: selectedUnit }, '-execution_time', 20);
+      return response || [];
+    },
+    enabled: !!selectedUnit,
+    refetchInterval: 5000
+  });
+
   const initThresholdsMutation = useMutation({
     mutationFn: () => base44.functions.invoke('initializeDefaultKpiThresholds', { unit_id: selectedUnit }),
     onSuccess: () => {
