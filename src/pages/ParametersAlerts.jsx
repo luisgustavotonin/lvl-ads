@@ -714,57 +714,7 @@ export default function ParametersAlerts() {
                       </div>
                     )}
 
-                    <div>
-                      <Label>Template da Mensagem</Label>
-                      <textarea
-                        value={telegramAlertConfig?.message_template || `🔔 *ALERTA DE PERFORMANCE - {{unit_name}}*
 
-📅 *Data:* {{date}}
-⏰ *Período:* Últimas 24 horas
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ *{{alert_count}} alertas detectados*
-
-{{alerts}}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 *TOP 3 ANÚNCIOS DO DIA*
-
-🥇 *Anúncio 1*
-💰 Investimento: R$ 250,00
-💬 Conversas: 15
-📈 Custo/Conversa: R$ 16,67
-
-🥈 *Anúncio 2*
-💰 Investimento: R$ 180,00
-💬 Conversas: 10
-📈 Custo/Conversa: R$ 18,00
-
-🥉 *Anúncio 3*
-💰 Investimento: R$ 120,00
-💬 Conversas: 8
-📈 Custo/Conversa: R$ 15,00
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-💡 *Recomendações:*
-• Revisar anúncios com CTR abaixo de 1%
-• Ajustar segmentação em campanhas com CPM elevado
-• Pausar anúncios com frequência acima de 3.0
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔗 _Acesse o painel para detalhes completos_`}
-                        onChange={(e) => updateTelegramAlertConfigMutation.mutate({ message_template: e.target.value })}
-                        className="mt-1 w-full min-h-96 p-3 border rounded-md text-sm font-mono"
-                        rows="30"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Variáveis disponíveis: <code>{'{{unit_name}}'}</code>, <code>{'{{date}}'}</code>, <code>{'{{alert_count}}'}</code>, <code>{'{{alerts}}'}</code>
-                      </p>
-                    </div>
 
                     <div>
                       <Label>Webhook URL (opcional)</Label>
