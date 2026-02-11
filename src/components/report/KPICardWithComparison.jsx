@@ -63,22 +63,6 @@ export default function KPICardWithComparison({
   let valueColor = 'text-gray-900';
   let bgColor = 'bg-white';
   let borderColor = 'border-gray-200';
-  
-  if (thresholdStatus === 'green') {
-    valueColor = 'text-green-700';
-    bgColor = 'bg-green-50';
-    borderColor = 'border-green-200';
-  }
-  if (thresholdStatus === 'yellow') {
-    valueColor = 'text-yellow-700';
-    bgColor = 'bg-yellow-50';
-    borderColor = 'border-yellow-200';
-  }
-  if (thresholdStatus === 'red') {
-    valueColor = 'text-red-700';
-    bgColor = 'bg-red-50';
-    borderColor = 'border-red-200';
-  }
 
   return (
     <Card className={`${bgColor} border ${borderColor} shadow-sm hover:shadow-md transition-shadow`}>
