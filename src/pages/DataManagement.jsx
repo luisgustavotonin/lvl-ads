@@ -432,6 +432,22 @@ export default function DataManagement() {
         </Card>
       )}
 
+      {/* Logs de Execução */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Histórico de Execuções</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {selectedUnit === 'all' ? (
+            <div className="text-center py-8 text-gray-500">
+              <p className="text-sm">Selecione uma unidade para visualizar o histórico</p>
+            </div>
+          ) : (
+            <ExecutionLogViewer unitId={selectedUnit} limit={15} />
+          )}
+        </CardContent>
+      </Card>
+
       {/* Tabela com Auto-Colunas */}
       <Card>
         <CardHeader>
