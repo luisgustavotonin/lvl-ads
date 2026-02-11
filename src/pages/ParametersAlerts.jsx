@@ -9,11 +9,14 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle2, RefreshCw, Settings, Bell, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertCircle, CheckCircle2, RefreshCw, Settings, Bell, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ParametersAlerts() {
   const [selectedUnit, setSelectedUnit] = useState('');
+  const [showTestResult, setShowTestResult] = useState(false);
+  const [testResult, setTestResult] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -177,11 +180,19 @@ export default function ParametersAlerts() {
       unit_id: selectedUnit, 
       test_mode: true 
     }),
-    onSuccess: () => {
-      toast.success('Mensagem de teste enviada! Verifique o Telegram.');
+    onSuccess: (result) => {
+      setTestResult({ 
+        success: true, 
+        message: result.data?.message || 'Mensagem de teste enviada com sucesso!' 
+      });
+      setShowTestResult(true);
     },
     onError: (error) => {
-      toast.error('Erro ao enviar: ' + error.message);
+      setTestResult({ 
+        success: false, 
+        message: error.message || 'Erro ao enviar a mensagem' 
+      });
+      setShowTestResult(true);
     }
   });
 
@@ -211,6 +222,30 @@ export default function ParametersAlerts() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Modal de Resultado do Teste Telegram */}
+      <AlertDialog open={showTestResult} onOpenChange={setShowTestResult}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {testResult?.success ? (
+                <><CheckCircle2 className="w-5 h-5 text-green-600" /> Sucesso!</>
+              ) : (
+                <><AlertCircle className="w-5 h-5 text-red-600" /> Erro ao Enviar</>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {testResult?.success 
+                ? 'Sua mensagem de teste foi enviada para o Telegram. Verifique seu chat ou grupo!'
+                : `Houve um problema: ${testResult?.message}`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogAction onClick={() => setShowTestResult(false)}>
+            Entendi
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Parâmetros & Alertas</h1>
@@ -666,7 +701,9 @@ export default function ParametersAlerts() {
                           onClick={() => testTelegramMutation.mutate()}
                           disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
                           variant="outline"
+                          className="gap-2"
                         >
+                          {testTelegramMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                           {testTelegramMutation.isPending ? 'Enviando...' : 'Testar'}
                         </Button>
                       </div>
