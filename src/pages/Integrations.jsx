@@ -114,6 +114,34 @@ export default function Integrations() {
     },
   });
 
+  const createIntegrationMutation = useMutation({
+    mutationFn: (data) => base44.entities.Integration.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      setConfigDialog(null);
+    },
+  });
+
+  const handleCreateIntegration = (platformId) => {
+    setConfigForm({
+      n8n_webhook_url: '',
+      n8n_secret_token: '',
+    });
+    setConfigDialog({ platform_id: platformId, isNew: true });
+  };
+
+  const handleSaveNewIntegration = () => {
+    createIntegrationMutation.mutate({
+      is_global: true,
+      platform_id: configDialog.platform_id,
+      auth_type: 'n8n_webhook',
+      settings: {
+        n8n_webhook_url: configForm.n8n_webhook_url,
+        n8n_secret_token: configForm.n8n_secret_token,
+      }
+    });
+  };
+
   const handleOpenConfig = (integration) => {
     setConfigForm({
       n8n_webhook_url: integration.settings?.n8n_webhook_url || '',
@@ -123,15 +151,19 @@ export default function Integrations() {
   };
 
   const handleSaveConfig = () => {
-    updateIntegrationMutation.mutate({
-      id: configDialog.id,
-      data: {
-        settings: {
-          n8n_webhook_url: configForm.n8n_webhook_url,
-          n8n_secret_token: configForm.n8n_secret_token,
+    if (configDialog.isNew) {
+      handleSaveNewIntegration();
+    } else {
+      updateIntegrationMutation.mutate({
+        id: configDialog.id,
+        data: {
+          settings: {
+            n8n_webhook_url: configForm.n8n_webhook_url,
+            n8n_secret_token: configForm.n8n_secret_token,
+          }
         }
-      }
-    });
+      });
+    }
   };
 
   const handleOpenAddUnit = (integration) => {
@@ -263,8 +295,16 @@ export default function Integrations() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {!integration ? (
-                  <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg">
-                    <p>Integração não configurada</p>
+                  <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                    <p className="mb-4">Integração não configurada</p>
+                    <Button 
+                      size="sm"
+                      onClick={() => handleCreateIntegration(platform.id)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Configurar Integração
+                    </Button>
                   </div>
                 ) : (
                   <>
@@ -385,9 +425,13 @@ export default function Integrations() {
       <Dialog open={!!configDialog} onOpenChange={() => setConfigDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Configurar {getPlatformInfo(configDialog?.platform_id).name}</DialogTitle>
+            <DialogTitle>
+              {configDialog?.isNew ? 'Criar' : 'Configurar'} {getPlatformInfo(configDialog?.platform_id).name}
+            </DialogTitle>
             <DialogDescription>
-              Configure as credenciais globais desta plataforma.
+              {configDialog?.isNew 
+                ? 'Configure a integração global para esta plataforma.'
+                : 'Edite as credenciais globais desta plataforma.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -456,10 +500,15 @@ export default function Integrations() {
             </Button>
             <Button 
               onClick={handleSaveConfig}
-              disabled={!configForm.n8n_webhook_url || !configForm.n8n_secret_token || updateIntegrationMutation.isPending}
+              disabled={
+                !configForm.n8n_webhook_url || 
+                !configForm.n8n_secret_token || 
+                updateIntegrationMutation.isPending ||
+                createIntegrationMutation.isPending
+              }
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Salvar Configuração
+              {configDialog?.isNew ? 'Criar Integração' : 'Salvar Configuração'}
             </Button>
           </DialogFooter>
         </DialogContent>
