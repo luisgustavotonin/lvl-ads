@@ -215,56 +215,23 @@ export default function Integrations() {
     );
   }
 
+  const webhookUrl = `${window.location.origin}/api/functions/receiveN8nData`;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Integrações</h1>
-          <p className="text-gray-500 mt-1">Conecte suas contas de anúncios</p>
+          <p className="text-gray-500 mt-1">Configure integrações globais por plataforma</p>
         </div>
-        <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleOpenDialog}>
-          <Plus className="w-4 h-4" />
-          Nova Integração
-        </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="border-gray-100">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <Label className="text-sm mb-2 block">Selecione uma unidade *</Label>
-              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione a unidade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {!selectedUnit && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">👆 Selecione uma unidade para ver as integrações</p>
-        </div>
-      )}
-
-
-
       {/* Platform Cards */}
-      {selectedUnit && (
-        <div className="grid gap-6">
-          {PLATFORMS.map((platform) => {
-          const platformIntegrations = filteredIntegrations.filter(i => 
-            i.platform_id === platform.id
-          );
+      <div className="grid gap-6">
+        {PLATFORMS.map((platform) => {
+          const integration = integrations.find(i => i.platform_id === platform.id);
+          const links = integration ? getLinksForIntegration(integration.id) : [];
           
           return (
             <Card key={platform.id} className="border-gray-100">
@@ -282,91 +249,137 @@ export default function Integrations() {
                       <p className="text-sm text-gray-500">{platform.description}</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-gray-500">
-                    {platformIntegrations.length} conexão(ões)
-                  </Badge>
+                  {integration && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleOpenConfig(integration)}
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Configurar
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
-              <CardContent>
-                {platformIntegrations.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500">
-                    <Link2 className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                    <p>Nenhuma conta conectada</p>
+              <CardContent className="space-y-4">
+                {!integration ? (
+                  <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg">
+                    <p>Integração não configurada</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {platformIntegrations.map((integration) => (
-                      integration.auth_type === 'n8n_webhook' ? (
-                        <N8nWebhookCard
-                          key={integration.id}
-                          integration={integration}
-                          onEdit={() => handleOpenEditDialog(integration)}
-                          onDelete={() => setDeleteDialog(integration)}
-                          onExecute={() => setExecutionModal(integration)}
-                          onSchedule={() => setScheduleModal(integration)}
-                        />
-                      ) : (
-                        <div 
-                          key={integration.id}
-                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {integration.account_name || integration.account_reference}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {getUnitName(integration.unit_id)} • ID: {integration.account_reference}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {getStatusBadge(integration.connection_status)}
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleOpenEditDialog(integration)}
-                              title="Configurar credenciais"
-                            >
-                              <Settings className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleTestConnection(integration)}
-                              title="Testar conexão"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                            {integration.connection_status === 'connected' && integration.platform_id === 'META' && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setFetchDataModal(integration)}
-                                className="text-xs"
-                              >
-                                Buscar Dados
-                              </Button>
-                            )}
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => setDeleteDialog(integration)}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
+                  <>
+                    {/* Global config display */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <p className="text-sm font-medium text-green-800">✓ Configurado</p>
+                      </div>
+                      <div className="space-y-1 text-xs text-green-700">
+                        <div className="flex gap-2">
+                          <span className="font-medium">URL do Webhook N8n:</span>
+                          <span className="font-mono">{integration.settings?.n8n_webhook_url || 'Não configurado'}</span>
                         </div>
-                      )
-                    ))}
-                  </div>
+                        <div className="flex gap-2">
+                          <span className="font-medium">URL para N8n enviar dados (POST):</span>
+                          <button 
+                            className="font-mono underline hover:text-green-900"
+                            onClick={() => {
+                              navigator.clipboard.writeText(webhookUrl);
+                              alert('✓ URL copiada');
+                            }}
+                          >
+                            {webhookUrl}
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-medium">Integration ID (enviar no JSON):</span>
+                          <button 
+                            className="font-mono underline hover:text-green-900"
+                            onClick={() => {
+                              navigator.clipboard.writeText(integration.id);
+                              alert('✓ ID copiado');
+                            }}
+                          >
+                            {integration.id}
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-medium">Secret Token:</span>
+                          <span className="font-mono">••••••••••</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Unit links */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-gray-900">Unidades Configuradas</h4>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleOpenAddUnit(integration)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Adicionar Unidade
+                        </Button>
+                      </div>
+                      
+                      {links.length === 0 ? (
+                        <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg">
+                          <p className="text-sm">Nenhuma unidade vinculada</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {links.map((link) => (
+                            <div 
+                              key={link.id}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div>
+                                  <p className="font-medium text-gray-900">{getUnitName(link.unit_id)}</p>
+                                  <p className="text-xs text-gray-500">
+                                    Account ID: {link.account_id || 'Configurar na unidade'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={() => handleExecute(link)}
+                                  title="Executar agora"
+                                >
+                                  <Play className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={() => handleOpenSchedule(link)}
+                                  title="Configurar agendamento"
+                                >
+                                  <Calendar className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  onClick={() => setDeleteDialog(link)}
+                                  title="Remover"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
           );
         })}
-        </div>
-      )}
+      </div>
 
       {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
