@@ -857,40 +857,75 @@ export default function ParametersAlerts() {
                       <p className="text-xs text-gray-500 mt-1">ID do chat, grupo ou canal que receberá os alertas</p>
                     </div>
 
-                    <div>
-                       <Label>Frequência de Alertas</Label>
-                       <div className="space-y-3 mt-1">
-                         <Select
-                           value={telegramAlertConfig?.alert_frequency || 'daily_9h'}
-                           onValueChange={(alert_frequency) => updateTelegramAlertConfigMutation.mutate({ alert_frequency })}
-                         >
-                           <SelectTrigger>
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="immediate">Imediato</SelectItem>
-                             <SelectItem value="daily">Diário</SelectItem>
-                           </SelectContent>
-                         </Select>
-                         {telegramAlertConfig?.alert_frequency === 'daily' && (
-                           <Input
-                             placeholder="Horário (ex: 14:00, 9, 18:30)"
-                             value={telegramCustomTime}
-                             onChange={(e) => setTelegramCustomTime(e.target.value)}
-                             className="mt-1"
-                           />
-                         )}
-                         <Button 
-                           onClick={() => testTelegramMutation.mutate()}
-                           disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
-                           variant="outline"
-                           className="w-full gap-2"
-                         >
-                           {testTelegramMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                           {testTelegramMutation.isPending ? 'Enviando...' : 'Testar'}
-                         </Button>
-                       </div>
-                     </div>
+                    <div className="space-y-2">
+                      <Label>Frequência de Alertas</Label>
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-1">
+                          <Select
+                            value={telegramAlertConfig?.alert_frequency || 'daily'}
+                            onValueChange={(alert_frequency) => updateTelegramAlertConfigMutation.mutate({ alert_frequency })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="immediate">Imediato</SelectItem>
+                              <SelectItem value="daily">Diário</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {telegramAlertConfig?.alert_frequency === 'daily' && (
+                          <>
+                            <div className="w-20">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="23"
+                                placeholder="HH"
+                                value={telegramCustomTime.split(':')[0] || ''}
+                                onChange={(e) => {
+                                  const hour = e.target.value.padStart(2, '0');
+                                  const minute = telegramCustomTime.split(':')[1] || '00';
+                                  setTelegramCustomTime(`${hour}:${minute}`);
+                                }}
+                                className="h-9"
+                              />
+                            </div>
+                            <span className="text-gray-500 font-bold">:</span>
+                            <div className="w-20">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="59"
+                                placeholder="MM"
+                                value={telegramCustomTime.split(':')[1] || ''}
+                                onChange={(e) => {
+                                  const minute = e.target.value.padStart(2, '0');
+                                  const hour = telegramCustomTime.split(':')[0] || '09';
+                                  setTelegramCustomTime(`${hour}:${minute}`);
+                                }}
+                                className="h-9"
+                              />
+                            </div>
+                            <Button
+                              onClick={() => updateTelegramAlertConfigMutation.mutate({ alert_frequency: 'daily', custom_time: telegramCustomTime })}
+                              className="h-9"
+                            >
+                              Salvar
+                            </Button>
+                            <Button 
+                              onClick={() => testTelegramMutation.mutate()}
+                              disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
+                              variant="outline"
+                              className="h-9 gap-2"
+                            >
+                              {testTelegramMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                              {testTelegramMutation.isPending ? 'Enviando...' : 'Testar'}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
