@@ -80,6 +80,16 @@ export default function Reports() {
     }
   }, [units, selectedUnit]);
 
+  // Carregar configuração do funil das settings da unidade
+  React.useEffect(() => {
+    if (selectedUnit && units.length > 0) {
+      const unit = units.find(u => u.id === selectedUnit);
+      if (unit?.settings?.funnel_stages && unit.settings.funnel_stages.length > 0) {
+        setFunnelStages(unit.settings.funnel_stages);
+      }
+    }
+  }, [selectedUnit, units]);
+
   const { data: currentMetrics = [], isLoading } = useQuery({
     queryKey: ['currentMetrics', selectedUnit, period.start, period.end, selectedPlatforms],
     queryFn: async () => {
