@@ -35,45 +35,119 @@ Deno.serve(async (req) => {
     const unit = await base44.asServiceRole.entities.Unit.filter({ id: unit_id });
     const unitName = unit[0]?.name || 'Unidade';
 
-    // Mensagem de teste ou real
     let message;
+    
     if (test_mode) {
+      // Mensagem de teste simples
       message = `🔔 *Teste de Alerta - ${unitName}*\n\n` +
                 `✅ Configuração funcionando corretamente!\n\n` +
-                `Data: ${new Date().toLocaleDateString('pt-BR')}\n` +
-                `Hora: ${new Date().toLocaleTimeString('pt-BR')}\n\n` +
+                `📅 Data: ${new Date().toLocaleDateString('pt-BR')}\n` +
+                `⏰ Hora: ${new Date().toLocaleTimeString('pt-BR')}\n\n` +
                 `_Este é um alerta de teste._`;
     } else {
-      // Template padrão
-      const defaultTemplate = `🔔 *Alerta de Performance - {{unit_name}}*\n\n` +
-                             `📅 Data: {{date}}\n` +
-                             `⚠️ Alertas detectados: {{alert_count}}\n\n` +
-                             `{{alerts}}\n\n` +
-                             `_Configure os alertas em Parâmetros & Alertas_`;
-      
+      // Buscar alertas reais dos últimos dias
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      const alertLogs = await base44.asServiceRole.entities.AlertLog.filter({
+        unit_id,
+        sent_at: { $gte: yesterdayStr }
+      });
+
+      // Filtrar por severidade
+      let filteredAlerts = alertLogs;
+      if (config.severity_filter === 'high_only') {
+        filteredAlerts = alertLogs.filter(a => a.severity === 'high');
+      } else if (config.severity_filter === 'medium_high') {
+        filteredAlerts = alertLogs.filter(a => a.severity === 'high' || a.severity === 'medium');
+      }
+
+      // Buscar top anúncios
+      const topAds = await base44.asServiceRole.entities.MetaAdDaily.filter({
+        unit_id,
+        date: yesterdayStr
+      });
+
+      // Ordenar por conversas e pegar top N
+      const sortedAds = topAds
+        .sort((a, b) => (b.wa_conversations_started_7d || 0) - (a.wa_conversations_started_7d || 0))
+        .slice(0, config.top_ads_quantity || 3);
+
+      // Montar string de alertas
+      const alertsText = filteredAlerts.length > 0
+        ? filteredAlerts.map(alert => {
+            const icon = alert.severity === 'high' ? '🔴' : alert.severity === 'medium' ? '🟡' : '🟢';
+            return `${icon} ${alert.message}`;
+          }).join('\n')
+        : '✅ Nenhum alerta detectado';
+
+      // Montar string de top anúncios
+      const topAdsText = sortedAds.map((ad, idx) => {
+        const medals = ['🥇', '🥈', '🥉'];
+        const medal = medals[idx] || '🏆';
+        const spend = ad.spend?.toFixed(2) || '0.00';
+        const conversations = ad.wa_conversations_started_7d || 0;
+        const costPerConv = conversations > 0 ? (ad.spend / conversations).toFixed(2) : '0.00';
+        
+        return `${medal} *${ad.ad_name || 'Anúncio ' + (idx + 1)}*\n` +
+               `💰 Investimento: R$ ${spend}\n` +
+               `💬 Conversas: ${conversations}\n` +
+               `📈 Custo/Conversa: R$ ${costPerConv}`;
+      }).join('\n\n');
+
+      // Template padrão se não houver customizado
+      const defaultTemplate = `🔔 *ALERTA DE PERFORMANCE - {{unit_name}}*
+
+📅 *Data:* {{date}}
+⏰ *Período:* Últimas 24 horas
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ *{{alert_count}} alertas detectados*
+
+{{alerts}}
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 *TOP ${config.top_ads_quantity || 3} ANÚNCIOS DO DIA*
+
+{{top_ads}}
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 *Recomendações:*
+• Revisar anúncios com CTR abaixo de 1%
+• Ajustar segmentação em campanhas com CPM elevado
+• Pausar anúncios com frequência acima de 3.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 _Acesse o painel para detalhes completos_`;
+
       const template = config.message_template || defaultTemplate;
-      
-      // Substituir variáveis (exemplo simplificado para teste)
+
+      // Substituir todas as variáveis
       message = template
         .replace(/{{unit_name}}/g, unitName)
         .replace(/{{date}}/g, new Date().toLocaleDateString('pt-BR'))
-        .replace(/{{alert_count}}/g, '3')
-        .replace(/{{alerts}}/g, '• CTR Link abaixo do esperado\n• CPM acima do normal\n• Frequência muito alta');
+        .replace(/{{alert_count}}/g, filteredAlerts.length.toString())
+        .replace(/{{alerts}}/g, alertsText)
+        .replace(/{{top_ads}}/g, config.include_top_ads ? topAdsText : '_Top anúncios desabilitado_');
     }
+
+    // Payload simples para webhook ou Telegram
+    const payload = {
+      chat_id: config.chat_id,
+      message: message
+    };
 
     // Se houver webhook configurado, enviar para lá
     if (config.webhook_url) {
       const webhookResponse = await fetch(config.webhook_url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          unit_id,
-          unit_name: unitName,
-          message,
-          bot_token: config.bot_token,
-          chat_id: config.chat_id,
-          test_mode
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!webhookResponse.ok) {
@@ -83,7 +157,8 @@ Deno.serve(async (req) => {
       return Response.json({ 
         ok: true, 
         message: 'Alerta enviado via webhook com sucesso',
-        via: 'webhook'
+        via: 'webhook',
+        payload
       });
     }
 
@@ -110,7 +185,8 @@ Deno.serve(async (req) => {
       ok: true, 
       message: 'Alerta enviado com sucesso',
       via: 'telegram_api',
-      telegram_response: result
+      telegram_response: result,
+      payload
     });
 
   } catch (error) {
