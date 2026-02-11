@@ -1,56 +1,62 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Download, TrendingUp, TrendingDown, Minus, Settings2 } from 'lucide-react';
+import { Download, Settings2, Edit2, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast } from 'sonner';
 import PeriodFilter from '@/components/report/PeriodFilter';
 import MetaCampaignsTable from '@/components/meta/MetaCampaignsTable';
 import MetaAdsetsTable from '@/components/meta/MetaAdsetsTable';
-import MetaAdsTable from '@/components/meta/MetaAdsTable';
-import MetaBreakdownPlacement from '@/components/meta/MetaBreakdownPlacement';
-import MetaBreakdownDemographics from '@/components/meta/MetaBreakdownDemographics';
-import MetaBreakdownDevices from '@/components/meta/MetaBreakdownDevices';
 import MetaExportPDF from '@/components/meta/MetaExportPDF';
 import MetaExportCSV from '@/components/meta/MetaExportCSV';
-import FunnelChart from '@/components/report/FunnelChart';
+import MetaAdsRankingNew from '@/components/meta/MetaAdsRankingNew';
+import FunnelChartNew from '@/components/report/FunnelChartNew';
 
-const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
-
-const ALL_KPIS = [
-  { id: 'spend', label: 'Investimento', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Investimento' },
-  { id: 'impressions', label: 'Impressões', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Alcance' },
-  { id: 'reach', label: 'Alcance', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Alcance' },
-  { id: 'frequency', label: 'Frequência', format: (v) => v.toFixed(2), category: 'Alcance' },
-  { id: 'clicks', label: 'Cliques', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Engajamento' },
-  { id: 'linkClicks', label: 'Cliques no link', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'Engajamento' },
-  { id: 'ctrLink', label: 'CTR Link', format: (v) => `${v.toFixed(2)}%`, category: 'Eficiência' },
-  { id: 'cpcLink', label: 'CPC Link', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Eficiência' },
-  { id: 'cpm', label: 'CPM', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'Eficiência' },
-  { id: 'conversations', label: 'Conversas', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), category: 'WhatsApp' },
-  { id: 'costPerConversation', label: 'Custo/Conversa', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), category: 'WhatsApp' },
-];
+const DEFAULT_CARD_LABELS = {
+  spend: 'Investimento',
+  impressions: 'Impressões',
+  reach: 'Alcance',
+  frequency: 'Frequência',
+  clicks: 'Cliques',
+  linkClicks: 'Cliques no Link',
+  ctrLink: 'CTR Link',
+  cpcLink: 'CPC Link',
+  cpm: 'CPM',
+  conversations: 'Conversas',
+  totalContacts: 'Contatos Totais',
+  firstReply: 'Primeira Resposta',
+  costPerConversation: 'Custo/Conversa',
+  costPerContact: 'Custo/Contato',
+  costPerFirstReply: 'Custo/1ª Resposta',
+};
 
 export default function Reports() {
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [period, setPeriod] = useState({
-    start: subDays(new Date(), 29),
+    start: subDays(new Date(), 6),
     end: new Date(),
   });
-  const [showComparison, setShowComparison] = useState(true);
-  const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
-  const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
+  const [editingCard, setEditingCard] = useState(null);
+  const [customLabel, setCustomLabel] = useState('');
+  
+  const queryClient = useQueryClient();
 
-  const { data: units = [], isLoading: unitsLoading } = useQuery({
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
+  const { data: units = [] } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
   });
@@ -61,11 +67,16 @@ export default function Reports() {
     }
   }, [units, selectedUnit]);
 
-  const { data: currentMetrics = [], isLoading } = useQuery({
-    queryKey: ['currentMetrics', selectedUnit, period.start, period.end, selectedPlatforms],
+  const { data: cardLabels = [] } = useQuery({
+    queryKey: ['cardLabels', selectedUnit],
+    queryFn: () => base44.entities.CardLabel.filter({ unit_id: selectedUnit || 'default' }),
+    enabled: !!selectedUnit
+  });
+
+  const { data: currentMetrics = [] } = useQuery({
+    queryKey: ['currentMetrics', selectedUnit, period.start, period.end],
     queryFn: async () => {
       if (!selectedUnit) return [];
-      if (!selectedPlatforms.includes('META')) return [];
       return base44.entities.MetaAdDaily.filter({
         unit_id: selectedUnit,
         date: { 
@@ -77,28 +88,63 @@ export default function Reports() {
     enabled: !!selectedUnit,
   });
 
-  // Auto-detectar plataformas com dados
-  React.useEffect(() => {
-    const checkPlatformsWithData = async () => {
-      if (!selectedUnit) return;
+  const { data: previousMetrics = [] } = useQuery({
+    queryKey: ['previousMetrics', selectedUnit, period.start, period.end],
+    queryFn: async () => {
+      if (!selectedUnit) return [];
+      const daysDiff = Math.ceil((period.end - period.start) / (1000 * 60 * 60 * 24)) + 1;
+      const prevStart = subDays(period.start, daysDiff);
+      const prevEnd = subDays(period.end, daysDiff);
       
-      const hasMetaData = await base44.entities.MetaAdDaily.filter({
+      return base44.entities.MetaAdDaily.filter({
         unit_id: selectedUnit,
         date: { 
-          $gte: format(period.start, 'yyyy-MM-dd'), 
-          $lte: format(period.end, 'yyyy-MM-dd') 
+          $gte: format(prevStart, 'yyyy-MM-dd'), 
+          $lte: format(prevEnd, 'yyyy-MM-dd') 
         }
-      }, '-date', 1);
-      
-      if (hasMetaData.length > 0 && !selectedPlatforms.includes('META')) {
-        setSelectedPlatforms(['META']);
-      } else if (hasMetaData.length === 0 && selectedPlatforms.includes('META')) {
-        setSelectedPlatforms([]);
+      }, '-date', 10000);
+    },
+    enabled: !!selectedUnit,
+  });
+
+  const { data: diagnostics } = useQuery({
+    queryKey: ['diagnostics', selectedUnit, period.start],
+    queryFn: async () => {
+      const result = await base44.functions.invoke('runDiagnosticEngine', {
+        unit_id: selectedUnit,
+        provider: 'META',
+        window: '7d'
+      });
+      return result.data;
+    },
+    enabled: !!selectedUnit
+  });
+
+  const saveCardLabelMutation = useMutation({
+    mutationFn: async ({ card_key, label }) => {
+      const existing = cardLabels.find(cl => cl.card_key === card_key);
+      if (existing) {
+        return base44.entities.CardLabel.update(existing.id, { custom_label: label });
+      } else {
+        return base44.entities.CardLabel.create({
+          unit_id: selectedUnit,
+          card_key,
+          custom_label: label,
+          default_label: DEFAULT_CARD_LABELS[card_key]
+        });
       }
-    };
-    
-    checkPlatformsWithData();
-  }, [selectedUnit, period]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cardLabels'] });
+      toast.success('Label atualizado');
+      setEditingCard(null);
+    }
+  });
+
+  const getCardLabel = (key) => {
+    const customLabelObj = cardLabels.find(cl => cl.card_key === key);
+    return customLabelObj?.custom_label || DEFAULT_CARD_LABELS[key] || key;
+  };
 
   const current = useMemo(() => {
     const spend = currentMetrics.reduce((s, m) => s + (m.spend || 0), 0);
@@ -107,6 +153,8 @@ export default function Reports() {
     const clicks = currentMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
     const linkClicks = currentMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
     const conversations = currentMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
+    const totalContacts = currentMetrics.reduce((s, m) => s + (m.wa_total_messaging_connection || 0), 0);
+    const firstReply = currentMetrics.reduce((s, m) => s + (m.wa_messaging_first_reply || 0), 0);
     
     return {
       spend,
@@ -119,9 +167,36 @@ export default function Reports() {
       cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
       frequency: reach > 0 ? impressions / reach : 0,
       conversations,
+      totalContacts,
+      firstReply,
       costPerConversation: conversations > 0 ? spend / conversations : 0,
+      costPerContact: totalContacts > 0 ? spend / totalContacts : 0,
+      costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
     };
   }, [currentMetrics]);
+
+  const previous = useMemo(() => {
+    const spend = previousMetrics.reduce((s, m) => s + (m.spend || 0), 0);
+    const impressions = previousMetrics.reduce((s, m) => s + (m.impressions || 0), 0);
+    const reach = previousMetrics.reduce((s, m) => s + (m.reach || 0), 0);
+    const clicks = previousMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
+    const linkClicks = previousMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
+    const conversations = previousMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
+    const totalContacts = previousMetrics.reduce((s, m) => s + (m.wa_total_messaging_connection || 0), 0);
+    const firstReply = previousMetrics.reduce((s, m) => s + (m.wa_messaging_first_reply || 0), 0);
+    
+    return {
+      spend,
+      impressions,
+      reach,
+      conversations,
+      totalContacts,
+      firstReply,
+      costPerConversation: conversations > 0 ? spend / conversations : 0,
+      costPerContact: totalContacts > 0 ? spend / totalContacts : 0,
+      costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
+    };
+  }, [previousMetrics]);
 
   const dailyCharts = useMemo(() => {
     const byDate = {};
@@ -131,24 +206,12 @@ export default function Reports() {
           date: m.date,
           spend: 0,
           impressions: 0,
-          reach: 0,
-          link_clicks: 0,
-          ctr_link: 0,
           conversations: 0,
-          cost_per_conversation: 0,
         };
       }
       byDate[m.date].spend += m.spend || 0;
       byDate[m.date].impressions += m.impressions || 0;
-      byDate[m.date].reach += m.reach || 0;
-      byDate[m.date].link_clicks += m.link_clicks || 0;
       byDate[m.date].conversations += m.wa_conversations_started_7d || 0;
-    });
-
-    // Recalcular métricas derivadas
-    Object.values(byDate).forEach(day => {
-      day.ctr_link = day.impressions > 0 ? ((day.link_clicks / day.impressions) * 100) : 0;
-      day.cost_per_conversation = day.conversations > 0 ? (day.spend / day.conversations) : 0;
     });
 
     return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
@@ -156,20 +219,47 @@ export default function Reports() {
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   const formatNumber = (val) => new Intl.NumberFormat('pt-BR').format(Math.round(val));
-  const formatPercent = (val) => `${val.toFixed(2)}%`;
   const formatDateString = (dateStr) => {
     const parts = dateStr.split('-');
     return `${parts[2]}/${parts[1]}`;
   };
 
-  const KPICard = ({ kpi }) => {
-    const value = current[kpi.id];
-    
+  const calculateVariation = (current, previous, lowerIsBetter = false) => {
+    if (previous === 0) return { percent: 0, better: false };
+    const percent = ((current - previous) / previous) * 100;
+    const better = lowerIsBetter ? percent < 0 : percent > 0;
+    return { percent, better };
+  };
+
+  const KPICard = ({ cardKey, value, format, previous, lowerIsBetter = false }) => {
+    const variation = calculateVariation(value, previous, lowerIsBetter);
+    const label = getCardLabel(cardKey);
+    const canEdit = user?.role === 'admin';
+
     return (
       <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
         <CardContent className="p-5">
-          <div className="text-sm text-gray-600 font-medium mb-2">{kpi.label}</div>
-          <div className="text-3xl font-bold text-gray-900">{kpi.format(value)}</div>
+          <div className="flex items-start justify-between mb-2">
+            <div className="text-sm text-gray-600 font-medium">{label}</div>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  setEditingCard(cardKey);
+                  setCustomLabel(label);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <div className="text-3xl font-bold text-gray-900 mb-2">{format(value)}</div>
+          {variation.percent !== 0 && (
+            <div className={`flex items-center gap-1 text-sm font-medium ${variation.better ? 'text-green-600' : 'text-red-600'}`}>
+              {variation.better ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {variation.percent > 0 ? '+' : ''}{variation.percent.toFixed(1)}%
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -177,27 +267,23 @@ export default function Reports() {
 
   const selectedUnitData = units.find(u => u.id === selectedUnit);
 
-  if (unitsLoading) {
-    return <div className="p-6 space-y-4"><Skeleton className="h-96 w-full" /></div>;
-  }
-
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-[1600px] mx-auto p-8 space-y-6">
-        {/* Header */}
+        {/* Header com Logo Maior */}
         <Card className="p-8 bg-white border border-gray-200 shadow-sm">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-6">
               {selectedUnitData?.logo_url && (
                 <img 
                   src={selectedUnitData.logo_url} 
                   alt={selectedUnitData.name}
-                  className="w-16 h-16 object-cover rounded-lg"
+                  className="w-24 h-24 object-contain"
                 />
               )}
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">Relatório - {selectedUnitData?.name || 'Cliente'}</h1>
-                <p className="text-lg text-gray-600 mt-2">Análise completa de performance</p>
+                <h1 className="text-4xl font-bold text-gray-900">{selectedUnitData?.name || 'Cliente'}</h1>
+                <p className="text-lg text-gray-600 mt-2">Relatório de Performance</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -211,223 +297,165 @@ export default function Reports() {
                 unitName={selectedUnitData?.name || 'Unidade'}
                 period={period}
               />
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Settings2 className="w-4 h-4" />
-                    KPIs
-                  </Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>Selecionar KPIs</SheetTitle>
-                    <SheetDescription>Escolha quais indicadores exibir</SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-6 space-y-4">
-                    {Object.entries(ALL_KPIS.reduce((acc, kpi) => {
-                      if (!acc[kpi.category]) acc[kpi.category] = [];
-                      acc[kpi.category].push(kpi);
-                      return acc;
-                    }, {})).map(([category, kpis]) => (
-                      <div key={category}>
-                        <h4 className="font-semibold text-sm text-gray-700 mb-2">{category}</h4>
-                        {kpis.map(kpi => (
-                          <div key={kpi.id} className="flex items-center gap-2 mb-2">
-                            <Checkbox 
-                              checked={selectedKPIs.includes(kpi.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedKPIs([...selectedKPIs, kpi.id]);
-                                } else {
-                                  setSelectedKPIs(selectedKPIs.filter(id => id !== kpi.id));
-                                }
-                              }}
-                            />
-                            <label className="text-sm">{kpi.label}</label>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </SheetContent>
-              </Sheet>
             </div>
           </div>
           
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Selecione a unidade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <PeriodFilter value={period} onChange={setPeriod} />
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">Plataformas</Label>
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="platform-meta"
-                    checked={selectedPlatforms.includes('META')}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedPlatforms([...selectedPlatforms, 'META']);
-                      } else {
-                        setSelectedPlatforms(selectedPlatforms.filter(p => p !== 'META'));
-                      }
-                    }}
-                  />
-                  <label htmlFor="platform-meta" className="text-sm cursor-pointer">Meta Ads</label>
-                </div>
-                <div className="flex items-center gap-2 opacity-50">
-                  <Checkbox id="platform-google" disabled />
-                  <label htmlFor="platform-google" className="text-sm">Google Ads (em breve)</label>
-                </div>
-                <div className="flex items-center gap-2 opacity-50">
-                  <Checkbox id="platform-tiktok" disabled />
-                  <label htmlFor="platform-tiktok" className="text-sm">TikTok Ads (em breve)</label>
-                </div>
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Selecione a unidade" />
+              </SelectTrigger>
+              <SelectContent>
+                {units.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <PeriodFilter value={period} onChange={setPeriod} />
           </div>
         </Card>
 
-        {isLoading ? (
-          <Skeleton className="h-96 w-full" />
-        ) : (
-          <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-pdf-section>
-              {selectedKPIs.map(kpiId => {
-                const kpi = ALL_KPIS.find(k => k.id === kpiId);
-                return kpi ? <KPICard key={kpi.id} kpi={kpi} /> : null;
-              })}
-            </div>
+        {/* Diagnósticos */}
+        {diagnostics?.triggered_rules?.length > 0 && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-900">
+                <AlertCircle className="w-5 h-5" />
+                Diagnósticos Automáticos ({diagnostics.triggered_rules.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {diagnostics.triggered_rules.map((rule, idx) => (
+                <Alert key={idx} className="bg-white">
+                  <AlertDescription>
+                    <div className="flex items-start gap-3">
+                      <Badge variant={rule.severity === 'high' ? 'destructive' : 'default'}>
+                        {rule.severity}
+                      </Badge>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">{rule.message_title}</h4>
+                        <p className="text-sm text-gray-600 mb-2">{rule.message_body}</p>
+                        <div className="text-xs text-gray-700">
+                          <strong>Ações sugeridas:</strong>
+                          <ul className="list-disc ml-4 mt-1">
+                            {rule.recommended_actions?.map((action, i) => (
+                              <li key={i}>{action}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Funil */}
-            <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Funil de Conversão</h3>
-              <FunnelChart data={current} />
-            </Card>
+        {/* KPI Cards com Comparativo */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <KPICard cardKey="spend" value={current.spend} format={formatCurrency} previous={previous.spend} />
+          <KPICard cardKey="impressions" value={current.impressions} format={formatNumber} previous={previous.impressions} />
+          <KPICard cardKey="reach" value={current.reach} format={formatNumber} previous={previous.reach} />
+          <KPICard cardKey="conversations" value={current.conversations} format={formatNumber} previous={previous.conversations} />
+          <KPICard cardKey="costPerConversation" value={current.costPerConversation} format={formatCurrency} previous={previous.costPerConversation} lowerIsBetter />
+        </div>
 
-            {/* Gráficos por Dia */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Investimento por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="spend" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <KPICard cardKey="linkClicks" value={current.linkClicks} format={formatNumber} previous={0} />
+          <KPICard cardKey="ctrLink" value={current.ctrLink} format={(v) => `${v.toFixed(2)}%`} previous={0} />
+          <KPICard cardKey="cpcLink" value={current.cpcLink} format={formatCurrency} previous={0} lowerIsBetter />
+          <KPICard cardKey="totalContacts" value={current.totalContacts} format={formatNumber} previous={previous.totalContacts} />
+          <KPICard cardKey="firstReply" value={current.firstReply} format={formatNumber} previous={previous.firstReply} />
+        </div>
 
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Impressões por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="impressions" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+        {/* Funil Novo (sem %, gradiente azul) */}
+        <Card className="p-6 bg-white border border-gray-200 shadow-sm">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Funil de Conversão</h3>
+          <FunnelChartNew data={current} />
+        </Card>
 
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Alcance por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="reach" stroke="#8B5CF6" strokeWidth={2} dot={{ fill: '#8B5CF6', r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+        {/* Gráficos Diários */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="p-6 bg-white">
+            <CardTitle className="text-lg mb-4">Investimento</CardTitle>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={dailyCharts}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => formatCurrency(v)} />
+                <Line type="monotone" dataKey="spend" stroke="#3B82F6" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
 
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">CTR Link por Dia (%)</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => formatPercent(v)} />
-                      <Line type="monotone" dataKey="ctr_link" stroke="#F59E0B" strokeWidth={2} dot={{ fill: '#F59E0B', r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+          <Card className="p-6 bg-white">
+            <CardTitle className="text-lg mb-4">Impressões</CardTitle>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={dailyCharts}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => formatNumber(v)} />
+                <Line type="monotone" dataKey="impressions" stroke="#10B981" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
 
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Conversas por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="conversations" stroke="#EC4899" strokeWidth={2} dot={{ fill: '#EC4899', r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+          <Card className="p-6 bg-white">
+            <CardTitle className="text-lg mb-4">Conversas</CardTitle>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={dailyCharts}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => formatNumber(v)} />
+                <Line type="monotone" dataKey="conversations" stroke="#EC4899" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
 
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Custo/Conversa por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="cost_per_conversation" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
+        {/* Ranking de Anúncios (com thumbnail + status) */}
+        <MetaAdsRankingNew metaAdDaily={currentMetrics} />
 
-            {/* Tabelas de Ranking */}
-            <MetaCampaignsTable metaAdDaily={currentMetrics} />
-            <MetaAdsetsTable metaAdDaily={currentMetrics} />
-            <MetaAdsTable metaAdDaily={currentMetrics} />
+        {/* Tabelas de Ranking */}
+        <MetaCampaignsTable metaAdDaily={currentMetrics} />
+        <MetaAdsetsTable metaAdDaily={currentMetrics} />
+      </div>
 
-            {/* Breakdowns */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Análise por Segmento</h2>
-              <div className="space-y-6">
-                <MetaBreakdownPlacement metaAdDaily={currentMetrics} />
-                <MetaBreakdownDemographics metaAdDaily={currentMetrics} />
-                <MetaBreakdownDevices metaAdDaily={currentMetrics} />
+      {/* Modal de Edição de Label */}
+      {editingCard && (
+        <Sheet open={!!editingCard} onOpenChange={() => setEditingCard(null)}>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Editar Nome do Card</SheetTitle>
+              <SheetDescription>Personalize o nome exibido no relatório</SheetDescription>
+            </SheetHeader>
+            <div className="mt-6 space-y-4">
+              <div>
+                <Label>Nome Personalizado</Label>
+                <Input
+                  value={customLabel}
+                  onChange={(e) => setCustomLabel(e.target.value)}
+                  placeholder="Digite o novo nome"
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => saveCardLabelMutation.mutate({ card_key: editingCard, label: customLabel })}>
+                  Salvar
+                </Button>
+                <Button variant="outline" onClick={() => setEditingCard(null)}>
+                  Cancelar
+                </Button>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }
