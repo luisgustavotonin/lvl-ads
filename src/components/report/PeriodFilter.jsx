@@ -6,13 +6,46 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+// Função para obter data atual em São Paulo (sem hora, apenas YYYY-MM-DD)
+const getBrasiliaToday = () => {
+  const now = new Date();
+  const brasiliaDateStr = now.toLocaleString('en-US', { 
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  // Formato retornado: "MM/DD/YYYY" - converter para Date
+  const [month, day, year] = brasiliaDateStr.split('/');
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
 const PRESETS = [
-  { id: 'today', label: 'Hoje', getDates: () => ({ start: new Date(), end: new Date() }) },
-  { id: 'yesterday', label: 'Ontem', getDates: () => ({ start: subDays(new Date(), 1), end: subDays(new Date(), 1) }) },
-  { id: 'last_7_days', label: 'Últimos 7 dias', getDates: () => ({ start: subDays(new Date(), 6), end: new Date() }) },
-  { id: 'last_14_days', label: 'Últimos 14 dias', getDates: () => ({ start: subDays(new Date(), 13), end: new Date() }) },
-  { id: 'last_28_days', label: 'Últimos 28 dias', getDates: () => ({ start: subDays(new Date(), 27), end: new Date() }) },
-  { id: 'last_30_days', label: 'Últimos 30 dias', getDates: () => ({ start: subDays(new Date(), 29), end: new Date() }) },
+  { id: 'today', label: 'Hoje', getDates: () => {
+    const today = getBrasiliaToday();
+    return { start: today, end: today };
+  }},
+  { id: 'yesterday', label: 'Ontem', getDates: () => {
+    const today = getBrasiliaToday();
+    const yesterday = subDays(today, 1);
+    return { start: yesterday, end: yesterday };
+  }},
+  { id: 'last_7_days', label: 'Últimos 7 dias', getDates: () => {
+    const today = getBrasiliaToday();
+    return { start: subDays(today, 6), end: today };
+  }},
+  { id: 'last_14_days', label: 'Últimos 14 dias', getDates: () => {
+    const today = getBrasiliaToday();
+    return { start: subDays(today, 13), end: today };
+  }},
+  { id: 'last_28_days', label: 'Últimos 28 dias', getDates: () => {
+    const today = getBrasiliaToday();
+    return { start: subDays(today, 27), end: today };
+  }},
+  { id: 'last_30_days', label: 'Últimos 30 dias', getDates: () => {
+    const today = getBrasiliaToday();
+    return { start: subDays(today, 29), end: today };
+  }},
   { id: 'custom', label: 'Período livre', getDates: null },
 ];
 
