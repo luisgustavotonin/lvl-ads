@@ -72,6 +72,27 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        // IDEMPOTÊNCIA: Verificar se este batch já foi processado
+        if (run_id && batch_index !== undefined) {
+            const existingLog = await base44.asServiceRole.entities.WebhookLog.filter({
+                integration_id: integration_id,
+                source: 'n8n',
+                'payload_received.run_id': run_id,
+                'payload_received.batch_index': batch_index
+            });
+
+            if (existingLog.length > 0) {
+                console.log(`⚠️ Batch duplicado ignorado: run_id=${run_id}, batch=${batch_index}`);
+                return Response.json({
+                    ok: true,
+                    duplicate: true,
+                    message: 'Batch já processado anteriormente',
+                    run_id: run_id,
+                    batch_index: batch_index
+                });
+            }
+        }
+
         // Buscar integração para validar o secret token
         const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
         
