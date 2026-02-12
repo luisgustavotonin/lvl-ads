@@ -46,8 +46,19 @@ Deno.serve(async (req) => {
       unit_id
     });
 
-    if (!alertResponse.data || !alertResponse.data.message) {
+    // Verificar se houve erro
+    if (!alertResponse.data) {
       return Response.json({ error: 'Erro ao gerar mensagem do alerta' }, { status: 500 });
+    }
+
+    // Se veio um erro, retornar
+    if (alertResponse.data.error) {
+      return Response.json({ error: alertResponse.data.error }, { status: 500 });
+    }
+
+    // Se não veio a mensagem, retornar erro
+    if (!alertResponse.data.message) {
+      return Response.json({ error: 'Mensagem não foi gerada' }, { status: 500 });
     }
 
     const message = alertResponse.data.message;

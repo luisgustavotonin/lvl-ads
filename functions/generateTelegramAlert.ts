@@ -19,18 +19,32 @@ Deno.serve(async (req) => {
     const units = await base44.asServiceRole.entities.Unit.filter({ id: unit_id });
     const unitName = units[0]?.name || 'Unidade';
     
-    // Buscar dados do dia
-    const today = new Date().toISOString().split('T')[0];
-    const todayFormatted = new Date().toLocaleDateString('pt-BR');
+    // Buscar dados de hoje E ontem (caso ainda não tenha dados de hoje)
+    const brasiliaDate = new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' });
+    const today = new Date(brasiliaDate).toISOString().split('T')[0];
+    const yesterday = new Date(new Date(brasiliaDate) - 86400000).toISOString().split('T')[0];
+    const todayFormatted = new Date(brasiliaDate).toLocaleDateString('pt-BR');
     
-    const dailyData = await base44.asServiceRole.entities.MetaAdDaily.filter({
+    // Tentar buscar dados de hoje primeiro
+    let dailyData = await base44.asServiceRole.entities.MetaAdDaily.filter({
       unit_id,
       date: today
     });
 
+    // Se não tiver dados de hoje, buscar de ontem
+    let dateLabel = `Hoje (${todayFormatted})`;
+    if (!dailyData || dailyData.length === 0) {
+      dailyData = await base44.asServiceRole.entities.MetaAdDaily.filter({
+        unit_id,
+        date: yesterday
+      });
+      const yesterdayFormatted = new Date(new Date(brasiliaDate) - 86400000).toLocaleDateString('pt-BR');
+      dateLabel = `Ontem (${yesterdayFormatted})`;
+    }
+
     if (!dailyData || dailyData.length === 0) {
       return Response.json({ 
-        message: `📡 CENTRAL DE PERFORMANCE – META ADS\nUnidade: ${unitName}\nData: ${todayFormatted}\nPeríodo analisado: Hoje (00:00 até agora)\n\n<i>Sem dados para hoje</i>` 
+        message: `📡 CENTRAL DE PERFORMANCE – META ADS\nUnidade: ${unitName}\nData: ${todayFormatted}\nPeríodo analisado: Últimas 48h\n\n<i>Sem dados disponíveis para este período</i>` 
       });
     }
 
@@ -102,7 +116,7 @@ Deno.serve(async (req) => {
     let msg = `📡 CENTRAL DE PERFORMANCE – META ADS\n`;
     msg += `Unidade: ${unitName}\n`;
     msg += `Data: ${todayFormatted}\n`;
-    msg += `Período analisado: Hoje (00:00 até agora)\n\n`;
+    msg += `Período analisado: ${dateLabel}\n\n`;
     msg += `━━━━━━━━━━━━━━━━━━\n\n`;
     
     msg += `📊 CONSOLIDADO DO DIA\n\n`;
