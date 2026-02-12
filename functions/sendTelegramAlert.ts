@@ -41,8 +41,16 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Bot token e Chat ID são obrigatórios' }, { status: 400 });
     }
 
-    // Mensagem simples do alerta
-    const message = `📊 <b>Alerta de Performance</b>\n\nUnidade: ${unit_id}\nHora: ${new Date().toLocaleString('pt-BR')}\n\nVerifique a dashboard para mais detalhes.`;
+    // Gerar o alerta usando a função generateTelegramAlert
+    const alertResponse = await base44.asServiceRole.functions.invoke('generateTelegramAlert', { 
+      unit_id
+    });
+
+    if (!alertResponse.data || !alertResponse.data.message) {
+      return Response.json({ error: 'Erro ao gerar mensagem do alerta' }, { status: 500 });
+    }
+
+    const message = alertResponse.data.message;
 
     // Se houver webhook, enviar para lá
     if (config.webhook_url && config.webhook_url.trim()) {
@@ -53,11 +61,22 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             chat_id: config.chat_id,
             text: message,
-            parse_mode: 'Markdown'
+            parse_mode: 'HTML'
           })
         });
 
         if (webhookResponse.ok) {
+          // Registrar sucesso no ExecutionLog
+          await base44.asServiceRole.entities.ExecutionLog.create({
+            unit_id: unit_id,
+            log_type: 'alert_sent',
+            status: 'success',
+            trigger_type: 'manual',
+            execution_time: getBrasiliaDate().toISOString(),
+            alert_channel: 'telegram',
+            message: 'Alerta enviado com sucesso via webhook'
+          });
+          
           return Response.json({ 
             success: true,
             message: 'Alerta enviado via webhook',
@@ -80,7 +99,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         chat_id: config.chat_id,
         text: message,
-        parse_mode: 'Markdown'
+        parse_mode: 'HTML'
       })
     });
 
