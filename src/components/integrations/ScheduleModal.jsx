@@ -38,6 +38,7 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
   const [customHour, setCustomHour] = useState('');
   const [customMinute, setCustomMinute] = useState('');
   const [useCustomTime, setUseCustomTime] = useState(false);
+  const [scheduleTimezone, setScheduleTimezone] = useState('America/Sao_Paulo');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -46,10 +47,14 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
       setDateMode(integration.schedule_date_mode || 'YESTERDAY');
       setFrequency(integration.schedule_frequency || 'daily');
       setScheduleTime(integration.schedule_time || '');
+      setScheduleTimezone(integration.schedule_timezone || 'America/Sao_Paulo');
       if (integration.schedule_time) {
         const [hour, minute] = integration.schedule_time.split(':');
         setCustomHour(hour || '');
         setCustomMinute(minute || '');
+        setUseCustomTime(true);
+      } else {
+        setUseCustomTime(false);
       }
     }
   }, [integration, open]);
@@ -62,7 +67,8 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
         schedule_enabled: scheduleEnabled,
         schedule_date_mode: dateMode,
         schedule_frequency: frequency,
-        schedule_time: timeToSave
+        schedule_time: timeToSave,
+        schedule_timezone: scheduleTimezone
       });
       // Atualizar estado local para mostrar o horário salvo
       setScheduleTime(timeToSave);
@@ -140,6 +146,25 @@ export default function ScheduleModal({ open, onClose, integration, onSave }) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Timezone */}
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Fuso Horário</Label>
+                <Select value={scheduleTimezone} onValueChange={setScheduleTimezone}>
+                  <SelectTrigger id="timezone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/Sao_Paulo">America/Sao_Paulo (Horário de Brasília)</SelectItem>
+                    <SelectItem value="America/New_York">America/New_York (Horário do Leste - EUA)</SelectItem>
+                    <SelectItem value="Europe/London">Europe/London (Horário de Londres)</SelectItem>
+                    <SelectItem value="UTC">UTC (Horário Universal)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  A execução ocorrerá no fuso horário selecionado
+                </p>
               </div>
 
               {/* Horário (apenas para daily e weekly) */}
