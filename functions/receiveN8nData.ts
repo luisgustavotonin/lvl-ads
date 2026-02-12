@@ -1,5 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+function generateRequestId() {
+    return crypto.randomUUID();
+}
+
 // Helper: Valida e normaliza data para formato YYYY-MM-DD (SEM timezone)
 function normalizeDateString(dateInput) {
     if (!dateInput) return null;
@@ -23,11 +27,19 @@ function getBrasiliaDate() {
 }
 
 Deno.serve(async (req) => {
+    const startTime = Date.now();
+    const requestId = generateRequestId();
+    let diagnosticId = null;
+
     try {
         const base44 = createClientFromRequest(req);
         
         // Parse JSON body e normalizar payload
-        let body = await req.json();
+        const bodyText = await req.text();
+        let body = JSON.parse(bodyText);
+        const requestSizeBytes = new TextEncoder().encode(bodyText).length;
+        const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+        const userAgent = req.headers.get('user-agent') || 'unknown';
         
         // Se vier como array, pegar o primeiro elemento
         if (Array.isArray(body) && body.length > 0) {
@@ -50,6 +62,20 @@ Deno.serve(async (req) => {
             approx_chars,
             ads = []
         } = payload;
+
+        // Registrar início do request
+        const diagnostic = await base44.asServiceRole.entities.ApiDiagnostics.create({
+            route: '/receiveN8nData',
+            method: 'POST',
+            status: 'iniciado',
+            requestId: requestId,
+            requestSizeBytes: requestSizeBytes,
+            clientIp: clientIp,
+            userAgent: userAgent,
+            source: 'n8n',
+            eventId: run_id || null
+        });
+        diagnosticId = diagnostic.id;
         
         console.log('🔔 WEBHOOK RECEBIDO (BATCH):', JSON.stringify({
             run_id,
@@ -61,14 +87,25 @@ Deno.serve(async (req) => {
             batch_total,
             ads_count,
             approx_chars,
-            generated_at
+            generated_at,
+            requestId
         }, null, 2));
 
         // Validação obrigatória
         if (!integration_id || !unit_id || !provider) {
+            const durationMs = Date.now() - startTime;
+            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+                status: 'erro',
+                httpStatusCode: 400,
+                errorType: 'ValidationError',
+                errorMessage: 'integration_id, unit_id e provider são obrigatórios',
+                durationMs: durationMs
+            });
+            
             return Response.json({ 
                 ok: false,
-                error: 'integration_id, unit_id e provider são obrigatórios'
+                error: 'integration_id, unit_id e provider são obrigatórios',
+                requestId: requestId
             }, { status: 400 });
         }
 
@@ -146,26 +183,56 @@ Deno.serve(async (req) => {
         const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
         
         if (!integration) {
+            const durationMs = Date.now() - startTime;
+            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+                status: 'erro',
+                httpStatusCode: 404,
+                errorType: 'NotFoundError',
+                errorMessage: 'Integração não encontrada',
+                durationMs: durationMs
+            });
+            
             return Response.json({ 
                 ok: false,
-                error: 'Integração não encontrada'
+                error: 'Integração não encontrada',
+                requestId: requestId
             }, { status: 404 });
         }
 
         // Validar secret token (obrigatório)
         const expectedToken = integration.settings?.n8n_secret_token;
         if (!secret_token || secret_token !== expectedToken) {
+            const durationMs = Date.now() - startTime;
+            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+                status: 'erro',
+                httpStatusCode: 401,
+                errorType: 'AuthError',
+                errorMessage: 'Token de segurança inválido ou ausente',
+                durationMs: durationMs
+            });
+            
             return Response.json({ 
                 ok: false,
-                error: 'Token de segurança inválido ou ausente'
+                error: 'Token de segurança inválido ou ausente',
+                requestId: requestId
             }, { status: 401 });
         }
 
         // Validar provider
         if (provider !== 'meta') {
+            const durationMs = Date.now() - startTime;
+            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+                status: 'erro',
+                httpStatusCode: 400,
+                errorType: 'ValidationError',
+                errorMessage: 'Apenas provider "meta" é suportado',
+                durationMs: durationMs
+            });
+            
             return Response.json({ 
                 ok: false,
-                error: 'Apenas provider "meta" é suportado no momento'
+                error: 'Apenas provider "meta" é suportado no momento',
+                requestId: requestId
             }, { status: 400 });
         }
 
@@ -295,7 +362,8 @@ Deno.serve(async (req) => {
         });
 
         // Se for o último batch, agregar dados automaticamente
-        if (batch_index === batch_total) {
+        const isLastBatch = batch_index === batch_total;
+        if (isLastBatch) {
             console.log('🔄 Último batch recebido, iniciando agregação automática...');
             
             try {
@@ -311,6 +379,15 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Atualizar diagnóstico com sucesso
+        const durationMs = Date.now() - startTime;
+        await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+            status: 'sucesso',
+            httpStatusCode: 200,
+            durationMs: durationMs,
+            notes: `${adsUpserted} anúncios processados`
+        });
+
         return Response.json({
             ok: true,
             run_id: run_id,
@@ -318,15 +395,35 @@ Deno.serve(async (req) => {
             batch_total: batch_total,
             ads_received: ads.length,
             ads_upserted: adsUpserted,
+            aggregation_triggered: isLastBatch,
+            requestId: requestId,
             processed_at: getBrasiliaDate().toISOString()
         });
 
     } catch (error) {
         console.error('❌ ERRO ao processar webhook:', error);
         
+        // Atualizar diagnóstico com erro
+        if (diagnosticId) {
+            const durationMs = Date.now() - startTime;
+            try {
+                const base44 = createClientFromRequest(req);
+                await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+                    status: 'erro',
+                    httpStatusCode: 500,
+                    errorType: error.name || 'UnknownError',
+                    errorMessage: error.message,
+                    durationMs: durationMs
+                });
+            } catch (updateError) {
+                console.error('Erro ao atualizar diagnóstico:', updateError);
+            }
+        }
+        
         return Response.json({ 
             ok: false,
-            error: error.message 
+            error: error.message,
+            requestId: requestId
         }, { status: 500 });
     }
 });

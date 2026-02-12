@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   LogOut,
-  Bell
+  Bell,
+  Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +37,7 @@ const navigation = [
   { name: 'Unidades', href: 'Units', icon: Building2 },
   { name: 'Integrações', href: 'Integrations', icon: Link2 },
   { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell },
+  { name: 'Diagnóstico API', href: 'ApiDiagnostics', icon: Activity },
   { name: 'Perfis', href: 'Profiles', icon: Shield },
   { name: 'Usuários', href: 'Users', icon: Users },
   { name: 'Gestão de Dados', href: 'DataManagement', icon: Database },
