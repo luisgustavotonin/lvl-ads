@@ -72,6 +72,45 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        // VERIFICAR RATE LIMIT
+        const rateLimitConfig = await base44.asServiceRole.entities.ApiRateLimit.filter({
+            route: '/receiveN8nData'
+        });
+        
+        if (rateLimitConfig.length > 0 && rateLimitConfig[0].enabled) {
+            const config = rateLimitConfig[0];
+            const now = Date.now();
+            
+            // Contar requests nos últimos 10s e 60s
+            const recentRequests = await base44.asServiceRole.entities.ApiDiagnostics.filter({
+                route: '/receiveN8nData'
+            });
+            
+            const last10s = recentRequests.filter(r => (now - new Date(r.created_date).getTime()) < 10000).length;
+            const last60s = recentRequests.filter(r => (now - new Date(r.created_date).getTime()) < 60000).length;
+            
+            const rateLimitExceeded = last10s > config.max_requests_per_10s || last60s > config.max_requests_per_60s;
+            
+            if (rateLimitExceeded && config.block_on_exceed) {
+                const durationMs = Date.now() - startTime;
+                await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+                    status: 'erro',
+                    httpStatusCode: 429,
+                    errorType: 'RateLimitError',
+                    errorMessage: `Rate limit excedido: ${last10s} req/10s, ${last60s} req/60s`,
+                    durationMs: durationMs,
+                    rateLimitSuspected: true
+                });
+                
+                return Response.json({
+                    ok: false,
+                    error: 'Rate limit',
+                    requestId: requestId,
+                    details: `${last10s} requests nos últimos 10s, ${last60s} nos últimos 60s`
+                }, { status: 429 });
+            }
+        }
+
         // IDEMPOTÊNCIA: Verificar se este batch já foi processado
         if (run_id && batch_index !== undefined) {
             const existingLog = await base44.asServiceRole.entities.WebhookLog.filter({
@@ -83,12 +122,22 @@ Deno.serve(async (req) => {
 
             if (existingLog.length > 0) {
                 console.log(`⚠️ Batch duplicado ignorado: run_id=${run_id}, batch=${batch_index}`);
+                
+                const durationMs = Date.now() - startTime;
+                await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
+                    status: 'sucesso',
+                    httpStatusCode: 200,
+                    durationMs: durationMs,
+                    notes: 'Batch duplicado ignorado'
+                });
+                
                 return Response.json({
                     ok: true,
                     duplicate: true,
                     message: 'Batch já processado anteriormente',
                     run_id: run_id,
-                    batch_index: batch_index
+                    batch_index: batch_index,
+                    requestId: requestId
                 });
             }
         }

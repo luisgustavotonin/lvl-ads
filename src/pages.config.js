@@ -58,6 +58,7 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
+import ApiDiagnostics from './pages/ApiDiagnostics';
 import __Layout from './Layout.jsx';
 
 
@@ -73,6 +74,7 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
+    "ApiDiagnostics": ApiDiagnostics,
 }
 
 export const pagesConfig = {
