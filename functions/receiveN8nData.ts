@@ -107,8 +107,8 @@ Deno.serve(async (req) => {
             return typeof value === 'object' && value !== null ? value : {};
         };
 
-        // Processar anúncios com UPSERT (idempotência)
-        let adsUpserted = 0;
+        // Processar anúncios - preparar records
+        const adsToProcess = [];
 
         for (const ad of ads) {
             const { 
@@ -186,25 +186,55 @@ Deno.serve(async (req) => {
                 run_id: run_id || ''
             };
 
-            // UPSERT: buscar existente por chave única (unit_id, account_id, ad_id, date)
-            const existing = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                unit_id: unit_id,
-                account_id: account_id,
-                ad_id: ad_id,
-                date: date
-            });
+            adsToProcess.push(adRecord);
+        }
 
-            if (existing.length > 0) {
-                // UPDATE
-                await base44.asServiceRole.entities.MetaAdDaily.update(existing[0].id, adRecord);
-                console.log(`✅ Updated ad ${ad_id} for date ${date}`);
-            } else {
-                // INSERT
-                await base44.asServiceRole.entities.MetaAdDaily.create(adRecord);
-                console.log(`✅ Inserted ad ${ad_id} for date ${date}`);
-            }
+        // Buscar todos os registros existentes em uma única query
+        const uniqueDates = [...new Set(adsToProcess.map(a => a.date))];
+        const existingAds = await base44.asServiceRole.entities.MetaAdDaily.filter({
+            unit_id: unit_id,
+            account_id: account_id
+        });
+
+        // Criar map de existentes por chave única
+        const existingMap = new Map();
+        for (const existing of existingAds) {
+            const key = `${existing.ad_id}_${existing.date}`;
+            existingMap.set(key, existing);
+        }
+
+        // Separar em updates e inserts
+        const toUpdate = [];
+        const toInsert = [];
+
+        for (const adRecord of adsToProcess) {
+            const key = `${adRecord.ad_id}_${adRecord.date}`;
+            const existing = existingMap.get(key);
             
-            adsUpserted++;
+            if (existing) {
+                toUpdate.push({ id: existing.id, data: adRecord });
+            } else {
+                toInsert.push(adRecord);
+            }
+        }
+
+        // Executar updates em batch de 10
+        let adsUpserted = 0;
+        for (let i = 0; i < toUpdate.length; i += 10) {
+            const batch = toUpdate.slice(i, i + 10);
+            await Promise.all(batch.map(({ id, data }) => 
+                base44.asServiceRole.entities.MetaAdDaily.update(id, data)
+            ));
+            adsUpserted += batch.length;
+            console.log(`✅ Updated batch: ${batch.length} ads`);
+        }
+
+        // Executar inserts em bulk (até 50 por vez)
+        for (let i = 0; i < toInsert.length; i += 50) {
+            const batch = toInsert.slice(i, i + 50);
+            await base44.asServiceRole.entities.MetaAdDaily.bulkCreate(batch);
+            adsUpserted += batch.length;
+            console.log(`✅ Inserted batch: ${batch.length} ads`);
         }
 
         // Log do webhook
