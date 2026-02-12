@@ -9,36 +9,55 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const defaultTemplate = `📡 CENTRAL DE PERFORMANCE – META ADS
-Unidade: {{unidade}}
-Data: {{data_atual}}
-Período analisado: Hoje (00:00 até agora)
+    const defaultTemplate = `🔔 ALERTA DE PERFORMANCE
 
-━━━━━━━━━━━━━━━━━━
+📍 Unidade: [Nome da Unidade]
+📅 Data: [Data do Dia]
+⏰ Período: Hoje (00:00 até agora)
 
-📊 CONSOLIDADO DO DIA
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Investimento acumulado: R$ {{investimento_total}}
-Conversas iniciadas: {{total_conversas}}
-Custo médio por conversa: R$ {{custo_medio_conversa}}
+📊 RESUMO DO DIA
 
-━━━━━━━━━━━━━━━━━━
+💰 Investimento: R$ [Gasto Total]
+💬 Conversas: [Total Conversas]
+📈 Custo/Conversa: R$ [Custo por Conversa]
 
-🎯 STATUS OPERACIONAL
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
-{{status_automatico}}
+⚠️ ALERTAS DETECTADOS
 
-━━━━━━━━━━━━━━━━━━
+[Alertas ou "Nenhum alerta detectado"]
 
-📈 ANÚNCIOS COM MAIOR GERAÇÃO DE CONVERSAS
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
-{{lista_anuncios_com_conversas}}
+📈 TOP 3 ANÚNCIOS DO DIA
 
-━━━━━━━━━━━━━━━━━━
+🥇 [Nome Campanha] - PÁGINA OFICIAL
+   └─ [Nome Conjunto]
+   └─ [Nome Anúncio]
 
-🔎 Observação Estratégica
+💰 Investimento: R$ [Valor]
+💬 Conversas: [Número]
+📊 Custo/Conversa: R$ [Valor]
 
-{{analise_automatica}}`;
+🥈 [Nome Campanha] - PÁGINA OFICIAL
+   └─ [Nome Conjunto]
+   └─ [Nome Anúncio]
+
+💰 Investimento: R$ [Valor]
+💬 Conversas: [Número]
+📊 Custo/Conversa: R$ [Valor]
+
+🥉 [Nome Campanha] - PÁGINA OFICIAL
+   └─ [Nome Conjunto]
+   └─ [Nome Anúncio]
+
+💰 Investimento: R$ [Valor]
+💬 Conversas: [Número]
+📊 Custo/Conversa: R$ [Valor]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
     return Response.json({ template: defaultTemplate });
 

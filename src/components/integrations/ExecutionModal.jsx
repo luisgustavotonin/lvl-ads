@@ -29,8 +29,8 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
       await onExecute({
         integration_id: integration.id,
         date_mode: dateMode,
-        since: dateMode === 'CUSTOM' ? since : undefined,
-        until: dateMode === 'CUSTOM' ? until : undefined
+        since: dateMode === 'CUSTOM' ? since : null,
+        until: dateMode === 'CUSTOM' ? until : null
       });
       onClose();
     } catch (error) {
