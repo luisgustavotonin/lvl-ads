@@ -200,7 +200,12 @@ export default function Integrations() {
 
   const handleExecuteIntegration = async (params) => {
     try {
-      const response = await base44.functions.invoke('triggerN8nIntegration', params);
+      // Remover campos undefined antes de enviar
+      const cleanParams = Object.fromEntries(
+        Object.entries(params).filter(([_, v]) => v !== undefined)
+      );
+      
+      const response = await base44.functions.invoke('triggerN8nIntegration', cleanParams);
       if (response.data.success) {
         alert(`✅ ${response.data.message}`);
         refetch();
