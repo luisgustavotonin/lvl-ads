@@ -732,11 +732,11 @@ export default function ParametersAlerts() {
                                  min="0"
                                  max="23"
                                  placeholder="HH"
-                                 value={(alertConfig?.schedule_time || '').split(':')[0] || ''}
+                                 value={alertConfig?.schedule_time ? alertConfig.schedule_time.split(':')[0] : ''}
                                  onChange={(e) => {
-                                   const hour = e.target.value.padStart(2, '0');
-                                   const minute = (alertConfig?.schedule_time || '').split(':')[1] || '00';
-                                   updateAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
+                                   const hour = e.target.value;
+                                   const minute = alertConfig?.schedule_time ? alertConfig.schedule_time.split(':')[1] : '00';
+                                   updateAlertConfigMutation.mutate({ schedule_time: `${hour.padStart(2, '0')}:${minute}` });
                                  }}
                                  className="h-9"
                                />
@@ -748,15 +748,25 @@ export default function ParametersAlerts() {
                                  min="0"
                                  max="59"
                                  placeholder="MM"
-                                 value={(alertConfig?.schedule_time || '').split(':')[1] || ''}
+                                 value={alertConfig?.schedule_time ? alertConfig.schedule_time.split(':')[1] : ''}
                                  onChange={(e) => {
-                                   const minute = e.target.value.padStart(2, '0');
-                                   const hour = (alertConfig?.schedule_time || '').split(':')[0] || '09';
-                                   updateAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
+                                   const minute = e.target.value;
+                                   const hour = alertConfig?.schedule_time ? alertConfig.schedule_time.split(':')[0] : '09';
+                                   updateAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute.padStart(2, '0')}` });
                                  }}
                                  className="h-9"
                                />
                              </div>
+                             <Button 
+                               variant="outline"
+                               className="h-9"
+                               onClick={() => {
+                                 toast.success('Horário salvo! O alerta será enviado automaticamente.');
+                               }}
+                               disabled={!alertConfig?.schedule_time}
+                             >
+                               Salvar
+                             </Button>
                            </>
                         )}
                       </div>
@@ -902,16 +912,11 @@ export default function ParametersAlerts() {
                                 min="0"
                                 max="23"
                                 placeholder="HH"
-                                value={(telegramAlertConfig?.schedule_time || '').split(':')[0] || ''}
+                                value={telegramAlertConfig?.schedule_time ? telegramAlertConfig.schedule_time.split(':')[0] : ''}
                                 onChange={(e) => {
-                                  const hour = e.target.value.padStart(2, '0');
-                                  const minute = (telegramAlertConfig?.schedule_time || '').split(':')[1] || '00';
-                                  setRecentlySaved({ telegram: false });
-                                }}
-                                onBlur={(e) => {
-                                  const hour = e.target.value.padStart(2, '0');
-                                  const minute = (telegramAlertConfig?.schedule_time || '').split(':')[1] || '00';
-                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
+                                  const hour = e.target.value;
+                                  const minute = telegramAlertConfig?.schedule_time ? telegramAlertConfig.schedule_time.split(':')[1] : '00';
+                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour.padStart(2, '0')}:${minute}` });
                                 }}
                                 className="h-9"
                               />
@@ -923,33 +928,15 @@ export default function ParametersAlerts() {
                                 min="0"
                                 max="59"
                                 placeholder="MM"
-                                value={(telegramAlertConfig?.schedule_time || '').split(':')[1] || ''}
+                                value={telegramAlertConfig?.schedule_time ? telegramAlertConfig.schedule_time.split(':')[1] : ''}
                                 onChange={(e) => {
-                                  const minute = e.target.value.padStart(2, '0');
-                                  const hour = (telegramAlertConfig?.schedule_time || '').split(':')[0] || '09';
-                                  setRecentlySaved({ telegram: false });
-                                }}
-                                onBlur={(e) => {
-                                  const minute = e.target.value.padStart(2, '0');
-                                  const hour = (telegramAlertConfig?.schedule_time || '').split(':')[0] || '09';
-                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute}` });
+                                  const minute = e.target.value;
+                                  const hour = telegramAlertConfig?.schedule_time ? telegramAlertConfig.schedule_time.split(':')[0] : '09';
+                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour}:${minute.padStart(2, '0')}` });
                                 }}
                                 className="h-9"
                               />
                             </div>
-                            <Button
-                              onClick={() => {
-                                const hour = (telegramAlertConfig?.schedule_time || '').split(':')[0] || '';
-                                const minute = (telegramAlertConfig?.schedule_time || '').split(':')[1] || '';
-                                if (hour && minute) {
-                                  updateTelegramAlertConfigMutation.mutate({ schedule_time: `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` });
-                                }
-                              }}
-                              disabled={recentlySaved.telegram || updateTelegramAlertConfigMutation.isPending || !((telegramAlertConfig?.schedule_time || '').includes(':'))}
-                              className="h-9"
-                            >
-                              {recentlySaved.telegram ? '✓ Salvo' : 'Salvar'}
-                            </Button>
                             <Button 
                               onClick={() => testTelegramMutation.mutate()}
                               disabled={testTelegramMutation.isPending || !telegramAlertConfig?.bot_token || !telegramAlertConfig?.chat_id}
