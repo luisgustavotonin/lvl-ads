@@ -47,6 +47,7 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import ApiDiagnostics from './pages/ApiDiagnostics';
 import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
 import Integrations from './pages/Integrations';
@@ -58,11 +59,11 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
-import ApiDiagnostics from './pages/ApiDiagnostics';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "ApiDiagnostics": ApiDiagnostics,
     "Dashboard": Dashboard,
     "DataManagement": DataManagement,
     "Integrations": Integrations,
@@ -74,7 +75,6 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
-    "ApiDiagnostics": ApiDiagnostics,
 }
 
 export const pagesConfig = {

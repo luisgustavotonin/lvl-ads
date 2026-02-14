@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Link2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Trash2, Settings, Play } from 'lucide-react';
+import { Plus, Link2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Trash2, Settings, Play, ChevronRight, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,32 +37,24 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-
-const PLATFORMS = [
-  { id: 'META', name: 'Meta Ads', icon: '📘', color: '#1877F2', description: 'Facebook e Instagram Ads' },
-  { id: 'GOOGLE_ADS', name: 'Google Ads', icon: '🔍', color: '#34A853', description: 'Search, Display e YouTube' },
-  { id: 'TIKTOK_ADS', name: 'TikTok Ads', icon: '🎵', color: '#000000', description: 'Anúncios em vídeo TikTok' },
-  { id: 'YOUTUBE', name: 'YouTube', icon: '▶️', color: '#FF0000', description: 'YouTube Analytics' },
-];
 
 export default function Integrations() {
   const queryClient = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [addDialog, setAddDialog] = useState(false);
   const [editDialog, setEditDialog] = useState(null);
+  const [editPlatformDialog, setEditPlatformDialog] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [fetchDataModal, setFetchDataModal] = useState(null);
   const [executionModal, setExecutionModal] = useState(null);
   const [scheduleModal, setScheduleModal] = useState(null);
-  const [selectedUnit, setSelectedUnit] = useState('');
+  
   const [formData, setFormData] = useState({
     unit_id: '',
-    platform_id: '',
-    account_reference: '',
-    account_name: '',
     auth_type: 'token',
     integration_purpose: '',
   });
+  
   const [editFormData, setEditFormData] = useState({
     account_name: '',
     account_reference: '',
@@ -78,11 +70,17 @@ export default function Integrations() {
       n8n_secret_token: '',
     }
   });
+
   const [webhookUrl, setWebhookUrl] = useState('');
 
   const { data: units = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
+  });
+
+  const { data: platforms = [], isLoading: platformsLoading } = useQuery({
+    queryKey: ['platforms'],
+    queryFn: () => base44.entities.Platform.list(),
   });
 
   const { data: integrations = [], isLoading: integrationsLoading, refetch } = useQuery({
@@ -94,7 +92,12 @@ export default function Integrations() {
     mutationFn: (data) => base44.entities.Integration.create({ ...data, connection_status: 'disconnected' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      handleCloseDialog();
+      setAddDialog(false);
+      setFormData({
+        unit_id: '',
+        auth_type: 'token',
+        integration_purpose: '',
+      });
     },
   });
 
@@ -102,6 +105,14 @@ export default function Integrations() {
     mutationFn: ({ id, data }) => base44.entities.Integration.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
+    },
+  });
+
+  const updatePlatformMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Platform.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['platforms'] });
+      setEditPlatformDialog(null);
     },
   });
 
@@ -113,20 +124,14 @@ export default function Integrations() {
     },
   });
 
-  const handleOpenDialog = () => {
+  const handleOpenAddDialog = (platform) => {
+    setSelectedPlatform(platform);
     setFormData({
-      unit_id: units[0]?.id || '',
-      platform_id: '',
-      account_reference: '',
-      account_name: '',
+      unit_id: '',
       auth_type: 'token',
       integration_purpose: '',
     });
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
+    setAddDialog(true);
   };
 
   const handleOpenEditDialog = (integration) => {
@@ -147,14 +152,9 @@ export default function Integrations() {
     });
     setEditDialog(integration);
     
-    // Generate webhook URL for this integration
     const baseUrl = window.location.origin;
     const webhookPath = `/api/functions/receiveN8nData`;
     setWebhookUrl(`${baseUrl}${webhookPath}`);
-  };
-
-  const handleCloseEditDialog = () => {
-    setEditDialog(null);
   };
 
   const handleSaveEdit = () => {
@@ -162,7 +162,7 @@ export default function Integrations() {
       id: editDialog.id,
       data: editFormData
     });
-    handleCloseEditDialog();
+    setEditDialog(null);
   };
 
   const handleTestConnection = async (integration) => {
@@ -177,7 +177,6 @@ export default function Integrations() {
         alert(`❌ Erro: ${response.data.message || response.data.error}`);
       }
 
-      // Recarregar integrações para ver o novo status
       refetch();
     } catch (error) {
       alert(`❌ Erro ao testar conexão: ${error.message}`);
@@ -225,16 +224,29 @@ export default function Integrations() {
     }
   };
 
-  const filteredIntegrations = selectedUnit
-    ? integrations.filter(i => i.unit_id === selectedUnit)
-    : [];
+  const handleCreateIntegration = () => {
+    if (!formData.unit_id) {
+      alert('Selecione uma unidade');
+      return;
+    }
+
+    const selectedUnit = units.find(u => u.id === formData.unit_id);
+    
+    createMutation.mutate({
+      unit_id: formData.unit_id,
+      platform_id: selectedPlatform.platform_id,
+      account_reference: selectedUnit.account_id || '',
+      account_name: selectedUnit.name,
+      auth_type: formData.auth_type,
+      integration_purpose: formData.integration_purpose,
+      settings: {
+        access_token: selectedUnit.secret_token || ''
+      }
+    });
+  };
 
   const getUnitName = (unitId) => {
     return units.find(u => u.id === unitId)?.name || 'Unidade';
-  };
-
-  const getPlatformInfo = (platformId) => {
-    return PLATFORMS.find(p => p.id === platformId) || { name: platformId, icon: '📊', color: '#6B7280' };
   };
 
   const getStatusBadge = (status) => {
@@ -263,13 +275,13 @@ export default function Integrations() {
     }
   };
 
-  if (unitsLoading || integrationsLoading) {
+  if (unitsLoading || platformsLoading || integrationsLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
         <div className="grid gap-4">
           {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
       </div>
@@ -279,57 +291,19 @@ export default function Integrations() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Integrações</h1>
-          <p className="text-gray-500 mt-1">Conecte suas contas de anúncios</p>
-        </div>
-        <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleOpenDialog}>
-          <Plus className="w-4 h-4" />
-          Nova Integração
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Integrações</h1>
+        <p className="text-gray-500 mt-1">Conecte suas contas de anúncios por plataforma</p>
       </div>
 
-      {/* Filters */}
-      <Card className="border-gray-100">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <Label className="text-sm mb-2 block">Selecione uma unidade *</Label>
-              <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione a unidade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {!selectedUnit && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">👆 Selecione uma unidade para ver as integrações</p>
-        </div>
-      )}
-
-
-
       {/* Platform Cards */}
-      {selectedUnit && (
-        <div className="grid gap-6">
-          {PLATFORMS.map((platform) => {
-          const platformIntegrations = filteredIntegrations.filter(i => 
-            i.platform_id === platform.id
-          );
+      <div className="grid gap-4">
+        {platforms.map((platform) => {
+          const platformIntegrations = integrations.filter(i => i.platform_id === platform.platform_id);
           
           return (
-            <Card key={platform.id} className="border-gray-100">
-              <CardHeader className="pb-4">
+            <Card key={platform.id} className="border-gray-200 hover:border-gray-300 transition-colors">
+              <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div 
@@ -339,22 +313,35 @@ export default function Integrations() {
                       {platform.icon}
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{platform.name}</CardTitle>
-                      <p className="text-sm text-gray-500">{platform.description}</p>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">{platform.name}</CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setEditPlatformDialog(platform)}
+                        >
+                          <Edit2 className="w-3 h-3 text-gray-400" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {platformIntegrations.length} integração(ões) configurada(s)
+                      </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-gray-500">
-                    {platformIntegrations.length} conexão(ões)
-                  </Badge>
+                  <Button
+                    onClick={() => handleOpenAddDialog(platform)}
+                    className="gap-2"
+                    style={{ backgroundColor: platform.color }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Integração
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                {platformIntegrations.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500">
-                    <Link2 className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                    <p>Nenhuma conta conectada</p>
-                  </div>
-                ) : (
+
+              {platformIntegrations.length > 0 && (
+                <CardContent>
                   <div className="space-y-3">
                     {platformIntegrations.map((integration) => (
                       integration.auth_type === 'n8n_webhook' ? (
@@ -369,15 +356,16 @@ export default function Integrations() {
                       ) : (
                         <div 
                           key={integration.id}
-                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                          onClick={() => handleOpenEditDialog(integration)}
                         >
                           <div className="flex items-center gap-4">
-                            <div>
+                            <div className="flex-1">
                               <p className="font-medium text-gray-900">
-                                {integration.account_name || integration.account_reference}
+                                {getUnitName(integration.unit_id)}
                               </p>
                               <p className="text-sm text-gray-500">
-                                {getUnitName(integration.unit_id)} • ID: {integration.account_reference}
+                                ID: {integration.account_reference || 'Não configurado'}
                               </p>
                             </div>
                           </div>
@@ -386,15 +374,10 @@ export default function Integrations() {
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              onClick={() => handleOpenEditDialog(integration)}
-                              title="Configurar credenciais"
-                            >
-                              <Settings className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleTestConnection(integration)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTestConnection(integration);
+                              }}
                               title="Testar conexão"
                             >
                               <RefreshCw className="w-4 h-4" />
@@ -403,7 +386,10 @@ export default function Integrations() {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => setFetchDataModal(integration)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFetchDataModal(integration);
+                                }}
                                 className="text-xs"
                               >
                                 Buscar Dados
@@ -412,30 +398,35 @@ export default function Integrations() {
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              onClick={() => setDeleteDialog(integration)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteDialog(integration);
+                              }}
                             >
                               <Trash2 className="w-4 h-4 text-red-500" />
                             </Button>
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
                           </div>
                         </div>
                       )
                     ))}
                   </div>
-                )}
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
           );
         })}
-        </div>
-      )}
+      </div>
 
-      {/* Create Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Add Integration Dialog */}
+      <Dialog open={addDialog} onOpenChange={setAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Integração</DialogTitle>
+            <DialogTitle>
+              Adicionar Integração - {selectedPlatform?.name}
+            </DialogTitle>
             <DialogDescription>
-              Conecte uma nova conta de anúncios.
+              Selecione a unidade e configure a integração
             </DialogDescription>
           </DialogHeader>
 
@@ -444,62 +435,33 @@ export default function Integrations() {
               <Label>Unidade *</Label>
               <Select
                 value={formData.unit_id}
-                onValueChange={(value) => setFormData({ ...formData, unit_id: value })}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, unit_id: value });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a unidade" />
                 </SelectTrigger>
                 <SelectContent>
                   {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Plataforma *</Label>
-              <Select
-                value={formData.platform_id}
-                onValueChange={(value) => setFormData({ ...formData, platform_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a plataforma" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORMS.map((platform) => (
-                    <SelectItem key={platform.id} value={platform.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{platform.icon}</span>
-                        {platform.name}
+                    <SelectItem key={unit.id} value={unit.id}>
+                      <div className="space-y-0.5">
+                        <div className="font-medium">{unit.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {unit.account_id && `Account ID: ${unit.account_id}`}
+                        </div>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="account_name">Nome da Conta</Label>
-              <Input
-                id="account_name"
-                value={formData.account_name}
-                onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                placeholder="Ex: Conta Principal"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="account_reference">ID da Conta *</Label>
-              <Input
-                id="account_reference"
-                value={formData.account_reference}
-                onChange={(e) => setFormData({ ...formData, account_reference: e.target.value })}
-                placeholder="Ex: act_123456789"
-              />
-              <p className="text-xs text-gray-500">
-                O ID da conta de anúncios da plataforma selecionada.
-              </p>
+              {formData.unit_id && (
+                <div className="text-xs text-gray-600 mt-2 p-2 bg-gray-50 rounded">
+                  <p><strong>Nome:</strong> {units.find(u => u.id === formData.unit_id)?.name}</p>
+                  <p><strong>Account ID:</strong> {units.find(u => u.id === formData.unit_id)?.account_id || 'Não definido'}</p>
+                  <p><strong>Token:</strong> {units.find(u => u.id === formData.unit_id)?.secret_token ? '••••••••' : 'Não definido'}</p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -527,23 +489,20 @@ export default function Integrations() {
                   id="integration_purpose"
                   value={formData.integration_purpose}
                   onChange={(e) => setFormData({ ...formData, integration_purpose: e.target.value })}
-                  placeholder="Ex: Dados Gerais, Criativos, Imagens de Anúncios"
+                  placeholder="Ex: Dados Gerais, Criativos"
                 />
-                <p className="text-xs text-gray-500">
-                  Defina o propósito para diferenciar múltiplas integrações N8n
-                </p>
               </div>
             )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
+            <Button variant="outline" onClick={() => setAddDialog(false)}>
               Cancelar
             </Button>
             <Button 
-              onClick={() => createMutation.mutate(formData)}
-              disabled={!formData.unit_id || !formData.platform_id || !formData.account_reference || createMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700"
+              onClick={handleCreateIntegration}
+              disabled={!formData.unit_id || createMutation.isPending}
+              style={{ backgroundColor: selectedPlatform?.color }}
             >
               Criar Integração
             </Button>
@@ -551,13 +510,13 @@ export default function Integrations() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* Edit Integration Dialog */}
       <Dialog open={!!editDialog} onOpenChange={() => setEditDialog(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Configurar Integração</DialogTitle>
+            <DialogTitle>Editar Integração</DialogTitle>
             <DialogDescription>
-              Configure as credenciais de acesso para {getPlatformInfo(editDialog?.platform_id).name}
+              Configure as credenciais e parâmetros da integração
             </DialogDescription>
           </DialogHeader>
 
@@ -583,33 +542,30 @@ export default function Integrations() {
             </div>
 
             {editDialog?.auth_type === 'n8n_webhook' && (
-              <div className="space-y-2">
-                <Label htmlFor="edit_n8n_webhook_url">URL do Webhook N8n</Label>
-                <Input
-                  id="edit_n8n_webhook_url"
-                  value={editFormData.settings.n8n_webhook_url}
-                  onChange={(e) => setEditFormData({ 
-                    ...editFormData, 
-                    settings: { ...editFormData.settings, n8n_webhook_url: e.target.value }
-                  })}
-                  placeholder="https://seu-n8n.com/webhook/..."
-                />
-                <p className="text-xs text-gray-500">
-                  URL do webhook do N8n que o Base44 vai chamar para testar
-                </p>
-              </div>
-            )}
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_n8n_webhook_url">URL do Webhook N8n</Label>
+                  <Input
+                    id="edit_n8n_webhook_url"
+                    value={editFormData.settings.n8n_webhook_url}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      settings: { ...editFormData.settings, n8n_webhook_url: e.target.value }
+                    })}
+                    placeholder="https://seu-n8n.com/webhook/..."
+                  />
+                </div>
 
-            {editDialog?.auth_type === 'n8n_webhook' && (
-              <div className="space-y-2">
-                <Label htmlFor="edit_integration_purpose">Propósito da Integração</Label>
-                <Input
-                  id="edit_integration_purpose"
-                  value={editFormData.integration_purpose}
-                  onChange={(e) => setEditFormData({ ...editFormData, integration_purpose: e.target.value })}
-                  placeholder="Ex: Dados Gerais, Criativos, Imagens"
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_integration_purpose">Propósito da Integração</Label>
+                  <Input
+                    id="edit_integration_purpose"
+                    value={editFormData.integration_purpose}
+                    onChange={(e) => setEditFormData({ ...editFormData, integration_purpose: e.target.value })}
+                    placeholder="Ex: Dados Gerais, Criativos"
+                  />
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
@@ -644,11 +600,8 @@ export default function Integrations() {
                       ...editFormData, 
                       settings: { ...editFormData.settings, access_token: e.target.value }
                     })}
-                    placeholder="Cole seu token de acesso aqui"
+                    placeholder="Cole seu token de acesso"
                   />
-                  <p className="text-xs text-gray-500">
-                    Token gerado no painel da plataforma
-                  </p>
                 </div>
               )}
 
@@ -663,7 +616,7 @@ export default function Integrations() {
                       ...editFormData, 
                       settings: { ...editFormData.settings, api_key: e.target.value }
                     })}
-                    placeholder="Cole sua chave de API aqui"
+                    placeholder="Cole sua chave de API"
                   />
                 </div>
               )}
@@ -707,7 +660,7 @@ export default function Integrations() {
                         ...editFormData, 
                         settings: { ...editFormData.settings, refresh_token: e.target.value }
                       })}
-                      placeholder="Token de atualização (opcional)"
+                      placeholder="Token de atualização"
                     />
                   </div>
                 </div>
@@ -716,7 +669,7 @@ export default function Integrations() {
               {editFormData.auth_type === 'n8n_webhook' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>URL do Webhook Base44 (use esta no N8n)</Label>
+                    <Label>URL do Webhook Base44 (use no N8n)</Label>
                     <div className="flex gap-2">
                       <Input
                         value={webhookUrl}
@@ -734,9 +687,6 @@ export default function Integrations() {
                         Copiar
                       </Button>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Use esta URL como destino do HTTP Request no seu workflow N8n
-                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -744,17 +694,13 @@ export default function Integrations() {
                     <Input
                       id="n8n_secret_token"
                       type="password"
-                      autoComplete="off"
                       value={editFormData.settings.n8n_secret_token}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         settings: { ...editFormData.settings, n8n_secret_token: e.target.value }
                       })}
-                      placeholder="Gere um token único (ex: abc123xyz)"
+                      placeholder="Gere um token único"
                     />
-                    <p className="text-xs text-gray-500">
-                      Crie um token único e envie-o no corpo do POST do N8n
-                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -762,48 +708,30 @@ export default function Integrations() {
                     <Input
                       id="n8n_access_token"
                       type="password"
-                      autoComplete="off"
                       value={editFormData.settings.access_token}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         settings: { ...editFormData.settings, access_token: e.target.value }
                       })}
-                      placeholder="Cole seu access token aqui"
+                      placeholder="Cole seu access token"
                     />
-                    <p className="text-xs text-gray-500">
-                      Token de acesso da plataforma - será enviado para o N8n
-                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="integration_id_display">ID da Integração</Label>
+                    <Label>ID da Integração</Label>
                     <Input
-                      id="integration_id_display"
-                      value={editDialog?.id || 'Salve primeiro para gerar'}
+                      value={editDialog?.id || 'Salve primeiro'}
                       readOnly
                       className="font-mono text-xs bg-gray-50"
                     />
-                    <p className="text-xs text-gray-500">
-                      Use este ID no campo "integration_id" do JSON enviado pelo N8n
-                    </p>
                   </div>
-
-
-                </div>
-              )}
-
-              {editFormData.auth_type !== 'n8n_webhook' && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-800">
-                    <strong>Onde encontrar:</strong> Acesse o painel da plataforma e gere as credenciais de desenvolvedor/API.
-                  </p>
                 </div>
               )}
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseEditDialog}>
+            <Button variant="outline" onClick={() => setEditDialog(null)}>
               Cancelar
             </Button>
             <Button 
@@ -811,7 +739,81 @@ export default function Integrations() {
               disabled={updateMutation.isPending}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Salvar Configuração
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Platform Dialog */}
+      <Dialog open={!!editPlatformDialog} onOpenChange={() => setEditPlatformDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Plataforma</DialogTitle>
+            <DialogDescription>
+              Personalize o ícone e nome da plataforma
+            </DialogDescription>
+          </DialogHeader>
+
+          {editPlatformDialog && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="platform_icon">Ícone (emoji)</Label>
+                <Input
+                  id="platform_icon"
+                  value={editPlatformDialog.icon}
+                  onChange={(e) => setEditPlatformDialog({ ...editPlatformDialog, icon: e.target.value })}
+                  placeholder="📘"
+                  maxLength={4}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="platform_name">Nome</Label>
+                <Input
+                  id="platform_name"
+                  value={editPlatformDialog.name}
+                  onChange={(e) => setEditPlatformDialog({ ...editPlatformDialog, name: e.target.value })}
+                  placeholder="Meta Ads"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="platform_color">Cor (hex)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="platform_color"
+                    value={editPlatformDialog.color}
+                    onChange={(e) => setEditPlatformDialog({ ...editPlatformDialog, color: e.target.value })}
+                    placeholder="#1877F2"
+                  />
+                  <div 
+                    className="w-10 h-10 rounded border"
+                    style={{ backgroundColor: editPlatformDialog.color }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPlatformDialog(null)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => {
+                updatePlatformMutation.mutate({
+                  id: editPlatformDialog.id,
+                  data: {
+                    icon: editPlatformDialog.icon,
+                    name: editPlatformDialog.name,
+                    color: editPlatformDialog.color
+                  }
+                });
+              }}
+              disabled={updatePlatformMutation.isPending}
+            >
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -823,7 +825,7 @@ export default function Integrations() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir integração?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação removerá a conexão com a conta "{deleteDialog?.account_name || deleteDialog?.account_reference}".
+              Esta ação removerá a conexão com "{getUnitName(deleteDialog?.unit_id)}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -838,7 +840,7 @@ export default function Integrations() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Data Fetch Modal */}
+      {/* Modals */}
       {fetchDataModal && (
         <DataFetchModal
           open={!!fetchDataModal}
@@ -848,7 +850,6 @@ export default function Integrations() {
         />
       )}
 
-      {/* Execution Modal */}
       {executionModal && (
         <ExecutionModal
           open={!!executionModal}
@@ -858,7 +859,6 @@ export default function Integrations() {
         />
       )}
 
-      {/* Schedule Modal */}
       {scheduleModal && (
         <ScheduleModal
           open={!!scheduleModal}
