@@ -232,17 +232,26 @@ export default function Integrations() {
 
     const selectedUnit = units.find(u => u.id === formData.unit_id);
     
-    createMutation.mutate({
+    const integrationData = {
       unit_id: formData.unit_id,
       platform_id: selectedPlatform.platform_id,
-      account_reference: selectedUnit.account_id || '',
-      account_name: selectedUnit.name,
+      account_reference: selectedUnit?.account_id || '',
+      account_name: selectedUnit?.name || '',
       auth_type: formData.auth_type,
       integration_purpose: formData.integration_purpose,
-      settings: {
-        access_token: selectedUnit.secret_token || ''
-      }
-    });
+      connection_status: 'disconnected'
+    };
+
+    // Adicionar settings baseado no tipo de autenticação
+    if (formData.auth_type === 'token' || formData.auth_type === 'n8n_webhook') {
+      integrationData.settings = {
+        access_token: selectedUnit?.secret_token || '',
+        n8n_secret_token: '',
+        n8n_webhook_url: ''
+      };
+    }
+
+    createMutation.mutate(integrationData);
   };
 
   const getUnitName = (unitId) => {
@@ -307,10 +316,14 @@ export default function Integrations() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                      className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
                       style={{ backgroundColor: `${platform.color}15` }}
                     >
-                      {platform.icon}
+                      {platform.icon_url ? (
+                        <img src={platform.icon_url} alt={platform.name} className="w-8 h-8 object-contain" />
+                      ) : (
+                        <span className="text-2xl">{platform.icon || '📊'}</span>
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -758,14 +771,18 @@ export default function Integrations() {
           {editPlatformDialog && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="platform_icon">Ícone (emoji)</Label>
+                <Label htmlFor="platform_icon_url">URL da Imagem</Label>
                 <Input
-                  id="platform_icon"
-                  value={editPlatformDialog.icon}
-                  onChange={(e) => setEditPlatformDialog({ ...editPlatformDialog, icon: e.target.value })}
-                  placeholder="📘"
-                  maxLength={4}
+                  id="platform_icon_url"
+                  value={editPlatformDialog.icon_url || ''}
+                  onChange={(e) => setEditPlatformDialog({ ...editPlatformDialog, icon_url: e.target.value })}
+                  placeholder="https://..."
                 />
+                {editPlatformDialog.icon_url && (
+                  <div className="mt-2 p-2 bg-gray-50 rounded flex items-center justify-center">
+                    <img src={editPlatformDialog.icon_url} alt="Preview" className="w-12 h-12 object-contain" />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -805,7 +822,7 @@ export default function Integrations() {
                 updatePlatformMutation.mutate({
                   id: editPlatformDialog.id,
                   data: {
-                    icon: editPlatformDialog.icon,
+                    icon_url: editPlatformDialog.icon_url,
                     name: editPlatformDialog.name,
                     color: editPlatformDialog.color
                   }
