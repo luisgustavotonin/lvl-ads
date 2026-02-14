@@ -122,21 +122,21 @@ Deno.serve(async (req) => {
             }
         }
 
-        // Preparar payload para o n8n
+        // Garantir que account_id tenha prefixo act_
+        let accountId = integration.account_reference || '';
+        if (accountId && !accountId.startsWith('act_')) {
+            accountId = `act_${accountId}`;
+        }
+
+        // Preparar payload para o n8n - formato padronizado
         const payload = {
-            integration_id: integration_id,
-            secret_token: secretToken || '',
-            access_token: integration.settings?.access_token || '',
             unit_id: integration.unit_id,
-            account_id: integration.account_reference || '',
-            provider: provider,
+            account_id: accountId,
+            access_token: integration.settings?.access_token || '',
+            module: integration.integration_purpose || 'core',
             date_mode: date_mode,
             since: calculatedSince,
-            until: calculatedUntil,
-            request_type: 'FULL_SYNC',
-            execution_log_id: executionLog.id,
-            timezone: 'America/Sao_Paulo',
-            brasilia_now: formatDate(brasiliaToday)
+            until: calculatedUntil
         };
 
         console.log('📤 Disparando N8n (horário Brasília):', JSON.stringify(payload, null, 2));
