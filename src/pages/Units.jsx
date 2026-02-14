@@ -145,7 +145,7 @@ export default function Units() {
   };
 
   const getIntegrationsCount = (unitId) => {
-    return integrations.filter(i => i.unit_id === unitId && i.connection_status === 'connected').length;
+    return integrations.filter(i => i.unit_id === unitId).length;
   };
 
   if (isLoading) {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Link2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Trash2, Settings, Play, ChevronRight, Edit2 } from 'lucide-react';
+import { Plus, Link2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Trash2, Settings, Play, ChevronRight, Edit2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -366,7 +366,7 @@ export default function Integrations() {
 
       {/* Dialog para listar integrações */}
       <Dialog open={!!integrationsListDialog} onOpenChange={() => setIntegrationsListDialog(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               Integrações - {integrationsListDialog?.platform?.name}
@@ -378,88 +378,122 @@ export default function Integrations() {
               Nenhuma integração cadastrada
             </div>
           ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {integrationsListDialog?.integrations?.map(integration => (
-                integration.auth_type === 'n8n_webhook' ? (
-                  <N8nWebhookCard
-                    key={integration.id}
-                    integration={integration}
-                    onEdit={() => {
-                      handleOpenEditDialog(integration);
-                      setIntegrationsListDialog(null);
-                    }}
-                    onDelete={() => {
-                      setDeleteDialog(integration);
-                      setIntegrationsListDialog(null);
-                    }}
-                    onExecute={() => {
-                      setExecutionModal(integration);
-                      setIntegrationsListDialog(null);
-                    }}
-                    onSchedule={() => {
-                      setScheduleModal(integration);
-                      setIntegrationsListDialog(null);
-                    }}
-                  />
-                ) : (
-                  <div 
-                    key={integration.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                    onClick={() => {
-                      handleOpenEditDialog(integration);
-                      setIntegrationsListDialog(null);
-                    }}
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">
-                        {getUnitName(integration.unit_id)}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        ID: {integration.account_reference || 'Não configurado'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {getStatusBadge(integration.connection_status)}
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTestConnection(integration);
-                        }}
-                        title="Testar conexão"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </Button>
-                      {integration.connection_status === 'connected' && integration.platform_id === 'META' && (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {integrationsListDialog?.integrations?.map(integration => {
+                const unit = units.find(u => u.id === integration.unit_id);
+                
+                return integration.auth_type === 'n8n_webhook' ? (
+                  <div key={integration.id} className="p-4 border rounded-lg bg-white">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{unit?.name || 'Unidade'}</p>
+                        <p className="text-xs text-gray-500">{integration.integration_purpose || 'N8n Webhook'}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(integration.connection_status)}
                         <Button 
-                          variant="ghost" 
+                          variant="outline" 
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFetchDataModal(integration);
+                          onClick={() => {
+                            setExecutionModal(integration);
                             setIntegrationsListDialog(null);
                           }}
-                          className="text-xs"
                         >
-                          Buscar Dados
+                          <Play className="w-3 h-3 mr-1" />
+                          Executar
                         </Button>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteDialog(integration);
-                          setIntegrationsListDialog(null);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setScheduleModal(integration);
+                            setIntegrationsListDialog(null);
+                          }}
+                        >
+                          <Calendar className="w-3 h-3 mr-1" />
+                          Agendar
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            handleOpenEditDialog(integration);
+                            setIntegrationsListDialog(null);
+                          }}
+                        >
+                          <Settings className="w-3 h-3 mr-1" />
+                          Configurar
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => {
+                            setDeleteDialog(integration);
+                            setIntegrationsListDialog(null);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                )
-              ))}
+                ) : (
+                  <div key={integration.id} className="p-4 border rounded-lg bg-white">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{unit?.name || 'Unidade'}</p>
+                        <p className="text-xs text-gray-500">
+                          ID: {integration.account_reference || 'Não configurado'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(integration.connection_status)}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleTestConnection(integration)}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Testar
+                        </Button>
+                        {integration.connection_status === 'connected' && integration.platform_id === 'META' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setFetchDataModal(integration);
+                              setIntegrationsListDialog(null);
+                            }}
+                          >
+                            Buscar Dados
+                          </Button>
+                        )}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            handleOpenEditDialog(integration);
+                            setIntegrationsListDialog(null);
+                          }}
+                        >
+                          <Settings className="w-3 h-3 mr-1" />
+                          Configurar
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => {
+                            setDeleteDialog(integration);
+                            setIntegrationsListDialog(null);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </DialogContent>
@@ -863,22 +897,25 @@ export default function Integrations() {
             </Button>
             <Button 
               onClick={async () => {
+                if (uploadingLogo || updatePlatformMutation.isPending) return;
+                
                 let icon_url = editPlatformDialog.icon_url;
                 
                 if (platformLogoFile) {
                   setUploadingLogo(true);
                   try {
-                    const { file_url } = await base44.integrations.Core.UploadFile({ file: platformLogoFile });
-                    icon_url = file_url;
+                    const response = await base44.integrations.Core.UploadFile({ file: platformLogoFile });
+                    icon_url = response.file_url;
                   } catch (error) {
-                    alert('Erro ao fazer upload da imagem');
+                    console.error('Upload error:', error);
+                    alert('Erro ao fazer upload da imagem: ' + error.message);
                     setUploadingLogo(false);
                     return;
                   }
                   setUploadingLogo(false);
                 }
 
-                updatePlatformMutation.mutate({
+                await updatePlatformMutation.mutateAsync({
                   id: editPlatformDialog.id,
                   data: {
                     icon_url,
@@ -886,11 +923,13 @@ export default function Integrations() {
                     color: editPlatformDialog.color
                   }
                 });
+                
                 setPlatformLogoFile(null);
+                setEditPlatformDialog(null);
               }}
               disabled={uploadingLogo || updatePlatformMutation.isPending}
             >
-              {uploadingLogo ? 'Enviando...' : 'Salvar'}
+              {uploadingLogo ? 'Enviando...' : updatePlatformMutation.isPending ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
