@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
                 // Invocar a função de trigger para esta integração
                 const response = await base44.asServiceRole.functions.invoke('triggerN8nIntegration', {
                     integration_id: integration.id,
-                    date_mode: integration.schedule_date_mode || 'YESTERDAY'
+                    date_mode: integration.schedule_date_mode || 'YESTERDAY',
+                    module: integration.integration_purpose || 'core'
                 });
 
                 results.push({

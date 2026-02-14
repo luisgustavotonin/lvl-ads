@@ -30,7 +30,8 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
         integration_id: integration.id,
         date_mode: dateMode,
         since: dateMode === 'CUSTOM' ? since : null,
-        until: dateMode === 'CUSTOM' ? until : null
+        until: dateMode === 'CUSTOM' ? until : null,
+        module: integration?.integration_purpose || 'core'
       });
       onClose();
     } catch (error) {

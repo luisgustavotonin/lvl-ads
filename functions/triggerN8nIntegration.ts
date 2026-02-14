@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { integration_id, date_mode, since, until } = await req.json();
+        const { integration_id, date_mode, since, until, module } = await req.json();
 
         if (!integration_id || !date_mode) {
             return Response.json({ 
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
             unit_id: integration.unit_id,
             account_id: accountId,
             access_token: integration.settings?.access_token || '',
-            module: integration.integration_purpose || 'core',
+            module: module || integration.integration_purpose || 'core',
             date_mode: date_mode,
             since: calculatedSince,
             until: calculatedUntil
