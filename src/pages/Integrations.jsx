@@ -160,29 +160,41 @@ export default function Integrations() {
     setWebhookUrl(`${baseUrl}${webhookPath}`);
   };
 
-  const handleSaveEdit = () => {
-    updateMutation.mutate({
-      id: editDialog.id,
-      data: editFormData
-    });
-    setEditDialog(null);
+  const handleSaveEdit = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        id: editDialog.id,
+        data: editFormData
+      });
+      
+      setEditDialog(null);
+      
+      // Testar conexão automaticamente após salvar
+      setTimeout(() => {
+        handleTestConnection({ id: editDialog.id });
+      }, 500);
+    } catch (error) {
+      alert('Erro ao salvar: ' + error.message);
+    }
   };
 
   const handleTestConnection = async (integration) => {
+    const integrationId = integration.id || integration;
+    
     try {
       const response = await base44.functions.invoke('testIntegrationConnection', {
-        integration_id: integration.id
+        integration_id: integrationId
       });
 
       if (response.data.success) {
-        alert(`✅ ${response.data.message}`);
+        alert(`✅ Conexão testada com sucesso!\n\n${response.data.message || 'Integração conectada.'}`);
+        refetch();
       } else {
-        alert(`❌ Erro: ${response.data.message || response.data.error}`);
+        alert(`❌ Erro ao testar conexão:\n\n${response.data.message || response.data.error || 'Erro desconhecido'}`);
       }
-
-      refetch();
     } catch (error) {
-      alert(`❌ Erro ao testar conexão: ${error.message}`);
+      console.error('Test connection error:', error);
+      alert(`❌ Erro ao testar conexão:\n\n${error.response?.data?.error || error.message || 'Verifique as credenciais e tente novamente.'}`);
     }
   };
 
@@ -382,81 +394,59 @@ export default function Integrations() {
               {integrationsListDialog?.integrations?.map(integration => {
                 const unit = units.find(u => u.id === integration.unit_id);
                 
-                return integration.auth_type === 'n8n_webhook' ? (
-                  <div key={integration.id} className="p-4 border rounded-lg bg-white">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{unit?.name || 'Unidade'}</p>
-                        <p className="text-xs text-gray-500">{integration.integration_purpose || 'N8n Webhook'}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(integration.connection_status)}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setExecutionModal(integration);
-                            setIntegrationsListDialog(null);
-                          }}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          Executar
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setScheduleModal(integration);
-                            setIntegrationsListDialog(null);
-                          }}
-                        >
-                          <Calendar className="w-3 h-3 mr-1" />
-                          Agendar
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            handleOpenEditDialog(integration);
-                            setIntegrationsListDialog(null);
-                          }}
-                        >
-                          <Settings className="w-3 h-3 mr-1" />
-                          Configurar
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => {
-                            setDeleteDialog(integration);
-                            setIntegrationsListDialog(null);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
+                return (
                   <div key={integration.id} className="p-4 border rounded-lg bg-white">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{unit?.name || 'Unidade'}</p>
                         <p className="text-xs text-gray-500">
-                          ID: {integration.account_reference || 'Não configurado'}
+                          {integration.auth_type === 'n8n_webhook' 
+                            ? integration.integration_purpose || 'N8n Webhook'
+                            : `ID: ${integration.account_reference || 'Não configurado'}`
+                          }
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         {getStatusBadge(integration.connection_status)}
+                        
                         <Button 
                           variant="outline" 
                           size="sm"
                           onClick={() => handleTestConnection(integration)}
+                          title="Testar conexão"
                         >
                           <RefreshCw className="w-3 h-3 mr-1" />
                           Testar
                         </Button>
-                        {integration.connection_status === 'connected' && integration.platform_id === 'META' && (
+
+                        {integration.auth_type === 'n8n_webhook' && (
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setExecutionModal(integration);
+                                setIntegrationsListDialog(null);
+                              }}
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              Executar
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setScheduleModal(integration);
+                                setIntegrationsListDialog(null);
+                              }}
+                            >
+                              <Calendar className="w-3 h-3 mr-1" />
+                              Agendar
+                            </Button>
+                          </>
+                        )}
+
+                        {integration.connection_status === 'connected' && integration.platform_id === 'META' && integration.auth_type !== 'n8n_webhook' && (
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -468,6 +458,7 @@ export default function Integrations() {
                             Buscar Dados
                           </Button>
                         )}
+
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -479,6 +470,7 @@ export default function Integrations() {
                           <Settings className="w-3 h-3 mr-1" />
                           Configurar
                         </Button>
+                        
                         <Button 
                           variant="ghost" 
                           size="icon"
