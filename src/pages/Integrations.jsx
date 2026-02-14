@@ -771,16 +771,20 @@ export default function Integrations() {
           {editPlatformDialog && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="platform_icon_url">URL da Imagem</Label>
+                <Label htmlFor="platform_logo">Logo da Plataforma</Label>
                 <Input
-                  id="platform_icon_url"
-                  value={editPlatformDialog.icon_url || ''}
-                  onChange={(e) => setEditPlatformDialog({ ...editPlatformDialog, icon_url: e.target.value })}
-                  placeholder="https://..."
+                  id="platform_logo"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPlatformLogoFile(e.target.files[0])}
                 />
-                {editPlatformDialog.icon_url && (
+                {(editPlatformDialog.icon_url || platformLogoFile) && (
                   <div className="mt-2 p-2 bg-gray-50 rounded flex items-center justify-center">
-                    <img src={editPlatformDialog.icon_url} alt="Preview" className="w-12 h-12 object-contain" />
+                    <img 
+                      src={platformLogoFile ? URL.createObjectURL(platformLogoFile) : editPlatformDialog.icon_url} 
+                      alt="Preview" 
+                      className="w-12 h-12 object-contain" 
+                    />
                   </div>
                 )}
               </div>
@@ -818,16 +822,33 @@ export default function Integrations() {
               Cancelar
             </Button>
             <Button 
-              onClick={() => {
+              onClick={async () => {
+                let icon_url = editPlatformDialog.icon_url;
+                
+                if (platformLogoFile) {
+                  setUploadingLogo(true);
+                  try {
+                    const { file_url } = await base44.integrations.Core.UploadFile({ file: platformLogoFile });
+                    icon_url = file_url;
+                  } catch (error) {
+                    alert('Erro ao fazer upload da imagem');
+                    setUploadingLogo(false);
+                    return;
+                  }
+                  setUploadingLogo(false);
+                }
+
                 updatePlatformMutation.mutate({
                   id: editPlatformDialog.id,
                   data: {
-                    icon_url: editPlatformDialog.icon_url,
+                    icon_url,
                     name: editPlatformDialog.name,
                     color: editPlatformDialog.color
                   }
                 });
+                setPlatformLogoFile(null);
               }}
+              disabled={uploadingLogo}
               disabled={updatePlatformMutation.isPending}
             >
               Salvar
