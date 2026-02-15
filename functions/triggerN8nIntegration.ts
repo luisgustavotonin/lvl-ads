@@ -16,6 +16,9 @@ function formatDate(date) {
 }
 
 Deno.serve(async (req) => {
+    const request_id = crypto.randomUUID();
+    const startTime = Date.now();
+    
     try {
         const base44 = createClientFromRequest(req);
         const user = await base44.auth.me();
@@ -53,10 +56,34 @@ Deno.serve(async (req) => {
         const n8nWebhookUrl = integration.settings?.n8n_webhook_url;
         const secretToken = integration.settings?.n8n_secret_token;
 
+        // VALIDAÇÃO CRÍTICA DE URL
         if (!n8nWebhookUrl) {
             return Response.json({ 
                 success: false, 
-                error: 'URL do webhook N8n não configurada' 
+                error: 'URL do webhook N8n não configurada',
+                request_id 
+            }, { status: 400 });
+        }
+
+        // Validar formato
+        const urlPattern = /^https?:\/\/.+/;
+        if (!urlPattern.test(n8nWebhookUrl)) {
+            return Response.json({
+                success: false,
+                error: 'URL do webhook inválida',
+                url: n8nWebhookUrl,
+                details: 'A URL deve começar com http:// ou https://',
+                request_id
+            }, { status: 400 });
+        }
+
+        // Verificar valores inválidos
+        if (n8nWebhookUrl.includes('undefined') || n8nWebhookUrl.includes('null') || n8nWebhookUrl.includes('[object')) {
+            return Response.json({
+                success: false,
+                error: 'URL do webhook contém valores inválidos',
+                url: n8nWebhookUrl,
+                request_id
             }, { status: 400 });
         }
 
@@ -142,44 +169,126 @@ Deno.serve(async (req) => {
         };
 
         console.log('📤 Disparando N8n (horário Brasília):', JSON.stringify(payload, null, 2));
+        console.log(`🔗 URL: ${n8nWebhookUrl}`);
 
-        // Disparar o n8n
-        const n8nResponse = await fetch(n8nWebhookUrl, {
+        const payloadStr = JSON.stringify(payload);
+        const payloadSize = new TextEncoder().encode(payloadStr).length;
+
+        // LOG PRÉ-CHAMADA
+        const webhookLog = await base44.asServiceRole.entities.WebhookRequest.create({
+            request_id,
+            timestamp_utc: new Date().toISOString(),
+            unit_id: integration.unit_id,
+            integration_id,
+            platform: integration.platform_id,
+            url: n8nWebhookUrl,
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+            payload_summary: {
+                date_mode,
+                since: calculatedSince,
+                until: calculatedUntil
             },
-            body: JSON.stringify(payload)
+            payload_size_bytes: payloadSize,
+            success: false
+        });
+
+        // Disparar o n8n com timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        let n8nResponse;
+        try {
+            n8nResponse = await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: payloadStr,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            const duration = Date.now() - startTime;
+
+            await base44.asServiceRole.entities.WebhookRequest.update(webhookLog.id, {
+                duration_ms: duration,
+                error_message: fetchError.message,
+                error_origin: 'unknown'
+            });
+
+            throw new Error(`Falha ao conectar webhook: ${fetchError.message}`);
+        }
+
+        const duration = Date.now() - startTime;
+        const responseText = await n8nResponse.text();
+        let responseBody;
+        try {
+            responseBody = JSON.parse(responseText);
+        } catch {
+            responseBody = responseText;
+        }
+
+        // Detectar origem do erro
+        let errorOrigin = 'unknown';
+        if (!n8nResponse.ok) {
+            const lowerText = responseText.toLowerCase();
+            if (lowerText.includes('cannot get') || lowerText.includes('cannot post')) {
+                errorOrigin = 'hosting_proxy';
+            } else if (lowerText.includes('n8n') || lowerText.includes('workflow')) {
+                errorOrigin = 'n8n';
+            } else if (lowerText.includes('function') || lowerText.includes('firebase')) {
+                errorOrigin = 'backend_function';
+            }
+        }
+
+        // Atualizar log do webhook
+        await base44.asServiceRole.entities.WebhookRequest.update(webhookLog.id, {
+            status_code: n8nResponse.status,
+            response_body: responseText.substring(0, 1000),
+            response_headers: {
+                'content-type': n8nResponse.headers.get('content-type')
+            },
+            duration_ms: duration,
+            success: n8nResponse.ok,
+            error_origin: !n8nResponse.ok ? errorOrigin : null,
+            error_message: !n8nResponse.ok ? `HTTP ${n8nResponse.status}` : null
         });
 
         if (!n8nResponse.ok) {
-            const errorText = await n8nResponse.text();
             await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
                 execution_status: 'failed',
-                status: 'error', // deprecated
-                error_details: `N8n returned ${n8nResponse.status}: ${errorText}`
+                status: 'error',
+                error_details: `N8n returned ${n8nResponse.status}: ${responseText.substring(0, 500)}`
             });
 
             return Response.json({
                 success: false,
-                error: `Erro ao chamar N8n: ${n8nResponse.status}`
+                error: `Webhook retornou erro ${n8nResponse.status}`,
+                status_code: n8nResponse.status,
+                url: n8nWebhookUrl,
+                response_preview: responseText.substring(0, 500),
+                error_origin: errorOrigin,
+                request_id,
+                duration_ms: duration
             }, { status: 500 });
         }
 
         // Atualizar log como executado com sucesso
         await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
             execution_status: 'completed',
-            status: 'success', // deprecated
+            status: 'success',
             message: `Integração executada com sucesso`
         });
-
-        const n8nData = await n8nResponse.json();
 
         return Response.json({
             success: true,
             message: 'Execução disparada com sucesso',
             execution_log_id: executionLog.id,
-            n8n_response: n8nData
+            webhook_log_id: webhookLog.id,
+            request_id,
+            duration_ms: duration,
+            n8n_response: responseBody
         });
 
     } catch (error) {
