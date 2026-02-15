@@ -127,7 +127,17 @@ Deno.serve(async (req) => {
         }
 
         // ============================================
-        // 6) Retornar confirmação detalhada
+        // 6) Transformar para MetaAdDaily (relatórios)
+        // ============================================
+        try {
+            await base44.functions.invoke('transformJobResultsToAdDaily', { job_id });
+            console.log(`✅ Dados transformados para MetaAdDaily`);
+        } catch (transformError) {
+            console.warn(`⚠️ Falha ao transformar para MetaAdDaily:`, transformError.message);
+        }
+
+        // ============================================
+        // 7) Retornar confirmação detalhada
         // ============================================
         return Response.json({ 
             ok: true,
