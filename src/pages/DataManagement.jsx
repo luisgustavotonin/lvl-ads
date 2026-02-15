@@ -155,32 +155,32 @@ export default function DataManagement() {
 
   const deleteMetricsMutation = useMutation({
     mutationFn: async ({ jobIds, unitId }) => {
-      const recordsToDelete = allJobResults.filter(r => 
-        jobIds.includes(r.id) && r.unit_id === unitId
-      );
+      // Usar função de exclusão em cascata
+      const response = await base44.functions.invoke('deleteJobCascade', {
+        job_ids: jobIds,
+        unit_id: unitId
+      });
       
-      if (recordsToDelete.length !== jobIds.length) {
-        throw new Error('Tentativa de excluir registros de outra unidade bloqueada');
+      if (!response.data.success && response.data.errors) {
+        throw new Error(`Exclusão parcial: ${response.data.errors.join(', ')}`);
       }
       
-      const batchSize = 100;
-      let deletedCount = 0;
-      
-      for (let i = 0; i < recordsToDelete.length; i += batchSize) {
-        const batch = recordsToDelete.slice(i, i + batchSize);
-        const deleteResults = await Promise.allSettled(
-          batch.map(record => base44.entities.MetaJobsResults.delete(record.id))
-        );
-        deletedCount += deleteResults.filter(r => r.status === 'fulfilled').length;
-      }
-      
-      return deletedCount;
+      return response.data.deleted;
     },
-    onSuccess: (deletedCount) => {
+    onSuccess: (deleted) => {
+      // Invalidar todas as queries relacionadas
       queryClient.invalidateQueries({ queryKey: ['metaJobResults'] });
+      queryClient.invalidateQueries({ queryKey: ['currentMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['previousMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['executionLogs'] });
+      
       setSelectedMetrics([]);
       setDeletingItemId(null);
-      toast.success(`${deletedCount} item(ns) excluído(s) com sucesso!`);
+      
+      toast.success(`Exclusão concluída: ${deleted.jobs} jobs, ${deleted.ad_daily} registros detalhados excluídos!`, {
+        duration: 5000
+      });
     },
     onError: (error) => {
       setDeletingItemId(null);
