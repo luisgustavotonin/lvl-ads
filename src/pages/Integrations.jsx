@@ -213,7 +213,7 @@ export default function Integrations() {
 
   const handleExecuteIntegration = async (params) => {
     try {
-      const response = await base44.functions.invoke('triggerN8nIntegration', params);
+      const response = await base44.functions.invoke('executeN8nWebhook', params);
       if (response.data.success) {
         alert(`✅ ${response.data.message}`);
         refetch();

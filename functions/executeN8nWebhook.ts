@@ -6,18 +6,20 @@ Deno.serve(async (req) => {
         const user = await base44.auth.me();
 
         if (!user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+            return Response.json({ error: 'Não autorizado' }, { status: 401 });
         }
 
-        const { integration_id, date_mode, since, until } = await req.json();
+        const body = await req.json();
+        const { integration_id, date_mode, since, until } = body;
 
-        if (!integration_id || !date_mode) {
+        if (!integration_id) {
             return Response.json({ 
                 success: false, 
-                error: 'integration_id e date_mode são obrigatórios' 
+                error: 'integration_id é obrigatório' 
             }, { status: 400 });
         }
 
+        // Buscar integração
         const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
         
         if (!integration) {
@@ -27,66 +29,45 @@ Deno.serve(async (req) => {
             }, { status: 404 });
         }
 
-        const n8nWebhookUrl = integration.settings?.n8n_webhook_url;
-
-        if (!n8nWebhookUrl) {
+        const webhookUrl = integration.settings?.n8n_webhook_url;
+        if (!webhookUrl) {
             return Response.json({ 
                 success: false, 
                 error: 'URL do webhook não configurada' 
             }, { status: 400 });
         }
 
-        // Calcular datas
-        const today = new Date().toISOString().split('T')[0];
-        let calculatedSince = since;
-        let calculatedUntil = until;
-
-        if (date_mode !== 'CUSTOM') {
-            const daysMap = {
-                'TODAY': 0,
-                'YESTERDAY': 1,
-                'LAST_7D': 7,
-                'LAST_14D': 14,
-                'LAST_28D': 28,
-                'LAST_30D': 30
-            };
-            
-            const days = daysMap[date_mode] || 0;
-            if (date_mode === 'TODAY') {
-                calculatedSince = today;
-                calculatedUntil = today;
-            } else {
-                const d = new Date();
-                d.setDate(d.getDate() - days);
-                calculatedSince = d.toISOString().split('T')[0];
-                calculatedUntil = today;
-            }
-        }
-
+        // Preparar payload
         const payload = {
             unit_id: integration.unit_id,
             account_id: integration.account_reference || '',
             access_token: integration.settings?.access_token || '',
-            date_mode: date_mode,
-            since: calculatedSince,
-            until: calculatedUntil
+            date_mode: date_mode || 'YESTERDAY',
+            since: since || null,
+            until: until || null
         };
 
-        console.log('Disparando N8n:', payload);
+        console.log('Chamando webhook:', webhookUrl);
 
-        const n8nResponse = await fetch(n8nWebhookUrl, {
+        // Chamar webhook
+        const response = await fetch(webhookUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(payload)
         });
 
-        if (!n8nResponse.ok) {
+        if (!response.ok) {
+            const errorText = await response.text();
             return Response.json({
                 success: false,
-                error: `N8n retornou erro ${n8nResponse.status}`
+                error: `Webhook retornou erro ${response.status}`,
+                details: errorText
             }, { status: 500 });
         }
 
+        // Log de sucesso
         await base44.asServiceRole.entities.ExecutionLog.create({
             unit_id: integration.unit_id,
             log_type: 'integration_execution',
@@ -95,13 +76,12 @@ Deno.serve(async (req) => {
             execution_time: new Date().toISOString(),
             integration_id: integration_id,
             platform: integration.platform_id,
-            message: 'Integração executada com sucesso',
-            records_processed: 0
+            message: 'Webhook executado com sucesso'
         });
 
         return Response.json({
             success: true,
-            message: 'Integração executada com sucesso'
+            message: 'Webhook executado com sucesso'
         });
 
     } catch (error) {
