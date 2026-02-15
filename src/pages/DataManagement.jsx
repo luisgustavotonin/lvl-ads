@@ -142,6 +142,22 @@ export default function DataManagement() {
     enabled: selectedUnit !== 'all',
   });
 
+  const { data: allJobs = [], isLoading: jobsLoading } = useQuery({
+    queryKey: ['jobs', selectedUnit, filtered.map(r => r.run_id)],
+    queryFn: async () => {
+      if (selectedUnit === 'all' || filtered.length === 0) {
+        return [];
+      }
+
+      const runIds = filtered.map(r => r.run_id);
+      return base44.entities.Job.filter({
+        run_id: { $in: runIds },
+        unit_id: selectedUnit
+      }, '-created_date', 5000);
+    },
+    enabled: selectedUnit !== 'all' && filtered.length > 0,
+  });
+
   const { data: webhookLogs = [], refetch: refetchLogs } = useQuery({
     queryKey: ['webhookLogs'],
     queryFn: () => base44.entities.WebhookLog.list('-created_date', 20),
@@ -515,7 +531,7 @@ export default function DataManagement() {
         </Card>
       )}
 
-      {/* Abas: Histórico de Execuções vs Dados */}
+      {/* Abas: Histórico de Execuções vs RUNs vs Jobs vs Dados */}
       <div className="flex gap-2 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('executions')}
@@ -528,14 +544,24 @@ export default function DataManagement() {
           Histórico de Execuções
         </button>
         <button
-          onClick={() => setActiveTab('data')}
+          onClick={() => setActiveTab('runs')}
           className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'data'
+            activeTab === 'runs'
               ? 'text-blue-600 border-b-blue-600'
               : 'text-gray-600 border-b-transparent hover:text-gray-900'
           }`}
         >
           Execuções (RUNs)
+        </button>
+        <button
+          onClick={() => setActiveTab('jobs')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'jobs'
+              ? 'text-blue-600 border-b-blue-600'
+              : 'text-gray-600 border-b-transparent hover:text-gray-900'
+          }`}
+        >
+          Jobs
         </button>
         <button
           onClick={() => setActiveTab('detailed')}
@@ -564,7 +590,7 @@ export default function DataManagement() {
         </Card>
       )}
 
-      {activeTab === 'data' && (
+      {activeTab === 'runs' && (
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -760,7 +786,10 @@ export default function DataManagement() {
               </div>
             ) : consolidatedData.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
+                <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
                 <p className="text-lg font-medium">Nenhum dado encontrado</p>
+                <p className="text-sm mt-2">Os RUNs foram criados mas não persistiram dados detalhados</p>
+                <p className="text-xs mt-2 text-gray-400">Verifique a aba "Jobs" para ver erros</p>
               </div>
             ) : (
               <div className="space-y-4">
