@@ -142,14 +142,37 @@ Deno.serve(async (req) => {
 
         console.log('📤 Disparando N8n:', JSON.stringify(payload, null, 2));
 
-        // Disparar o n8n
-        const n8nResponse = await fetch(n8nWebhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-        });
+        // Disparar o n8n com timeout de 30 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        let n8nResponse;
+        try {
+            n8nResponse = await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            
+            await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
+                execution_status: 'failed',
+                status: 'error',
+                error_details: `Erro ao conectar: ${fetchError.message}`
+            });
+
+            return Response.json({
+                success: false,
+                error: fetchError.name === 'AbortError' 
+                    ? 'Timeout: N8n não respondeu em 30 segundos' 
+                    : `Erro ao conectar: ${fetchError.message}`
+            }, { status: 500 });
+        }
 
         if (!n8nResponse.ok) {
             const errorText = await n8nResponse.text();
@@ -161,7 +184,7 @@ Deno.serve(async (req) => {
 
             return Response.json({
                 success: false,
-                error: `Erro ao chamar N8n: ${n8nResponse.status}`,
+                error: `N8n retornou erro ${n8nResponse.status}`,
                 details: errorText
             }, { status: 500 });
         }
@@ -173,7 +196,13 @@ Deno.serve(async (req) => {
             message: `Integração executada com sucesso`
         });
 
-        const n8nData = await n8nResponse.json();
+        let n8nData;
+        try {
+            const responseText = await n8nResponse.text();
+            n8nData = responseText ? JSON.parse(responseText) : {};
+        } catch {
+            n8nData = {};
+        }
 
         return Response.json({
             success: true,
