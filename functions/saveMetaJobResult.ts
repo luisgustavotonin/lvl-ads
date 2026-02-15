@@ -14,14 +14,30 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        // Parse result_json se vier como string
+        let parsedResultJson = result_json;
+        if (typeof result_json === 'string') {
+            try {
+                parsedResultJson = JSON.parse(result_json);
+            } catch (e) {
+                return Response.json({ 
+                    ok: false, 
+                    error: { message: 'result_json inválido: não é um JSON válido', code: 'INVALID_JSON' } 
+                }, { status: 400 });
+            }
+        }
+
+        // Parse row_count se vier como string
+        const parsedRowCount = typeof row_count === 'string' ? parseInt(row_count, 10) : row_count;
+
         // Verificar se já existe resultado para esse job
         const existing = await base44.asServiceRole.entities.MetaJobsResults.filter({ job_id });
 
         if (existing.length > 0) {
             // Atualizar resultado existente
             await base44.asServiceRole.entities.MetaJobsResults.update(existing[0].id, {
-                result_json,
-                row_count,
+                result_json: parsedResultJson,
+                row_count: parsedRowCount,
                 payload_hash
             });
 
@@ -32,8 +48,8 @@ Deno.serve(async (req) => {
                 job_id,
                 unit_id,
                 account_id,
-                result_json,
-                row_count,
+                result_json: parsedResultJson,
+                row_count: parsedRowCount,
                 payload_hash
             });
 
