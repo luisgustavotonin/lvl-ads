@@ -476,7 +476,7 @@ export default function DataManagement() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg">
-                Resultado: {filtered.length} jobs de {getUnitName(selectedUnit)}
+                Resultado: {filtered.length} execuções de {getUnitName(selectedUnit)}
               </CardTitle>
               <Button 
                 variant="destructive"
@@ -497,14 +497,18 @@ export default function DataManagement() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Jobs Salvos</p>
+                <p className="text-sm text-gray-500">Execuções (RUNs)</p>
                 <p className="text-2xl font-bold text-gray-900">{filtered.length}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Total de Linhas</p>
-                <p className="text-2xl font-bold text-gray-900">{filtered.reduce((s, r) => s + (r.row_count || 0), 0)}</p>
+                <p className="text-sm text-gray-500">Total de Jobs</p>
+                <p className="text-2xl font-bold text-gray-900">{filtered.reduce((s, r) => s + (r.total_jobs || 0), 0)}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500">Total de Registros</p>
+                <p className="text-2xl font-bold text-gray-900">{filtered.reduce((s, r) => s + (r.total_records || 0), 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -531,7 +535,7 @@ export default function DataManagement() {
               : 'text-gray-600 border-b-transparent hover:text-gray-900'
           }`}
         >
-          Resultados Salvos
+          Execuções (RUNs)
         </button>
         <button
           onClick={() => setActiveTab('detailed')}
@@ -565,7 +569,7 @@ export default function DataManagement() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-lg">
-              Resultados Salvos - {filtered.length} jobs
+              Execuções (RUNs) - {filtered.length}
             </CardTitle>
             <div className="flex gap-2">
               {selectedMetrics.length > 0 && selectedUnit !== 'all' && (
@@ -574,10 +578,10 @@ export default function DataManagement() {
                   size="sm"
                   disabled={deleteMetricsMutation.isPending || deletingItemId !== null}
                   onClick={() => {
-                    if (confirm(`Excluir ${selectedMetrics.length} jobs selecionados?`)) {
+                    if (confirm(`Excluir ${selectedMetrics.length} execuções selecionadas e TODOS os dados vinculados?`)) {
                       setDeletingItemId('selected');
                       deleteMetricsMutation.mutate({ 
-                        jobIds: selectedMetrics,
+                        runIds: selectedMetrics,
                         unitId: selectedUnit 
                       });
                     }
@@ -619,20 +623,23 @@ export default function DataManagement() {
                         className="w-4 h-4"
                       />
                     </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('job_id')}>
-                      Job ID <SortIcon field="job_id" />
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('run_id')}>
+                      RUN ID <SortIcon field="run_id" />
                     </th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('account_id')}>
-                      Conta <SortIcon field="account_id" />
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('platform')}>
+                      Plataforma <SortIcon field="platform" />
                     </th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('row_count')}>
-                      Linhas <SortIcon field="row_count" />
+                    <th className="px-3 py-2 text-left font-medium text-gray-700">
+                      Período
+                    </th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
+                      Status <SortIcon field="status" />
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('total_records')}>
+                      Registros <SortIcon field="total_records" />
                     </th>
                     <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_date')}>
                       Criado Em <SortIcon field="created_date" />
-                    </th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-700">
-                      Dados
                     </th>
                   </tr>
                 </thead>
@@ -644,45 +651,43 @@ export default function DataManagement() {
                       </td>
                     </tr>
                   ) : (
-                    sorted.map(result => (
-                      <tr key={result.id} className="hover:bg-gray-50">
+                    sorted.map(run => (
+                      <tr key={run.id} className="hover:bg-gray-50">
                         <td className="px-3 py-2 text-center">
                           <input
                             type="checkbox"
-                            checked={selectedMetrics.includes(result.id)}
+                            checked={selectedMetrics.includes(run.id)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedMetrics([...selectedMetrics, result.id]);
+                                setSelectedMetrics([...selectedMetrics, run.id]);
                               } else {
-                                setSelectedMetrics(selectedMetrics.filter(id => id !== result.id));
+                                setSelectedMetrics(selectedMetrics.filter(id => id !== run.id));
                               }
                             }}
                             className="w-4 h-4"
                           />
                         </td>
                         <td className="px-3 py-2 text-gray-900 font-mono text-xs">
-                          {result.job_id?.substring(0, 8)}...
+                          {run.run_id?.substring(0, 12)}...
                         </td>
-                        <td className="px-3 py-2 text-gray-900">
-                          {result.account_id}
-                        </td>
-                        <td className="px-3 py-2 text-right text-gray-900 font-semibold">
-                          {result.row_count || 0}
+                        <td className="px-3 py-2">
+                          <Badge variant={run.platform === 'META' ? 'default' : 'secondary'}>
+                            {run.platform}
+                          </Badge>
                         </td>
                         <td className="px-3 py-2 text-gray-600 text-xs">
-                          {new Date(result.created_date).toLocaleString('pt-BR')}
+                          {formatDateString(run.date_start)} - {formatDateString(run.date_end)}
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => {
-                              console.log('Result JSON:', result.result_json);
-                              alert('Dados no console (F12)');
-                            }}
-                          >
-                            Ver JSON
-                          </Button>
+                          <Badge variant={run.status === 'success' ? 'default' : run.status === 'failed' ? 'destructive' : 'secondary'}>
+                            {run.status}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-900 font-semibold">
+                          {run.total_records || 0}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600 text-xs">
+                          {new Date(run.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                         </td>
                       </tr>
                     ))
@@ -877,13 +882,18 @@ export default function DataManagement() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               <div className="space-y-2">
+                <p className="font-semibold">⚠️ EXCLUSÃO DEFINITIVA EM CASCATA</p>
                 <p>Você está prestes a excluir permanentemente:</p>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li><strong>{filtered.length} jobs</strong></li>
-                  <li>Da unidade: <strong>{getUnitName(selectedUnit)}</strong></li>
-                  <li>Total de linhas: <strong>{filtered.reduce((s, r) => s + (r.row_count || 0), 0)}</strong></li>
+                  <li><strong>{filtered.length} execuções (RUNs)</strong></li>
+                  <li>Todos os <strong>JOBS</strong> vinculados</li>
+                  <li>Todos os <strong>dados detalhados</strong> (MetaAdDaily)</li>
+                  <li>Todas as <strong>métricas agregadas</strong></li>
+                  <li>Unidade: <strong>{getUnitName(selectedUnit)}</strong></li>
+                  <li>Total de registros: <strong>{filtered.reduce((s, r) => s + (r.total_records || 0), 0)}</strong></li>
                 </ul>
-                <p className="text-red-600 font-semibold mt-3">Esta ação não pode ser desfeita!</p>
+                <p className="text-red-600 font-bold mt-3 text-lg">⚠️ Esta ação não pode ser desfeita!</p>
+                <p className="text-sm text-gray-600 mt-2">Relatórios e Dashboard serão recalculados automaticamente.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -894,7 +904,7 @@ export default function DataManagement() {
               disabled={deleteMetricsMutation.isPending}
               onClick={async () => {
                 await deleteMetricsMutation.mutateAsync({ 
-                  jobIds: filtered.map(r => r.id),
+                  runIds: filtered.map(r => r.id),
                   unitId: selectedUnit 
                 });
                 setConfirmDelete(false);
