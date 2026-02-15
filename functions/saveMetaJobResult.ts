@@ -14,21 +14,21 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
-        // Parse result_json se vier como string
+        // Garantir que result_json seja um objeto (aceita string ou objeto)
         let parsedResultJson = result_json;
         if (typeof result_json === 'string') {
             try {
                 parsedResultJson = JSON.parse(result_json);
             } catch (e) {
-                return Response.json({ 
-                    ok: false, 
-                    error: { message: 'result_json inválido: não é um JSON válido', code: 'INVALID_JSON' } 
-                }, { status: 400 });
+                // Se não conseguir parsear, tenta usar como está
+                parsedResultJson = { raw: result_json };
             }
+        } else if (typeof result_json !== 'object') {
+            parsedResultJson = { data: result_json };
         }
 
-        // Parse row_count se vier como string
-        const parsedRowCount = typeof row_count === 'string' ? parseInt(row_count, 10) : row_count;
+        // Parse row_count (aceita string ou number)
+        const parsedRowCount = typeof row_count === 'string' ? (parseInt(row_count, 10) || 0) : (row_count || 0);
 
         // Verificar se já existe resultado para esse job
         const existing = await base44.asServiceRole.entities.MetaJobsResults.filter({ job_id });
