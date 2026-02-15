@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 
 const DATE_MODES = [
   { value: 'TODAY', label: 'Hoje' },
+  { value: 'TODAY_AND_YESTERDAY', label: 'Hoje e Ontem' },
   { value: 'YESTERDAY', label: 'Ontem' },
   { value: 'LAST_7D', label: 'Últimos 7 dias' },
   { value: 'LAST_14D', label: 'Últimos 14 dias' },
@@ -18,7 +19,7 @@ const DATE_MODES = [
 ];
 
 export default function ExecutionModal({ open, onClose, integration, onExecute }) {
-  const [dateMode, setDateMode] = useState('YESTERDAY');
+  const [dateMode, setDateMode] = useState('TODAY_AND_YESTERDAY');
   const [since, setSince] = useState('');
   const [until, setUntil] = useState('');
   const [isLoading, setIsLoading] = useState(false);

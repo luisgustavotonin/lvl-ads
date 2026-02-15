@@ -3,7 +3,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-
         const payload = await req.json();
 
         // Validar campos obrigatórios
@@ -17,10 +16,28 @@ Deno.serve(async (req) => {
             }
         }
 
-        // Criar queue_key baseado em unit_id e job_type
+        // Validar date_mode e datas
+        const validDateModes = ['TODAY', 'TODAY_AND_YESTERDAY', 'YESTERDAY', 'LAST_7D', 'LAST_14D', 'LAST_28D', 'LAST_30D', 'CUSTOM'];
+        if (!validDateModes.includes(payload.date_mode)) {
+            return Response.json({ 
+                success: false, 
+                error: `date_mode inválido. Use: ${validDateModes.join(', ')}` 
+            }, { status: 400 });
+        }
+
+        // Se for CUSTOM, validar since/until
+        if (payload.date_mode === 'CUSTOM') {
+            if (!payload.since || !payload.until) {
+                return Response.json({ 
+                    success: false, 
+                    error: 'Para date_mode CUSTOM, since e until são obrigatórios' 
+                }, { status: 400 });
+            }
+        }
+
         const queueKey = `${payload.unit_id}_${payload.job_type}_${payload.breakdown || 'default'}`;
 
-        // Preparar dados para inserção
+        // CRÍTICO: Salvar payload EXATAMENTE como recebido
         const jobData = {
             job_id: payload.job_id,
             status: 'queued',
@@ -38,17 +55,19 @@ Deno.serve(async (req) => {
             payload_json: payload
         };
 
-        // Inserir na fila
         const job = await base44.asServiceRole.entities.MetaJobsQueue.create(jobData);
 
-        console.log(`✅ Job enfileirado: ${job.job_id} (${job.job_type})`);
+        console.log(`✅ Job enfileirado: ${job.job_id} | date_mode=${job.date_mode} | since=${job.since} | until=${job.until}`);
 
         return Response.json({
             success: true,
             message: 'Job enfileirado com sucesso',
             job_id: job.job_id,
             queue_key: job.queue_key,
-            status: job.status
+            status: job.status,
+            date_mode: job.date_mode,
+            since: job.since,
+            until: job.until
         });
 
     } catch (error) {

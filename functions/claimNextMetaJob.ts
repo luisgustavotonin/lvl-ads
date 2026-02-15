@@ -17,10 +17,8 @@ Deno.serve(async (req) => {
         const now = new Date().toISOString();
         const lockedUntil = new Date(Date.now() + lock_ttl_seconds * 1000).toISOString();
 
-        // Buscar jobs elegíveis (queued ou processing com lock expirado)
         const allJobs = await base44.asServiceRole.entities.MetaJobsQueue.list('-created_at', 100);
         
-        // Filtrar jobs elegíveis
         const eligibleJobs = allJobs.filter(job => {
             if (job.status === 'queued') {
                 const availableAt = job.available_at || job.created_date;
@@ -36,15 +34,12 @@ Deno.serve(async (req) => {
             return Response.json({ job: null });
         }
 
-        // Pegar o mais antigo
         const job = eligibleJobs.sort((a, b) => 
             new Date(a.available_at || a.created_date) - new Date(b.available_at || b.created_date)
         )[0];
 
-        // Tentar fazer claim (update condicional)
         const currentJob = await base44.asServiceRole.entities.MetaJobsQueue.get(job.id);
         
-        // Verificar se ainda está elegível
         const stillEligible = 
             (currentJob.status === 'queued') || 
             (currentJob.status === 'processing' && new Date(currentJob.locked_until || 0) < new Date(now));
@@ -53,7 +48,6 @@ Deno.serve(async (req) => {
             return Response.json({ job: null });
         }
 
-        // Fazer claim
         const updatedJob = await base44.asServiceRole.entities.MetaJobsQueue.update(job.id, {
             status: 'processing',
             locked_by: worker_id,
@@ -62,8 +56,9 @@ Deno.serve(async (req) => {
             started_at: currentJob.started_at || now
         });
 
-        console.log(`✅ Job claimed: ${updatedJob.job_id} by ${worker_id}`);
+        console.log(`✅ Job claimed: ${updatedJob.job_id} | date_mode=${updatedJob.date_mode} | since=${updatedJob.since} | until=${updatedJob.until}`);
 
+        // CRÍTICO: Retornar EXATAMENTE os valores salvos, sem alterações
         return Response.json({
             job: {
                 id: updatedJob.id,

@@ -12,14 +12,30 @@ Deno.serve(async (req) => {
         const body = await req.json();
         const { integration_id, date_mode, since, until } = body;
 
-        if (!integration_id) {
+        if (!integration_id || !date_mode) {
             return Response.json({ 
                 success: false, 
-                error: 'integration_id é obrigatório' 
+                error: 'integration_id e date_mode são obrigatórios' 
             }, { status: 400 });
         }
 
-        // Buscar integração
+        // Validar date_mode
+        const validDateModes = ['TODAY', 'TODAY_AND_YESTERDAY', 'YESTERDAY', 'LAST_7D', 'LAST_14D', 'LAST_28D', 'LAST_30D', 'CUSTOM'];
+        if (!validDateModes.includes(date_mode)) {
+            return Response.json({ 
+                success: false, 
+                error: `date_mode inválido. Use: ${validDateModes.join(', ')}` 
+            }, { status: 400 });
+        }
+
+        // Se for CUSTOM, validar datas
+        if (date_mode === 'CUSTOM' && (!since || !until)) {
+            return Response.json({ 
+                success: false, 
+                error: 'Para date_mode CUSTOM, since e until são obrigatórios' 
+            }, { status: 400 });
+        }
+
         const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
         
         if (!integration) {
@@ -37,19 +53,23 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
-        // Preparar payload
+        // Preparar payload EXATAMENTE conforme recebido
         const payload = {
             unit_id: integration.unit_id,
             account_id: integration.account_reference || '',
             access_token: integration.settings?.access_token || '',
-            date_mode: date_mode || 'YESTERDAY',
-            since: since || null,
-            until: until || null
+            date_mode: date_mode,
+            since: date_mode === 'CUSTOM' ? since : null,
+            until: date_mode === 'CUSTOM' ? until : null
         };
 
-        console.log('Chamando webhook:', webhookUrl);
+        console.log('🔵 Enviando para webhook:', {
+            url: webhookUrl,
+            date_mode: payload.date_mode,
+            since: payload.since,
+            until: payload.until
+        });
 
-        // Chamar webhook
         const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: {
@@ -60,6 +80,7 @@ Deno.serve(async (req) => {
 
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('❌ Webhook erro:', response.status, errorText);
             return Response.json({
                 success: false,
                 error: `Webhook retornou erro ${response.status}`,
@@ -67,7 +88,6 @@ Deno.serve(async (req) => {
             }, { status: 500 });
         }
 
-        // Log de sucesso
         await base44.asServiceRole.entities.ExecutionLog.create({
             unit_id: integration.unit_id,
             log_type: 'integration_execution',
@@ -76,8 +96,10 @@ Deno.serve(async (req) => {
             execution_time: new Date().toISOString(),
             integration_id: integration_id,
             platform: integration.platform_id,
-            message: 'Webhook executado com sucesso'
+            message: `Webhook executado: ${date_mode}${date_mode === 'CUSTOM' ? ` (${since} a ${until})` : ''}`
         });
+
+        console.log('✅ Webhook executado com sucesso');
 
         return Response.json({
             success: true,
@@ -85,7 +107,7 @@ Deno.serve(async (req) => {
         });
 
     } catch (error) {
-        console.error('Erro:', error);
+        console.error('❌ Erro:', error);
         return Response.json({ 
             success: false, 
             error: error.message 
