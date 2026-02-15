@@ -66,6 +66,7 @@ export default function DataManagement() {
    const [selectedPlatform, setSelectedPlatform] = useState('all');
    const [dateFrom, setDateFrom] = useState('');
    const [dateTo, setDateTo] = useState('');
+   const [dateFilterType, setDateFilterType] = useState('ad_date'); // 'ad_date' ou 'job_created'
    const [confirmDelete, setConfirmDelete] = useState(false);
    const [isSearching, setIsSearching] = useState(false);
    const [searchResults, setSearchResults] = useState(null);
@@ -301,13 +302,63 @@ export default function DataManagement() {
   const filtered = getFilteredResults();
   const sorted = getSortedResults();
 
+  // Normalizar data para YYYY-MM-DD sem timezone
+  const normalizeDate = (dateStr) => {
+    if (!dateStr) return null;
+    // Se já está no formato YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    // Se está DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+      const [day, month, year] = dateStr.split('/');
+      return `${year}-${month}-${day}`;
+    }
+    // Tentar criar Date e extrair
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return null;
+  };
+
   // Consolidar dados de todos os jobs em uma única lista
   const consolidatedData = useMemo(() => {
     const allRows = [];
+    
     filtered.forEach(result => {
       const data = result.result_json?.data || [];
       if (Array.isArray(data)) {
         data.forEach(row => {
+          // Aplicar filtros de data se selecionados
+          if (dateFrom || dateTo) {
+            if (dateFilterType === 'ad_date') {
+              // Filtrar por data do anúncio (date_start/date_stop ou date)
+              const rowDate = normalizeDate(row.date || row.date_start);
+              const rowDateEnd = normalizeDate(row.date_stop || row.date);
+              
+              if (!rowDate) return; // Pular se não tiver data
+              
+              const filterStart = normalizeDate(dateFrom);
+              const filterEnd = normalizeDate(dateTo);
+              
+              // Lógica: registros onde date_start <= filterEnd E date_stop >= filterStart
+              if (filterStart && rowDate < filterStart) return;
+              if (filterEnd && (rowDateEnd || rowDate) > filterEnd) return;
+            } else if (dateFilterType === 'job_created') {
+              // Filtrar por data de criação do job
+              const jobDate = normalizeDate(result.created_date);
+              if (!jobDate) return;
+              
+              const filterStart = normalizeDate(dateFrom);
+              const filterEnd = normalizeDate(dateTo);
+              
+              if (filterStart && jobDate < filterStart) return;
+              if (filterEnd && jobDate > filterEnd) return;
+            }
+          }
+          
           allRows.push({
             ...row,
             _job_id: result.job_id,
@@ -317,7 +368,7 @@ export default function DataManagement() {
       }
     });
     return allRows;
-  }, [filtered]);
+  }, [filtered, dateFrom, dateTo, dateFilterType]);
 
   // Ordenar dados consolidados
   const sortedConsolidatedData = useMemo(() => {
@@ -401,24 +452,33 @@ export default function DataManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Data</Label>
+              <Select value={dateFilterType} onValueChange={setDateFilterType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ad_date">Data do Anúncio</SelectItem>
+                  <SelectItem value="job_created">Data de Criação do Job</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             
             <div className="space-y-2">
-              <Label>Data Início (DD/MM/AAAA)</Label>
+              <Label>Data Início</Label>
               <Input 
                 type="date" 
                 value={dateFrom} 
                 onChange={(e) => setDateFrom(e.target.value)}
-                placeholder="DD/MM/AAAA"
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Data Fim (DD/MM/AAAA)</Label>
+              <Label>Data Fim</Label>
               <Input 
                 type="date" 
                 value={dateTo} 
                 onChange={(e) => setDateTo(e.target.value)}
-                placeholder="DD/MM/AAAA"
               />
             </div>
 

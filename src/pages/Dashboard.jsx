@@ -62,10 +62,14 @@ export default function Dashboard() {
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', period.start, period.end],
     queryFn: async () => {
+      // Normalizar datas para YYYY-MM-DD
+      const startDate = format(period.start, 'yyyy-MM-dd');
+      const endDate = format(period.end, 'yyyy-MM-dd');
+      
       const data = await base44.entities.MetaAdDaily.filter({
         date: { 
-          $gte: format(period.start, 'yyyy-MM-dd'), 
-          $lte: format(period.end, 'yyyy-MM-dd') 
+          $gte: startDate, 
+          $lte: endDate
         }
       }, '-date', 5000);
       return data;

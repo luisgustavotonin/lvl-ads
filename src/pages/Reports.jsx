@@ -95,11 +95,16 @@ export default function Reports() {
     queryFn: async () => {
       if (!selectedUnit) return [];
       if (!selectedPlatforms.includes('META')) return [];
+      
+      // Normalizar datas para YYYY-MM-DD às 00:00:00
+      const startDate = format(period.start, 'yyyy-MM-dd');
+      const endDate = format(period.end, 'yyyy-MM-dd');
+      
       return base44.entities.MetaAdDaily.filter({
         unit_id: selectedUnit,
         date: { 
-          $gte: format(period.start, 'yyyy-MM-dd'), 
-          $lte: format(period.end, 'yyyy-MM-dd') 
+          $gte: startDate, 
+          $lte: endDate
         }
       }, '-date', 10000);
     },
@@ -120,11 +125,16 @@ export default function Reports() {
     queryFn: async () => {
       if (!selectedUnit) return [];
       if (!selectedPlatforms.includes('META')) return [];
+      
+      // Normalizar datas para YYYY-MM-DD
+      const startDate = format(previousPeriod.start, 'yyyy-MM-dd');
+      const endDate = format(previousPeriod.end, 'yyyy-MM-dd');
+      
       return base44.entities.MetaAdDaily.filter({
         unit_id: selectedUnit,
         date: { 
-          $gte: format(previousPeriod.start, 'yyyy-MM-dd'), 
-          $lte: format(previousPeriod.end, 'yyyy-MM-dd') 
+          $gte: startDate, 
+          $lte: endDate
         }
       }, '-date', 10000);
     },

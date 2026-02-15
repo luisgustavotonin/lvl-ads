@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusBadges = {
-  success: { label: 'OK', className: 'bg-green-100 text-green-800' },
-  error: { label: 'Falhou', className: 'bg-red-100 text-red-800' },
-  pending: { label: 'Em processamento', className: 'bg-yellow-100 text-yellow-800' },
-  scheduled: { label: 'Agendado', className: 'bg-gray-100 text-gray-800' },
-  running: { label: 'Executado', className: 'bg-blue-100 text-blue-800' }
+  completed: { label: 'Realizado', className: 'bg-green-100 text-green-800' },
+  failed: { label: 'Falhou', className: 'bg-red-100 text-red-800' },
+  // Backward compatibility
+  success: { label: 'Realizado', className: 'bg-green-100 text-green-800' },
+  error: { label: 'Falhou', className: 'bg-red-100 text-red-800' }
 };
 
-export default function ExecutionLogViewer({ unitId, logType = null, limit = 10 }) {
+export default function ExecutionLogViewer({ unitId, logType = null, limit: defaultLimit = 25 }) {
+  const [limit, setLimit] = useState(defaultLimit);
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['executionLogs', unitId, logType],
     queryFn: async () => {
@@ -40,51 +42,77 @@ export default function ExecutionLogViewer({ unitId, logType = null, limit = 10 
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b">
-          <tr>
-            <th className="px-4 py-3 text-left font-medium text-gray-700">Unidade</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-700">Tipo Execução</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-700">Data</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-700">Hora</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-700">Mensagem</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {logs.map((log) => {
-            const executionDate = new Date(log.execution_time);
-            const statusBadge = statusBadges[log.status] || statusBadges.pending;
-            const executionType = log.trigger_type === 'manual' ? 'Manual' : 'Agendado';
-            
-            return (
-              <tr key={log.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-gray-900">{getUnitName(log.unit_id)}</td>
-                <td className="px-4 py-3">
-                  <Badge variant="outline" className={log.trigger_type === 'manual' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}>
-                    {executionType}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-gray-600">
-                  {executionDate.toLocaleDateString('pt-BR')}
-                </td>
-                <td className="px-4 py-3 text-gray-600">
-                  {executionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </td>
-                <td className="px-4 py-3">
-                  <Badge className={statusBadge.className}>
-                    {statusBadge.label}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-gray-600 text-xs max-w-md truncate">
-                  {log.message || '-'}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="25">25 registros</SelectItem>
+            <SelectItem value="50">50 registros</SelectItem>
+            <SelectItem value="100">100 registros</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">Unidade</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">Tipo Execução</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">Data</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">Hora</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-700">Mensagem</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {logs.map((log) => {
+              const executionDate = new Date(log.execution_time);
+              
+              // Priorizar novos campos, fallback para antigos
+              const executionType = log.execution_type || log.trigger_type;
+              const executionStatus = log.execution_status || log.status;
+              
+              const statusBadge = statusBadges[executionStatus] || statusBadges.completed;
+              const typeLabel = executionType === 'manual' ? 'Manual' : 'Agendado';
+              
+              // Mensagem de erro ou sucesso
+              let displayMessage = log.message || '';
+              if (executionStatus === 'failed' || executionStatus === 'error') {
+                displayMessage = log.error_details || log.message || 'Erro desconhecido na execução.';
+              }
+              
+              return (
+                <tr key={log.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-gray-900">{getUnitName(log.unit_id)}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant="outline" className={executionType === 'manual' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}>
+                      {typeLabel}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {executionDate.toLocaleDateString('pt-BR')}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {executionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge className={statusBadge.className}>
+                      {statusBadge.label}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 text-xs max-w-md truncate" title={displayMessage}>
+                    {displayMessage || '-'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
