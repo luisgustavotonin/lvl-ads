@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Database, Trash2, AlertTriangle, Calendar, Search, Loader2, RefreshCw, Settings2, GripVertical } from 'lucide-react';
+import { Database, Trash2, AlertTriangle, Calendar, Search, Loader2, RefreshCw, Settings2, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import toast, { Toaster } from 'react-hot-toast';
 import ExecutionLogViewer from '../components/ExecutionLogViewer';
 
 // HELPER: Formatar data STRING (YYYY-MM-DD) para DD/MM/YYYY SEM criar Date()
@@ -72,6 +73,11 @@ export default function DataManagement() {
    const [sortField, setSortField] = useState('created_date');
    const [sortDirection, setSortDirection] = useState('desc');
    const [activeTab, setActiveTab] = useState('executions');
+   const [currentPage, setCurrentPage] = useState(1);
+   const [pageSize, setPageSize] = useState(25);
+   const [detailedSortField, setDetailedSortField] = useState('date');
+   const [detailedSortDirection, setDetailedSortDirection] = useState('desc');
+   const [deletingItemId, setDeletingItemId] = useState(null);
   
   // Carregar ordem e visibilidade das colunas do localStorage
   const [columnOrder, setColumnOrder] = useState(() => {
@@ -172,6 +178,13 @@ export default function DataManagement() {
     onSuccess: (deletedCount) => {
       queryClient.invalidateQueries({ queryKey: ['metaJobResults'] });
       setSelectedMetrics([]);
+      setDeletingItemId(null);
+      toast.success(`${deletedCount} item(ns) excluído(s) com sucesso!`);
+    },
+    onError: (error) => {
+      setDeletingItemId(null);
+      toast.error(`Erro ao excluir: ${error.message}`);
+      console.error('Erro na exclusão:', error);
     },
   });
 
@@ -288,8 +301,72 @@ export default function DataManagement() {
   const filtered = getFilteredResults();
   const sorted = getSortedResults();
 
+  // Consolidar dados de todos os jobs em uma única lista
+  const consolidatedData = useMemo(() => {
+    const allRows = [];
+    filtered.forEach(result => {
+      const data = result.result_json?.data || [];
+      if (Array.isArray(data)) {
+        data.forEach(row => {
+          allRows.push({
+            ...row,
+            _job_id: result.job_id,
+            _created_at: result.created_date,
+          });
+        });
+      }
+    });
+    return allRows;
+  }, [filtered]);
+
+  // Ordenar dados consolidados
+  const sortedConsolidatedData = useMemo(() => {
+    const sorted = [...consolidatedData].sort((a, b) => {
+      let aVal = a[detailedSortField];
+      let bVal = b[detailedSortField];
+
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return detailedSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal || '').toLowerCase();
+      const bStr = String(bVal || '').toLowerCase();
+      return detailedSortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+    return sorted;
+  }, [consolidatedData, detailedSortField, detailedSortDirection]);
+
+  // Paginação
+  const totalPages = Math.ceil(sortedConsolidatedData.length / pageSize);
+  const paginatedData = sortedConsolidatedData.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const handleDetailedSort = (field) => {
+    if (detailedSortField === field) {
+      setDetailedSortDirection(detailedSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setDetailedSortField(field);
+      setDetailedSortDirection('desc');
+    }
+  };
+
+  const DetailedSortIcon = ({ field }) => {
+    if (detailedSortField !== field) return <span className="text-gray-300 ml-1">↕</span>;
+    return <span className="text-blue-600 ml-1">{detailedSortDirection === 'asc' ? '↑' : '↓'}</span>;
+  };
+
+  // Obter colunas disponíveis dos dados consolidados
+  const availableColumns = useMemo(() => {
+    if (consolidatedData.length === 0) return [];
+    const firstRow = consolidatedData[0];
+    return Object.keys(firstRow).filter(k => !k.startsWith('_'));
+  }, [consolidatedData]);
+
   return (
     <div className="space-y-6">
+      <Toaster position="top-right" />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Gestão de Dados</h1>
         <p className="text-gray-500 mt-1">Gerencie e visualize os dados do sistema</p>
@@ -366,11 +443,14 @@ export default function DataManagement() {
               </CardTitle>
               <Button 
                 variant="destructive"
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleteMetricsMutation.isPending}
+                onClick={() => {
+                  setDeletingItemId('all');
+                  setConfirmDelete(true);
+                }}
+                disabled={deleteMetricsMutation.isPending || deletingItemId !== null}
                 className="gap-2"
               >
-                {deleteMetricsMutation.isPending ? (
+                {deletingItemId === 'all' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Trash2 className="w-4 h-4" />
@@ -455,8 +535,10 @@ export default function DataManagement() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  disabled={deleteMetricsMutation.isPending || deletingItemId !== null}
                   onClick={() => {
                     if (confirm(`Excluir ${selectedMetrics.length} jobs selecionados?`)) {
+                      setDeletingItemId('selected');
                       deleteMetricsMutation.mutate({ 
                         jobIds: selectedMetrics,
                         unitId: selectedUnit 
@@ -464,7 +546,11 @@ export default function DataManagement() {
                     }
                   }}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
+                  {deletingItemId === 'selected' ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-1" />
+                  )}
                   Excluir ({selectedMetrics.length})
                 </Button>
               )}
@@ -575,7 +661,54 @@ export default function DataManagement() {
       {activeTab === 'detailed' && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Dados Detalhados - Visualização Tabular</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg">Dados Detalhados - Visualização Consolidada</CardTitle>
+              <div className="flex gap-2 items-center">
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Settings2 className="w-4 h-4" />
+                      Selecionar Colunas
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent>
+                    <SheetHeader>
+                      <SheetTitle>Configurar Colunas</SheetTitle>
+                      <SheetDescription>Selecione quais colunas deseja visualizar</SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-6 space-y-2">
+                      <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                        <Checkbox checked={true} disabled />
+                        <label className="text-sm font-medium">Job ID (fixo)</label>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                        <Checkbox checked={true} disabled />
+                        <label className="text-sm font-medium">Created At (fixo)</label>
+                      </div>
+                      {availableColumns.map(col => (
+                        <div key={col} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
+                          <Checkbox 
+                            checked={visibleColumns[col] !== false}
+                            onCheckedChange={() => toggleColumnVisibility(col)}
+                          />
+                          <label className="text-sm">{col}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </SheetContent>
+                </Sheet>
+                <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">25 por página</SelectItem>
+                    <SelectItem value="50">50 por página</SelectItem>
+                    <SelectItem value="100">100 por página</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {selectedUnit === 'all' ? (
@@ -583,82 +716,91 @@ export default function DataManagement() {
                 <Database className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-medium">Selecione uma unidade para visualizar</p>
               </div>
-            ) : filtered.length === 0 ? (
+            ) : consolidatedData.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <p className="text-lg font-medium">Nenhum dado encontrado</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {filtered.map((result, idx) => {
-                  const data = result.result_json?.data || [];
-                  if (!Array.isArray(data) || data.length === 0) return null;
+                <div className="text-sm text-gray-600">
+                  Exibindo {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedConsolidatedData.length)} de {sortedConsolidatedData.length} registros
+                </div>
+                
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 border-b sticky top-0">
+                      <tr>
+                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_job_id')}>
+                          Job ID <DetailedSortIcon field="_job_id" />
+                        </th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_created_at')}>
+                          Created At <DetailedSortIcon field="_created_at" />
+                        </th>
+                        {availableColumns.filter(col => visibleColumns[col] !== false).map(col => (
+                          <th key={col} className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort(col)}>
+                            {col} <DetailedSortIcon field={col} />
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {paginatedData.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-2 py-2 text-gray-600 font-mono text-[10px]">
+                            {row._job_id?.substring(0, 12)}...
+                          </td>
+                          <td className="px-2 py-2 text-gray-600 text-[10px]">
+                            {new Date(row._created_at).toLocaleString('pt-BR', { 
+                              day: '2-digit', 
+                              month: '2-digit', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          {availableColumns.filter(col => visibleColumns[col] !== false).map(col => {
+                            const value = row[col];
+                            const colDef = CAMPAIGN_COLUMNS.find(c => c.key === col);
+                            const isNumeric = colDef && ['number', 'currency', 'decimal', 'percent'].includes(colDef.type);
+                            
+                            return (
+                              <td key={col} className={`px-2 py-2 ${isNumeric ? 'text-right' : 'text-left'}`}>
+                                {colDef ? formatValue(value, colDef.type) : (typeof value === 'object' ? JSON.stringify(value).substring(0, 30) : value)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-                  const columns = Object.keys(data[0] || {});
-
-                  return (
-                    <div key={result.id} className="border rounded-lg overflow-hidden">
-                      <div className="bg-gray-50 px-4 py-3 border-b">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-sm">Job {idx + 1}: {result.job_id?.substring(0, 12)}...</p>
-                            <p className="text-xs text-gray-600">{result.account_id} • {data.length} linhas</p>
-                          </div>
-                          <Badge>{new Date(result.created_date).toLocaleDateString('pt-BR')}</Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="overflow-x-auto max-h-96">
-                        <table className="w-full text-xs">
-                          <thead className="bg-gray-50 sticky top-0">
-                            <tr>
-                              <th className="px-2 py-2 text-left font-medium text-gray-700 border-r">#</th>
-                              {columns.map(col => (
-                                <th key={col} className="px-2 py-2 text-left font-medium text-gray-700">
-                                  {col}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {data.map((row, rowIdx) => (
-                              <tr key={rowIdx} className="hover:bg-gray-50">
-                                <td className="px-2 py-2 text-gray-500 border-r">{rowIdx + 1}</td>
-                                {columns.map(col => {
-                                  const value = row[col];
-                                  const isNumeric = !isNaN(parseFloat(value)) && typeof value !== 'object';
-                                  
-                                  return (
-                                    <td key={col} className={`px-2 py-2 ${isNumeric ? 'text-right' : 'text-left'}`}>
-                                      {typeof value === 'object' ? JSON.stringify(value).substring(0, 50) : value}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))}
-                            {/* Linha de totais */}
-                            <tr className="bg-blue-50 font-semibold border-t-2 border-blue-200">
-                              <td className="px-2 py-2 text-gray-700 border-r">TOTAL</td>
-                              {columns.map(col => {
-                                const sum = data.reduce((acc, row) => {
-                                  const val = parseFloat(row[col]);
-                                  return !isNaN(val) ? acc + val : acc;
-                                }, 0);
-                                
-                                const isNumeric = data.some(row => !isNaN(parseFloat(row[col])));
-                                
-                                return (
-                                  <td key={col} className={`px-2 py-2 ${isNumeric ? 'text-right' : 'text-left'}`}>
-                                    {isNumeric ? sum.toFixed(2) : '-'}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
+                {/* Paginação */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600">
+                      Página {currentPage} de {totalPages}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => p - 1)}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => p + 1)}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -686,7 +828,7 @@ export default function DataManagement() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMetricsMutation.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               disabled={deleteMetricsMutation.isPending}
@@ -698,7 +840,12 @@ export default function DataManagement() {
                 setConfirmDelete(false);
               }}
             >
-              {deleteMetricsMutation.isPending ? 'Excluindo...' : 'Confirmar Exclusão'}
+              {deleteMetricsMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo... aguarde
+                </>
+              ) : 'Confirmar Exclusão'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,28 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-const statusConfig = {
-  success: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', label: 'Sucesso' },
-  error: { icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', label: 'Erro' },
-  pending: { icon: Loader2, color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Pendente' },
-  scheduled: { icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Agendado' }
+const statusBadges = {
+  success: { label: 'OK', className: 'bg-green-100 text-green-800' },
+  error: { label: 'Falhou', className: 'bg-red-100 text-red-800' },
+  pending: { label: 'Em processamento', className: 'bg-yellow-100 text-yellow-800' },
+  scheduled: { label: 'Agendado', className: 'bg-gray-100 text-gray-800' },
+  running: { label: 'Executado', className: 'bg-blue-100 text-blue-800' }
 };
-
-const triggerConfig = {
-  manual: { label: '🖱️ Manual', color: 'bg-purple-100 text-purple-800' },
-  scheduled: { label: '⏰ Agendado', color: 'bg-blue-100 text-blue-800' },
-  webhook: { label: '🔗 Webhook', color: 'bg-green-100 text-green-800' }
-};
-
-function formatDateBR(dateStr) {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  return `${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-}
 
 export default function ExecutionLogViewer({ unitId, logType = null, limit = 10 }) {
   const { data: logs = [], isLoading } = useQuery({
@@ -35,8 +22,17 @@ export default function ExecutionLogViewer({ unitId, logType = null, limit = 10 
     enabled: !!unitId
   });
 
+  const { data: units = [] } = useQuery({
+    queryKey: ['units'],
+    queryFn: () => base44.entities.Unit.list(),
+  });
+
+  const getUnitName = (unitId) => {
+    return units.find(u => u.id === unitId)?.name || 'Unidade';
+  };
+
   if (isLoading) {
-    return <div className="text-center py-4 text-gray-500">Carregando logs...</div>;
+    return <div className="text-center py-4 text-gray-500">Carregando histórico...</div>;
   }
 
   if (logs.length === 0) {
@@ -44,49 +40,51 @@ export default function ExecutionLogViewer({ unitId, logType = null, limit = 10 
   }
 
   return (
-    <div className="space-y-2">
-      {logs.map((log) => {
-        if (!log.status || !log.trigger_type) return null;
-        
-        const statusCfg = statusConfig[log.status] || statusConfig.pending;
-        const triggerCfg = triggerConfig[log.trigger_type] || { label: '❓ Unknown', color: 'bg-gray-100 text-gray-800' };
-        const Icon = statusCfg?.icon;
-
-        if (!Icon) return null;
-
-        return (
-          <div
-            key={log.id}
-            className={cn(
-              'flex items-center justify-between p-3 rounded-lg border',
-              statusCfg.bg
-            )}
-          >
-            <div className="flex items-center gap-3 flex-1">
-              <Icon className={cn('w-4 h-4', statusCfg.color)} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-medium text-gray-900">
-                    {log.log_type === 'integration_execution' && '📊 Integração'}
-                    {log.log_type === 'alert_sent' && '📢 Alerta'}
-                    {log.log_type === 'alert_scheduled' && '⏱️ Alerta Agendado'}
-                  </p>
-                  <Badge variant="outline" className={triggerCfg.color} style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem' }}>
-                    {triggerCfg.label}
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 border-b">
+          <tr>
+            <th className="px-4 py-3 text-left font-medium text-gray-700">Unidade</th>
+            <th className="px-4 py-3 text-left font-medium text-gray-700">Tipo Execução</th>
+            <th className="px-4 py-3 text-left font-medium text-gray-700">Data</th>
+            <th className="px-4 py-3 text-left font-medium text-gray-700">Hora</th>
+            <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+            <th className="px-4 py-3 text-left font-medium text-gray-700">Mensagem</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {logs.map((log) => {
+            const executionDate = new Date(log.execution_time);
+            const statusBadge = statusBadges[log.status] || statusBadges.pending;
+            const executionType = log.trigger_type === 'manual' ? 'Manual' : 'Agendado';
+            
+            return (
+              <tr key={log.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-gray-900">{getUnitName(log.unit_id)}</td>
+                <td className="px-4 py-3">
+                  <Badge variant="outline" className={log.trigger_type === 'manual' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}>
+                    {executionType}
                   </Badge>
-                  <span className="text-xs text-gray-500">
-                    {formatDateBR(log.execution_time)}
-                  </span>
-                </div>
-                {log.message && <p className="text-xs text-gray-600 mt-1 truncate">{log.message}</p>}
-              </div>
-            </div>
-            <Badge className={statusCfg.color.replace('text-', 'bg-').replace('-600', '-100')} variant="outline">
-              {statusCfg.label}
-            </Badge>
-          </div>
-        );
-      })}
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  {executionDate.toLocaleDateString('pt-BR')}
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  {executionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </td>
+                <td className="px-4 py-3">
+                  <Badge className={statusBadge.className}>
+                    {statusBadge.label}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-gray-600 text-xs max-w-md truncate">
+                  {log.message || '-'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
