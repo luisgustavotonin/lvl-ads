@@ -62,20 +62,26 @@ export default function Dashboard() {
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', period.start, period.end],
     queryFn: async () => {
-      // Normalizar datas para YYYY-MM-DD
-      const startDate = format(period.start, 'yyyy-MM-dd');
-      const endDate = format(period.end, 'yyyy-MM-dd');
-      
-      const data = await base44.entities.MetaAdDaily.filter({
-        date: { 
-          $gte: startDate, 
-          $lte: endDate
-        }
-      }, '-date', 5000);
-      return data;
+      try {
+        // Normalizar datas para YYYY-MM-DD
+        const startDate = format(period.start, 'yyyy-MM-dd');
+        const endDate = format(period.end, 'yyyy-MM-dd');
+        
+        const data = await base44.entities.MetaAdDaily.filter({
+          date: { 
+            $gte: startDate, 
+            $lte: endDate
+          }
+        }, '-date', 5000);
+        return data || [];
+      } catch (error) {
+        console.error('Erro ao buscar métricas:', error);
+        return [];
+      }
     },
-    staleTime: 2 * 60 * 1000, // 2 minutos
+    staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
+    retry: 1,
   });
 
 

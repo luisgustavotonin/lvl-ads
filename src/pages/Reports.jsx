@@ -93,22 +93,29 @@ export default function Reports() {
   const { data: currentMetrics = [], isLoading } = useQuery({
     queryKey: ['currentMetrics', selectedUnit, period.start, period.end, selectedPlatforms],
     queryFn: async () => {
-      if (!selectedUnit) return [];
-      if (!selectedPlatforms.includes('META')) return [];
-      
-      // Normalizar datas para YYYY-MM-DD às 00:00:00
-      const startDate = format(period.start, 'yyyy-MM-dd');
-      const endDate = format(period.end, 'yyyy-MM-dd');
-      
-      return base44.entities.MetaAdDaily.filter({
-        unit_id: selectedUnit,
-        date: { 
-          $gte: startDate, 
-          $lte: endDate
-        }
-      }, '-date', 10000);
+      try {
+        if (!selectedUnit) return [];
+        if (!selectedPlatforms.includes('META')) return [];
+        
+        // Normalizar datas para YYYY-MM-DD às 00:00:00
+        const startDate = format(period.start, 'yyyy-MM-dd');
+        const endDate = format(period.end, 'yyyy-MM-dd');
+        
+        const data = await base44.entities.MetaAdDaily.filter({
+          unit_id: selectedUnit,
+          date: { 
+            $gte: startDate, 
+            $lte: endDate
+          }
+        }, '-date', 10000);
+        return data || [];
+      } catch (error) {
+        console.error('Erro ao buscar métricas atuais:', error);
+        return [];
+      }
     },
     enabled: !!selectedUnit,
+    retry: 1,
   });
 
   // Calcular período anterior
@@ -123,22 +130,29 @@ export default function Reports() {
   const { data: previousMetrics = [] } = useQuery({
     queryKey: ['previousMetrics', selectedUnit, previousPeriod.start, previousPeriod.end, selectedPlatforms],
     queryFn: async () => {
-      if (!selectedUnit) return [];
-      if (!selectedPlatforms.includes('META')) return [];
-      
-      // Normalizar datas para YYYY-MM-DD
-      const startDate = format(previousPeriod.start, 'yyyy-MM-dd');
-      const endDate = format(previousPeriod.end, 'yyyy-MM-dd');
-      
-      return base44.entities.MetaAdDaily.filter({
-        unit_id: selectedUnit,
-        date: { 
-          $gte: startDate, 
-          $lte: endDate
-        }
-      }, '-date', 10000);
+      try {
+        if (!selectedUnit) return [];
+        if (!selectedPlatforms.includes('META')) return [];
+        
+        // Normalizar datas para YYYY-MM-DD
+        const startDate = format(previousPeriod.start, 'yyyy-MM-dd');
+        const endDate = format(previousPeriod.end, 'yyyy-MM-dd');
+        
+        const data = await base44.entities.MetaAdDaily.filter({
+          unit_id: selectedUnit,
+          date: { 
+            $gte: startDate, 
+            $lte: endDate
+          }
+        }, '-date', 10000);
+        return data || [];
+      } catch (error) {
+        console.error('Erro ao buscar métricas anteriores:', error);
+        return [];
+      }
     },
     enabled: !!selectedUnit,
+    retry: 1,
   });
 
   // Auto-detectar plataformas com dados
