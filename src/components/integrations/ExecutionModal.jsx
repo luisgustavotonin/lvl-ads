@@ -43,18 +43,6 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Módulo / Tipo de Job (opcional)</Label>
-            <Input
-              value={module}
-              onChange={(e) => setModule(e.target.value)}
-              placeholder={integration.integration_purpose || 'Ex: META_DAILY, META_CAMPAIGNS'}
-            />
-            <p className="text-xs text-gray-500">
-              Deixe vazio para usar o propósito padrão da integração
-            </p>
-          </div>
-
-          <div className="space-y-2">
             <Label>Período</Label>
             <Select value={dateMode} onValueChange={setDateMode}>
               <SelectTrigger>
