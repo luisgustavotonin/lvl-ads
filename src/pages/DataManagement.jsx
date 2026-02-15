@@ -143,19 +143,19 @@ export default function DataManagement() {
   });
 
   const { data: allJobs = [], isLoading: jobsLoading } = useQuery({
-    queryKey: ['jobs', selectedUnit, filtered.map(r => r.run_id)],
+    queryKey: ['jobs', selectedUnit, allRuns.map(r => r.run_id)],
     queryFn: async () => {
-      if (selectedUnit === 'all' || filtered.length === 0) {
+      if (selectedUnit === 'all' || allRuns.length === 0) {
         return [];
       }
 
-      const runIds = filtered.map(r => r.run_id);
+      const runIds = allRuns.map(r => r.run_id);
       return base44.entities.Job.filter({
         run_id: { $in: runIds },
         unit_id: selectedUnit
       }, '-created_date', 5000);
     },
-    enabled: selectedUnit !== 'all' && filtered.length > 0,
+    enabled: selectedUnit !== 'all' && allRuns.length > 0,
   });
 
   const { data: webhookLogs = [], refetch: refetchLogs } = useQuery({
