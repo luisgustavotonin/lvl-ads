@@ -61,39 +61,38 @@ Deno.serve(async (req) => {
 
         console.log(`✅ Validado: ${jobResults.length} jobs pertencem à unidade ${unit_id}`);
 
-        // 2️⃣ Excluir MetaAdDaily vinculados (por job_id ou run_id se existir)
+        // 2️⃣ Excluir MetaAdDaily vinculados (por source_run_id)
         try {
-            // Buscar todos os registros MetaAdDaily relacionados
-            const adDailyRecords = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                unit_id: unit_id
-                // Não podemos filtrar por job_id diretamente pois MetaAdDaily não tem esse campo
-                // Precisamos usar run_id se disponível
+            // Extrair source_run_id dos jobs
+            const sourceRunIds = [];
+            jobResults.forEach(j => {
+                const runId = j.job_id || j.run_id;
+                if (runId) sourceRunIds.push(runId);
             });
 
-            // Filtrar por run_id se os jobs tiverem esse campo
-            const runIds = jobResults.map(j => j.run_id).filter(Boolean);
-            let recordsToDelete = [];
+            console.log(`🔍 Procurando MetaAdDaily com source_run_id em:`, sourceRunIds);
 
-            if (runIds.length > 0) {
-                recordsToDelete = adDailyRecords.filter(record => 
-                    runIds.includes(record.run_id)
-                );
-            }
+            if (sourceRunIds.length > 0) {
+                // Buscar registros por source_run_id
+                const adDailyRecords = await base44.asServiceRole.entities.MetaAdDaily.filter({
+                    unit_id: unit_id,
+                    source_run_id: { $in: sourceRunIds }
+                });
 
-            // Excluir em lotes
-            if (recordsToDelete.length > 0) {
-                console.log(`🗑️ Excluindo ${recordsToDelete.length} registros de MetaAdDaily...`);
-                
-                const batchSize = 100;
-                for (let i = 0; i < recordsToDelete.length; i += batchSize) {
-                    const batch = recordsToDelete.slice(i, i + batchSize);
-                    const results = await Promise.allSettled(
-                        batch.map(r => base44.asServiceRole.entities.MetaAdDaily.delete(r.id))
-                    );
-                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
-                    deletedAdDaily += succeeded;
+                console.log(`📊 Encontrados ${adDailyRecords.length} registros de MetaAdDaily para excluir`);
+
+                if (adDailyRecords.length > 0) {
+                    const batchSize = 100;
+                    for (let i = 0; i < adDailyRecords.length; i += batchSize) {
+                        const batch = adDailyRecords.slice(i, i + batchSize);
+                        const results = await Promise.allSettled(
+                            batch.map(r => base44.asServiceRole.entities.MetaAdDaily.delete(r.id))
+                        );
+                        const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                        deletedAdDaily += succeeded;
+                    }
+                    console.log(`✅ ${deletedAdDaily} registros de MetaAdDaily excluídos`);
                 }
-                console.log(`✅ ${deletedAdDaily} registros de MetaAdDaily excluídos`);
             }
         } catch (error) {
             console.error('⚠️ Erro ao excluir MetaAdDaily:', error.message);
@@ -146,13 +145,35 @@ Deno.serve(async (req) => {
             errors.push(`MetaJobsResults: ${error.message}`);
         }
 
-        // 5️⃣ Opcional: Reagregar métricas da unidade
+        // 5️⃣ Reagregar métricas da unidade (OBRIGATÓRIO)
         try {
             console.log('🔄 Recalculando métricas agregadas...');
-            await base44.asServiceRole.functions.invoke('aggregateMetaAdDaily', { unit_id });
-            console.log('✅ Métricas recalculadas');
+            const aggResult = await base44.asServiceRole.functions.invoke('aggregateMetaAdDaily', { unit_id });
+            console.log('✅ Métricas recalculadas:', aggResult.data);
         } catch (error) {
-            console.warn('⚠️ Erro ao recalcular métricas (não fatal):', error.message);
+            console.warn('⚠️ Erro ao recalcular métricas:', error.message);
+            errors.push(`Aggregation: ${error.message}`);
+        }
+
+        // 6️⃣ Limpar MetricsDaily órfãos se necessário
+        try {
+            const orphanMetrics = await base44.asServiceRole.entities.MetricsDaily.filter({
+                unit_id: unit_id
+            });
+            
+            if (orphanMetrics.length > 0) {
+                console.log(`🗑️ Limpando ${orphanMetrics.length} registros de MetricsDaily...`);
+                const batchSize = 100;
+                for (let i = 0; i < orphanMetrics.length; i += batchSize) {
+                    const batch = orphanMetrics.slice(i, i + batchSize);
+                    await Promise.allSettled(
+                        batch.map(m => base44.asServiceRole.entities.MetricsDaily.delete(m.id))
+                    );
+                }
+                console.log('✅ MetricsDaily limpos');
+            }
+        } catch (error) {
+            console.warn('⚠️ Erro ao limpar MetricsDaily:', error.message);
         }
 
         const summary = {
