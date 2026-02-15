@@ -79,25 +79,31 @@ Deno.serve(async (req) => {
         }
 
         // ============================================
-        // 3) Salvar no banco
+        // 3) Calcular bytes do result_json
         // ============================================
-        // O campo result_json na tabela é do tipo "object" (JSON nativo)
-        // então salvamos o objeto normalizado diretamente
-        
+        const resultJsonString = JSON.stringify(normalizedResultJson);
+        const bytes = new TextEncoder().encode(resultJsonString).length;
+
+        // ============================================
+        // 4) Salvar no banco
+        // ============================================
         const existing = await base44.asServiceRole.entities.MetaJobsResults.filter({ job_id });
+        
+        let savedRecord;
+        let isUpdate = false;
 
         if (existing.length > 0) {
             // Atualizar resultado existente
-            await base44.asServiceRole.entities.MetaJobsResults.update(existing[0].id, {
+            savedRecord = await base44.asServiceRole.entities.MetaJobsResults.update(existing[0].id, {
                 result_json: normalizedResultJson,
                 row_count: normalizedRowCount,
                 payload_hash: payload_hash || null
             });
-
+            isUpdate = true;
             console.log(`🔄 Result updated for job: ${job_id}, rows: ${normalizedRowCount}`);
         } else {
             // Criar novo resultado
-            await base44.asServiceRole.entities.MetaJobsResults.create({
+            savedRecord = await base44.asServiceRole.entities.MetaJobsResults.create({
                 job_id,
                 unit_id,
                 account_id,
@@ -105,21 +111,43 @@ Deno.serve(async (req) => {
                 row_count: normalizedRowCount,
                 payload_hash: payload_hash || null
             });
-
+            isUpdate = false;
             console.log(`✅ Result saved for job: ${job_id}, rows: ${normalizedRowCount}`);
         }
 
-        return Response.json({ ok: true });
+        // ============================================
+        // 5) Validar se salvou no banco
+        // ============================================
+        if (!savedRecord || !savedRecord.id) {
+            return Response.json({ 
+                ok: false,
+                saved: false,
+                error: 'Falha ao salvar: nenhum ID retornado pelo banco'
+            }, { status: 500 });
+        }
+
+        // ============================================
+        // 6) Retornar confirmação detalhada
+        // ============================================
+        return Response.json({ 
+            ok: true,
+            saved: true,
+            job_id: job_id,
+            row_count: normalizedRowCount,
+            bytes: bytes,
+            stored_at: new Date().toISOString(),
+            db_affected_rows: 1,
+            operation: isUpdate ? 'update' : 'insert'
+        });
 
     } catch (error) {
         console.error('❌ Erro ao salvar resultado:', error);
         return Response.json({ 
-            ok: false, 
-            error: { 
-                message: error.message, 
-                code: 'SAVE_RESULT_ERROR',
-                details: error.stack 
-            } 
+            ok: false,
+            saved: false,
+            error: error.message,
+            error_code: 'SAVE_RESULT_ERROR',
+            error_details: error.stack 
         }, { status: 500 });
     }
 });
