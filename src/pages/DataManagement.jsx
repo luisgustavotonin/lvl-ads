@@ -153,6 +153,137 @@ export default function DataManagement() {
       .filter(Boolean);
   }, [columnOrder]);
 
+  // Funções auxiliares de filtragem e ordenação
+  const getFilteredResults = () => {
+    if (selectedUnit === 'all') {
+      return [];
+    }
+    
+    return allJobResults.filter(r => {
+      const matchUnit = r.unit_id === selectedUnit;
+      const matchPlatform = selectedPlatform === 'all' || selectedPlatform === 'META';
+      
+      return matchUnit && matchPlatform;
+    });
+  };
+
+  const getSortedResults = () => {
+    const filtered = getFilteredResults();
+    return filtered.sort((a, b) => {
+      if (sortField === 'created_date') {
+        const aVal = new Date(a.created_date || 0).getTime();
+        const bVal = new Date(b.created_date || 0).getTime();
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal || '').toLowerCase();
+      const bStr = String(bVal || '').toLowerCase();
+      return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+  };
+
+  // Normalizar data para YYYY-MM-DD sem timezone
+  const normalizeDate = (dateStr) => {
+    if (!dateStr) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+      const [day, month, year] = dateStr.split('/');
+      return `${year}-${month}-${day}`;
+    }
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return null;
+  };
+
+  const filtered = getFilteredResults();
+  const sorted = getSortedResults();
+
+  // Consolidar dados de todos os jobs em uma única lista
+  const consolidatedData = useMemo(() => {
+    const allRows = [];
+    
+    filtered.forEach(result => {
+      const data = result.result_json?.data || [];
+      if (Array.isArray(data)) {
+        data.forEach(row => {
+          if (dateFrom || dateTo) {
+            if (dateFilterType === 'ad_date') {
+              const rowDate = normalizeDate(row.date || row.date_start);
+              const rowDateEnd = normalizeDate(row.date_stop || row.date);
+              
+              if (!rowDate) return;
+              
+              const filterStart = normalizeDate(dateFrom);
+              const filterEnd = normalizeDate(dateTo);
+              
+              if (filterStart && rowDate < filterStart) return;
+              if (filterEnd && (rowDateEnd || rowDate) > filterEnd) return;
+            } else if (dateFilterType === 'job_created') {
+              const jobDate = normalizeDate(result.created_date);
+              if (!jobDate) return;
+              
+              const filterStart = normalizeDate(dateFrom);
+              const filterEnd = normalizeDate(dateTo);
+              
+              if (filterStart && jobDate < filterStart) return;
+              if (filterEnd && jobDate > filterEnd) return;
+            }
+          }
+          
+          allRows.push({
+            ...row,
+            _job_id: result.job_id,
+            _created_at: result.created_date,
+          });
+        });
+      }
+    });
+    return allRows;
+  }, [filtered, dateFrom, dateTo, dateFilterType]);
+
+  // Ordenar dados consolidados
+  const sortedConsolidatedData = useMemo(() => {
+    const sorted = [...consolidatedData].sort((a, b) => {
+      let aVal = a[detailedSortField];
+      let bVal = b[detailedSortField];
+
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return detailedSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal || '').toLowerCase();
+      const bStr = String(bVal || '').toLowerCase();
+      return detailedSortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+    return sorted;
+  }, [consolidatedData, detailedSortField, detailedSortDirection]);
+
+  // Paginação
+  const totalPages = Math.ceil(sortedConsolidatedData.length / pageSize);
+  const paginatedData = sortedConsolidatedData.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Obter colunas disponíveis dos dados consolidados
+  const availableColumns = useMemo(() => {
+    if (consolidatedData.length === 0) return [];
+    const firstRow = consolidatedData[0];
+    return Object.keys(firstRow).filter(k => !k.startsWith('_'));
+  }, [consolidatedData]);
+
   const deleteMetricsMutation = useMutation({
     mutationFn: async ({ jobIds, unitId }) => {
       // Usar função de exclusão em cascata
@@ -188,41 +319,6 @@ export default function DataManagement() {
       console.error('Erro na exclusão:', error);
     },
   });
-
-  const getFilteredResults = () => {
-    if (selectedUnit === 'all') {
-      return [];
-    }
-    
-    return allJobResults.filter(r => {
-      const matchUnit = r.unit_id === selectedUnit;
-      const matchPlatform = selectedPlatform === 'all' || selectedPlatform === 'META';
-      
-      return matchUnit && matchPlatform;
-    });
-  };
-
-  const getSortedResults = () => {
-    const filtered = getFilteredResults();
-    return filtered.sort((a, b) => {
-      if (sortField === 'created_date') {
-        const aVal = new Date(a.created_date || 0).getTime();
-        const bVal = new Date(b.created_date || 0).getTime();
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-      
-      let aVal = a[sortField];
-      let bVal = b[sortField];
-
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-
-      const aStr = String(aVal || '').toLowerCase();
-      const bStr = String(bVal || '').toLowerCase();
-      return sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
-    });
-  };
 
   const handleSearch = () => {
     setIsSearching(true);
@@ -299,101 +395,6 @@ export default function DataManagement() {
     return <div className="space-y-6"><Skeleton className="h-96 w-full" /></div>;
   }
 
-  const filtered = getFilteredResults();
-  const sorted = getSortedResults();
-
-  // Normalizar data para YYYY-MM-DD sem timezone
-  const normalizeDate = (dateStr) => {
-    if (!dateStr) return null;
-    // Se já está no formato YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    // Se está DD/MM/YYYY
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-      const [day, month, year] = dateStr.split('/');
-      return `${year}-${month}-${day}`;
-    }
-    // Tentar criar Date e extrair
-    const date = new Date(dateStr);
-    if (!isNaN(date.getTime())) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    return null;
-  };
-
-  // Consolidar dados de todos os jobs em uma única lista
-  const consolidatedData = useMemo(() => {
-    const allRows = [];
-    
-    filtered.forEach(result => {
-      const data = result.result_json?.data || [];
-      if (Array.isArray(data)) {
-        data.forEach(row => {
-          // Aplicar filtros de data se selecionados
-          if (dateFrom || dateTo) {
-            if (dateFilterType === 'ad_date') {
-              // Filtrar por data do anúncio (date_start/date_stop ou date)
-              const rowDate = normalizeDate(row.date || row.date_start);
-              const rowDateEnd = normalizeDate(row.date_stop || row.date);
-              
-              if (!rowDate) return; // Pular se não tiver data
-              
-              const filterStart = normalizeDate(dateFrom);
-              const filterEnd = normalizeDate(dateTo);
-              
-              // Lógica: registros onde date_start <= filterEnd E date_stop >= filterStart
-              if (filterStart && rowDate < filterStart) return;
-              if (filterEnd && (rowDateEnd || rowDate) > filterEnd) return;
-            } else if (dateFilterType === 'job_created') {
-              // Filtrar por data de criação do job
-              const jobDate = normalizeDate(result.created_date);
-              if (!jobDate) return;
-              
-              const filterStart = normalizeDate(dateFrom);
-              const filterEnd = normalizeDate(dateTo);
-              
-              if (filterStart && jobDate < filterStart) return;
-              if (filterEnd && jobDate > filterEnd) return;
-            }
-          }
-          
-          allRows.push({
-            ...row,
-            _job_id: result.job_id,
-            _created_at: result.created_date,
-          });
-        });
-      }
-    });
-    return allRows;
-  }, [filtered, dateFrom, dateTo, dateFilterType]);
-
-  // Ordenar dados consolidados
-  const sortedConsolidatedData = useMemo(() => {
-    const sorted = [...consolidatedData].sort((a, b) => {
-      let aVal = a[detailedSortField];
-      let bVal = b[detailedSortField];
-
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return detailedSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-
-      const aStr = String(aVal || '').toLowerCase();
-      const bStr = String(bVal || '').toLowerCase();
-      return detailedSortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
-    });
-    return sorted;
-  }, [consolidatedData, detailedSortField, detailedSortDirection]);
-
-  // Paginação
-  const totalPages = Math.ceil(sortedConsolidatedData.length / pageSize);
-  const paginatedData = sortedConsolidatedData.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   const handleDetailedSort = (field) => {
     if (detailedSortField === field) {
       setDetailedSortDirection(detailedSortDirection === 'asc' ? 'desc' : 'asc');
@@ -407,13 +408,6 @@ export default function DataManagement() {
     if (detailedSortField !== field) return <span className="text-gray-300 ml-1">↕</span>;
     return <span className="text-blue-600 ml-1">{detailedSortDirection === 'asc' ? '↑' : '↓'}</span>;
   };
-
-  // Obter colunas disponíveis dos dados consolidados
-  const availableColumns = useMemo(() => {
-    if (consolidatedData.length === 0) return [];
-    const firstRow = consolidatedData[0];
-    return Object.keys(firstRow).filter(k => !k.startsWith('_'));
-  }, [consolidatedData]);
 
   return (
     <div className="space-y-6">
