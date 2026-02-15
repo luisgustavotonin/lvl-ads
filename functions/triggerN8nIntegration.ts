@@ -69,15 +69,53 @@ Deno.serve(async (req) => {
         };
         const provider = providerMap[integration.platform_id] || 'meta';
 
-        // Criar log de execução (SEMPRE em UTC)
+        // 1️⃣ CRIAR RUN (batch de execução)
+        const run_id = crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        const run = await base44.asServiceRole.entities.Run.create({
+            run_id,
+            unit_id: integration.unit_id,
+            platform: integration.platform_id,
+            date_start: since || calculatedSince || formatDate(brasiliaToday),
+            date_end: until || calculatedUntil || formatDate(brasiliaToday),
+            date_filter_type: 'ad_date',
+            trigger_type: 'manual',
+            status: 'running',
+            total_jobs: 1,
+            started_at_utc: now,
+            metadata: {
+                integration_id: integration_id,
+                date_mode: date_mode
+            }
+        });
+
+        // 2️⃣ CRIAR JOB vinculado ao RUN
+        const job_id = crypto.randomUUID();
+        const job_type = (module || integration.integration_purpose || 'META_DAILY').toUpperCase().replace(/\s+/g, '_');
+
+        const job = await base44.asServiceRole.entities.Job.create({
+            job_id,
+            run_id,
+            unit_id: integration.unit_id,
+            platform: integration.platform_id,
+            job_type,
+            status: 'running',
+            started_at_utc: now,
+            metadata: {
+                integration_id: integration_id
+            }
+        });
+
+        console.log(`✅ RUN ${run_id.substring(0,8)} e JOB ${job_id.substring(0,8)} criados`);
+
+        // 3️⃣ Criar log de execução
         const executionLog = await base44.asServiceRole.entities.ExecutionLog.create({
             unit_id: integration.unit_id,
             log_type: 'integration_execution',
             execution_type: 'manual',
             execution_status: 'completed',
-            status: 'pending', // deprecated
-            trigger_type: 'manual', // deprecated
-            execution_time: new Date().toISOString(), // UTC correto
+            execution_time: now,
             integration_id: integration_id,
             platform: integration.platform_id,
             message: `Integração ${integration.account_name} disparada manualmente`,
@@ -130,7 +168,7 @@ Deno.serve(async (req) => {
             accountId = `act_${accountId}`;
         }
 
-        // Preparar payload para o n8n - formato padronizado
+        // 4️⃣ Preparar payload para o n8n - INCLUIR RUN_ID E JOB_ID
         const payload = {
             unit_id: integration.unit_id,
             account_id: accountId,
@@ -138,7 +176,12 @@ Deno.serve(async (req) => {
             module: module || integration.integration_purpose || 'core',
             date_mode: date_mode,
             since: calculatedSince,
-            until: calculatedUntil
+            until: calculatedUntil,
+            run_id: run_id,
+            job_id: job_id,
+            job_type: job_type,
+            platform: integration.platform_id,
+            integration_id: integration_id
         };
 
         console.log('📤 Disparando N8n (horário Brasília):', JSON.stringify(payload, null, 2));
@@ -154,31 +197,52 @@ Deno.serve(async (req) => {
 
         if (!n8nResponse.ok) {
             const errorText = await n8nResponse.text();
+            
+            // Marcar JOB e RUN como falhos
+            await base44.asServiceRole.entities.Job.update(job.id, {
+                status: 'failed',
+                error_message: `N8n returned ${n8nResponse.status}: ${errorText}`,
+                finished_at_utc: new Date().toISOString()
+            });
+
+            await base44.asServiceRole.entities.Run.update(run.id, {
+                status: 'failed',
+                failed_jobs: 1,
+                error_message: `N8n webhook error: ${n8nResponse.status}`,
+                finished_at_utc: new Date().toISOString()
+            });
+
             await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
                 execution_status: 'failed',
-                status: 'error', // deprecated
                 error_details: `N8n returned ${n8nResponse.status}: ${errorText}`
             });
 
             return Response.json({
                 success: false,
-                error: `Erro ao chamar N8n: ${n8nResponse.status}`
+                error: `Erro ao chamar N8n: ${n8nResponse.status}`,
+                run_id,
+                job_id
             }, { status: 500 });
         }
 
-        // Atualizar log como executado com sucesso
+        // N8n respondeu OK, mas JOB só será SUCCESS quando persistir dados
+        // (a função ingestRawData vai atualizar o status)
+        
         await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
             execution_status: 'completed',
-            status: 'success', // deprecated
-            message: `Integração executada com sucesso`
+            message: `N8n webhook chamado com sucesso`
         });
 
         const n8nData = await n8nResponse.json();
 
+        console.log(`📤 N8n respondeu OK. Aguardando dados chegarem via ingestRawData...`);
+
         return Response.json({
             success: true,
-            message: 'Execução disparada com sucesso',
+            message: 'Execução disparada com sucesso. Aguardando dados do N8n.',
             execution_log_id: executionLog.id,
+            run_id: run_id,
+            job_id: job_id,
             n8n_response: n8nData
         });
 
