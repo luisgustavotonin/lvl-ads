@@ -219,11 +219,10 @@ export default function Integrations() {
         alert(`✅ ${response.data.message}`);
         refetch();
       } else {
-        alert(`❌ Erro: ${response.data.error || 'Erro desconhecido'}`);
+        alert(`❌ ${response.data.error}`);
       }
     } catch (error) {
-      console.error('Execution error:', error);
-      alert(`❌ Erro: ${error.response?.data?.error || error.message || 'Erro ao executar integração'}`);
+      alert(`❌ Erro: ${error.message}`);
     }
   };
 
