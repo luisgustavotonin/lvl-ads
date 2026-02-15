@@ -118,24 +118,18 @@ export default function DataManagement() {
     queryFn: () => base44.entities.Unit.list(),
   });
 
-  const { data: allMetrics = [], refetch: refetchMetrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ['allMetrics', selectedUnit, dateFrom, dateTo],
+  const { data: allJobResults = [], refetch: refetchMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['metaJobResults', selectedUnit, dateFrom, dateTo],
     queryFn: async () => {
-      // NUNCA buscar sem unidade selecionada
       if (selectedUnit === 'all') {
         return [];
       }
 
       const filters = { unit_id: selectedUnit };
       
-      if (dateFrom || dateTo) {
-        filters.date = {};
-        if (dateFrom) filters.date.$gte = dateFrom;
-        if (dateTo) filters.date.$lte = dateTo;
-      }
+      // Filtros de data virão depois quando tivermos campo de data no result
       
-      // Buscar TODOS os registros da unidade selecionada no período
-      return base44.entities.MetaAdDaily.filter(filters, '-date', 50000);
+      return base44.entities.MetaJobsResults.filter(filters, '-created_date', 1000);
     },
     enabled: selectedUnit !== 'all',
   });
@@ -153,90 +147,58 @@ export default function DataManagement() {
   }, [columnOrder]);
 
   const deleteMetricsMutation = useMutation({
-    mutationFn: async ({ metricIds, unitId }) => {
-      // VALIDAÇÃO DE SEGURANÇA: Garantir que todos os registros são da unidade correta
-      const recordsToDelete = allMetrics.filter(m => 
-        metricIds.includes(m.id) && m.unit_id === unitId
+    mutationFn: async ({ jobIds, unitId }) => {
+      const recordsToDelete = allJobResults.filter(r => 
+        jobIds.includes(r.id) && r.unit_id === unitId
       );
       
-      if (recordsToDelete.length !== metricIds.length) {
+      if (recordsToDelete.length !== jobIds.length) {
         throw new Error('Tentativa de excluir registros de outra unidade bloqueada');
       }
       
-      // Coletar datas afetadas
-      const affectedDates = new Set();
-      recordsToDelete.forEach(record => {
-        affectedDates.add(`${record.unit_id}_${record.date}`);
-      });
-      
-      // Deletar em lotes de 100 para evitar timeout
       const batchSize = 100;
       let deletedCount = 0;
       
       for (let i = 0; i < recordsToDelete.length; i += batchSize) {
         const batch = recordsToDelete.slice(i, i + batchSize);
         const deleteResults = await Promise.allSettled(
-          batch.map(record => base44.entities.MetaAdDaily.delete(record.id))
+          batch.map(record => base44.entities.MetaJobsResults.delete(record.id))
         );
         deletedCount += deleteResults.filter(r => r.status === 'fulfilled').length;
       }
       
-      // Reagregar ou limpar
-      await Promise.all(
-        Array.from(affectedDates).map(async (key) => {
-          const [unit_id, date] = key.split('_');
-          
-          try {
-            const remaining = await base44.entities.MetaAdDaily.filter({ unit_id, date });
-            
-            if (remaining.length === 0) {
-              const metricsDaily = await base44.entities.MetricsDaily.filter({ unit_id, date, provider: 'meta' });
-              await Promise.allSettled(metricsDaily.map(m => base44.entities.MetricsDaily.delete(m.id)));
-            } else {
-              await base44.functions.invoke('aggregateMetaToMetricsDaily', { unit_id, date_from: date, date_to: date });
-            }
-          } catch (error) {
-            console.warn(`Erro ao processar agregação para ${key}:`, error);
-          }
-        })
-      );
-      
       return deletedCount;
     },
     onSuccess: (deletedCount) => {
-      queryClient.invalidateQueries({ queryKey: ['allMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['metaJobResults'] });
       setSelectedMetrics([]);
     },
   });
 
-  const getFilteredMetrics = () => {
-    // VALIDAÇÃO: Só retorna dados se uma unidade específica estiver selecionada
+  const getFilteredResults = () => {
     if (selectedUnit === 'all') {
       return [];
     }
     
-    return allMetrics.filter(m => {
-      // Garantir que é da unidade selecionada
-      const matchUnit = m.unit_id === selectedUnit;
+    return allJobResults.filter(r => {
+      const matchUnit = r.unit_id === selectedUnit;
       const matchPlatform = selectedPlatform === 'all' || selectedPlatform === 'META';
-      const matchDate = (!dateFrom || m.date >= dateFrom) && (!dateTo || m.date <= dateTo);
       
-      return matchUnit && matchPlatform && matchDate;
+      return matchUnit && matchPlatform;
     });
   };
 
-  const getSortedMetrics = () => {
-    const filtered = getFilteredMetrics();
+  const getSortedResults = () => {
+    const filtered = getFilteredResults();
     return filtered.sort((a, b) => {
+      if (sortField === 'created_date') {
+        const aVal = new Date(a.created_date || 0).getTime();
+        const bVal = new Date(b.created_date || 0).getTime();
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
       let aVal = a[sortField];
       let bVal = b[sortField];
-
-      // Para datas STRING (YYYY-MM-DD), comparação lexicográfica funciona
-      if (sortField === 'date' || sortField === 'created_date') {
-        return sortDirection === 'asc' 
-          ? String(aVal).localeCompare(String(bVal))
-          : String(bVal).localeCompare(String(aVal));
-      }
 
       if (typeof aVal === 'number' && typeof bVal === 'number') {
         return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
@@ -250,11 +212,10 @@ export default function DataManagement() {
 
   const handleSearch = () => {
     setIsSearching(true);
-    const filtered = getFilteredMetrics();
-    const totalSpend = filtered.reduce((s, m) => s + (m.spend || 0), 0);
+    const filtered = getFilteredResults();
     
     setTimeout(() => {
-      setSearchResults({ count: filtered.length, totalSpend, deleted: null });
+      setSearchResults({ count: filtered.length, deleted: null });
       setIsSearching(false);
     }, 500);
   };
@@ -324,8 +285,8 @@ export default function DataManagement() {
     return <div className="space-y-6"><Skeleton className="h-96 w-full" /></div>;
   }
 
-  const filtered = getFilteredMetrics();
-  const sorted = getSortedMetrics();
+  const filtered = getFilteredResults();
+  const sorted = getSortedResults();
 
   return (
     <div className="space-y-6">
@@ -401,7 +362,7 @@ export default function DataManagement() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg">
-                Resultado: {filtered.length} registros de {getUnitName(selectedUnit)}
+                Resultado: {filtered.length} jobs de {getUnitName(selectedUnit)}
               </CardTitle>
               <Button 
                 variant="destructive"
@@ -421,12 +382,12 @@ export default function DataManagement() {
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Registros</p>
+                <p className="text-sm text-gray-500">Jobs Salvos</p>
                 <p className="text-2xl font-bold text-gray-900">{filtered.length}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Investimento Total</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(filtered.reduce((s, m) => s + (m.spend || 0), 0))}</p>
+                <p className="text-sm text-gray-500">Total de Linhas</p>
+                <p className="text-2xl font-bold text-gray-900">{filtered.reduce((s, r) => s + (r.row_count || 0), 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -453,7 +414,7 @@ export default function DataManagement() {
               : 'text-gray-600 border-b-transparent hover:text-gray-900'
           }`}
         >
-          Dados (Últimos 100)
+          Resultados Salvos
         </button>
       </div>
 
@@ -477,68 +438,17 @@ export default function DataManagement() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-lg">
-              {dateFrom || dateTo ? `Dados do período - ${filtered.length} registros` : `Dados (últimos 100) - ${filtered.length} filtrados`}
+              Resultados Salvos - {filtered.length} jobs
             </CardTitle>
             <div className="flex gap-2">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Settings2 className="w-4 h-4" />
-                    Colunas
-                  </Button>
-                </SheetTrigger>
-                <SheetContent className="w-[400px] sm:w-[540px]">
-                  <SheetHeader>
-                    <SheetTitle>Configurar Colunas</SheetTitle>
-                    <SheetDescription>Arraste para reordenar e marque para exibir</SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-6 space-y-2 max-h-[calc(100vh-150px)] overflow-y-auto pr-2">
-                    <DragDropContext onDragEnd={handleDragEnd}>
-                      <Droppable droppableId="columns">
-                        {(provided) => (
-                          <div {...provided.droppableProps} ref={provided.innerRef}>
-                            {orderedColumns.map((col, index) => (
-                              <Draggable key={col.key} draggableId={col.key} index={index}>
-                                {(provided, snapshot) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    className={`flex items-center gap-3 p-3 mb-2 bg-white border rounded-lg ${
-                                      snapshot.isDragging ? 'shadow-lg border-blue-400' : 'border-gray-200'
-                                    }`}
-                                  >
-                                    <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
-                                      <GripVertical className="w-4 h-4 text-gray-400" />
-                                    </div>
-                                    <Checkbox 
-                                      checked={visibleColumns[col.key] !== false}
-                                      onCheckedChange={() => toggleColumnVisibility(col.key)}
-                                    />
-                                    <label className="text-sm font-medium flex-1 cursor-pointer" onClick={() => toggleColumnVisibility(col.key)}>
-                                      {col.label}
-                                    </label>
-                                    <Badge variant="outline" className="text-xs">{col.type}</Badge>
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    </DragDropContext>
-                  </div>
-                </SheetContent>
-              </Sheet>
-
               {selectedMetrics.length > 0 && selectedUnit !== 'all' && (
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => {
-                    if (confirm(`Excluir ${selectedMetrics.length} selecionados de ${getUnitName(selectedUnit)}?`)) {
+                    if (confirm(`Excluir ${selectedMetrics.length} jobs selecionados?`)) {
                       deleteMetricsMutation.mutate({ 
-                        metricIds: selectedMetrics,
+                        jobIds: selectedMetrics,
                         unitId: selectedUnit 
                       });
                     }
@@ -572,85 +482,81 @@ export default function DataManagement() {
                       <input
                         type="checkbox"
                         checked={sorted.length > 0 && selectedMetrics.length === sorted.length}
-                        onChange={(e) => setSelectedMetrics(e.target.checked ? sorted.map(m => m.id) : [])}
+                        onChange={(e) => setSelectedMetrics(e.target.checked ? sorted.map(r => r.id) : [])}
                         className="w-4 h-4"
                       />
                     </th>
-                  {orderedColumns.filter(col => visibleColumns[col.key] !== false).map(col => (
-                    <th 
-                      key={col.key}
-                      className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort(col.key)}
-                    >
-                      {col.label} <SortIcon field={col.key} />
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('job_id')}>
+                      Job ID <SortIcon field="job_id" />
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {sorted.length === 0 ? (
-                  <tr>
-                    <td colSpan={orderedColumns.length + 1} className="px-3 py-8 text-center text-gray-500">
-                      Nenhum dado encontrado
-                    </td>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('account_id')}>
+                      Conta <SortIcon field="account_id" />
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('row_count')}>
+                      Linhas <SortIcon field="row_count" />
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_date')}>
+                      Criado Em <SortIcon field="created_date" />
+                    </th>
+                    <th className="px-3 py-2 text-center font-medium text-gray-700">
+                      Dados
+                    </th>
                   </tr>
-                ) : (
-                  sorted.map(metric => (
-                    <tr key={metric.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedMetrics.includes(metric.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedMetrics([...selectedMetrics, metric.id]);
-                            } else {
-                              setSelectedMetrics(selectedMetrics.filter(id => id !== metric.id));
-                            }
-                          }}
-                          className="w-4 h-4"
-                        />
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {sorted.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center text-gray-500">
+                        Nenhum resultado encontrado
                       </td>
-                      {orderedColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
-                        const value = formatValue(metric[col.key], col.type);
-                        const isNumeric = ['number', 'currency', 'percent'].includes(col.type);
-                        
-                        return (
-                          <td key={col.key} className={`px-3 py-2 ${isNumeric ? 'text-right' : 'text-left'} text-gray-900`}>
-                            {value}
-                          </td>
-                        );
-                      })}
                     </tr>
-                  ))
-                )}
-                {sorted.length > 0 && (
-                  <tr className="bg-blue-50 border-t-2 border-blue-200 font-bold">
-                    <td className="px-3 py-3"></td>
-                    {orderedColumns.filter(col => visibleColumns[col.key] !== false).map(col => {
-                      if (!['number', 'currency'].includes(col.type)) {
-                        return <td key={col.key} className="px-3 py-3"></td>;
-                      }
-                      
-                      const total = filtered.reduce((sum, m) => sum + (m[col.key] || 0), 0);
-                      const formattedTotal = col.type === 'currency' ? formatCurrency(total) : new Intl.NumberFormat('pt-BR').format(Math.round(total));
-                      
-                      return (
-                        <td key={col.key} className="px-3 py-3 text-right text-gray-900">
-                          {formattedTotal}
+                  ) : (
+                    sorted.map(result => (
+                      <tr key={result.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedMetrics.includes(result.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedMetrics([...selectedMetrics, result.id]);
+                              } else {
+                                setSelectedMetrics(selectedMetrics.filter(id => id !== result.id));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
                         </td>
-                      );
-                    })}
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          )}
-          {selectedUnit !== 'all' && (
-            <p className="text-xs text-gray-500 mt-2">
-              💡 Clique em "Colunas" para reordenar com drag & drop e escolher quais exibir
-            </p>
+                        <td className="px-3 py-2 text-gray-900 font-mono text-xs">
+                          {result.job_id?.substring(0, 8)}...
+                        </td>
+                        <td className="px-3 py-2 text-gray-900">
+                          {result.account_id}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-900 font-semibold">
+                          {result.row_count || 0}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600 text-xs">
+                          {new Date(result.created_date).toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              console.log('Result JSON:', result.result_json);
+                              alert('Dados no console (F12)');
+                            }}
+                          >
+                            Ver JSON
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
           </CardContent>
           </Card>
@@ -668,10 +574,9 @@ export default function DataManagement() {
               <div className="space-y-2">
                 <p>Você está prestes a excluir permanentemente:</p>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li><strong>{filtered.length} registros</strong></li>
+                  <li><strong>{filtered.length} jobs</strong></li>
                   <li>Da unidade: <strong>{getUnitName(selectedUnit)}</strong></li>
-                  {dateFrom && <li>A partir de: <strong>{formatDateString(dateFrom)}</strong></li>}
-                  {dateTo && <li>Até: <strong>{formatDateString(dateTo)}</strong></li>}
+                  <li>Total de linhas: <strong>{filtered.reduce((s, r) => s + (r.row_count || 0), 0)}</strong></li>
                 </ul>
                 <p className="text-red-600 font-semibold mt-3">Esta ação não pode ser desfeita!</p>
               </div>
@@ -684,7 +589,7 @@ export default function DataManagement() {
               disabled={deleteMetricsMutation.isPending}
               onClick={async () => {
                 await deleteMetricsMutation.mutateAsync({ 
-                  metricIds: filtered.map(m => m.id),
+                  jobIds: filtered.map(r => r.id),
                   unitId: selectedUnit 
                 });
                 setConfirmDelete(false);
