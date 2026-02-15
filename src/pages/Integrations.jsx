@@ -456,16 +456,6 @@ export default function Integrations() {
                       <div className="flex items-center gap-2">
                         {getStatusBadge(integration.connection_status)}
                         
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleTestConnection(integration)}
-                          title="Testar conexão"
-                        >
-                          <RefreshCw className="w-3 h-3 mr-1" />
-                          Testar
-                        </Button>
-
                         {integration.auth_type === 'n8n_webhook' && (
                           <Button 
                             variant="outline" 
