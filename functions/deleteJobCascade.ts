@@ -61,23 +61,28 @@ Deno.serve(async (req) => {
 
         console.log(`✅ Validado: ${jobResults.length} jobs pertencem à unidade ${unit_id}`);
 
-        // 2️⃣ Excluir MetaAdDaily vinculados (por source_run_id)
+        // 2️⃣ Excluir MetaAdDaily vinculados (por run_id)
         try {
-            // Extrair source_run_id dos jobs
-            const sourceRunIds = [];
+            // Extrair run_ids dos jobs
+            const runIds = [];
             jobResults.forEach(j => {
-                const runId = j.job_id || j.run_id;
-                if (runId) sourceRunIds.push(runId);
+                // O run_id no MetaJobsResults pode estar no job_id ou em um campo específico
+                const runId = j.job_id;
+                if (runId) runIds.push(runId);
             });
 
-            console.log(`🔍 Procurando MetaAdDaily com source_run_id em:`, sourceRunIds);
+            console.log(`🔍 Procurando MetaAdDaily com run_id em:`, runIds);
 
-            if (sourceRunIds.length > 0) {
-                // Buscar registros por source_run_id
-                const adDailyRecords = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                    unit_id: unit_id,
-                    source_run_id: { $in: sourceRunIds }
-                });
+            if (runIds.length > 0) {
+                // Buscar TODOS os registros da unidade e filtrar por run_id
+                // Porque o campo run_id pode não estar indexado para $in
+                const allAdDaily = await base44.asServiceRole.entities.MetaAdDaily.filter({
+                    unit_id: unit_id
+                }, null, 10000);
+
+                const adDailyRecords = allAdDaily.filter(record => 
+                    runIds.includes(record.run_id)
+                );
 
                 console.log(`📊 Encontrados ${adDailyRecords.length} registros de MetaAdDaily para excluir`);
 
