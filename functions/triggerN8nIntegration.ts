@@ -72,6 +72,46 @@ Deno.serve(async (req) => {
         };
         const provider = providerMap[integration.platform_id] || 'meta';
 
+        // Calcular datas baseadas no horário de Brasília ANTES de criar RUN
+        const brasiliaToday = getBrasiliaDate();
+        let calculatedSince = since;
+        let calculatedUntil = until;
+
+        if (date_mode !== 'CUSTOM') {
+            const today = formatDate(brasiliaToday);
+            
+            if (date_mode === 'TODAY') {
+                calculatedSince = today;
+                calculatedUntil = today;
+            } else if (date_mode === 'YESTERDAY') {
+                const yesterday = new Date(brasiliaToday);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = formatDate(yesterday);
+                calculatedSince = yesterdayStr;
+                calculatedUntil = yesterdayStr;
+            } else if (date_mode === 'LAST_7D') {
+                const sevenDaysAgo = new Date(brasiliaToday);
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                calculatedSince = formatDate(sevenDaysAgo);
+                calculatedUntil = today;
+            } else if (date_mode === 'LAST_14D') {
+                const fourteenDaysAgo = new Date(brasiliaToday);
+                fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+                calculatedSince = formatDate(fourteenDaysAgo);
+                calculatedUntil = today;
+            } else if (date_mode === 'LAST_28D') {
+                const twentyEightDaysAgo = new Date(brasiliaToday);
+                twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+                calculatedSince = formatDate(twentyEightDaysAgo);
+                calculatedUntil = today;
+            } else if (date_mode === 'LAST_30D') {
+                const thirtyDaysAgo = new Date(brasiliaToday);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                calculatedSince = formatDate(thirtyDaysAgo);
+                calculatedUntil = today;
+            }
+        }
+
         // 1️⃣ CRIAR RUN (batch de execução)
         const run_id = crypto.randomUUID();
         const now = new Date().toISOString();
@@ -80,8 +120,8 @@ Deno.serve(async (req) => {
             run_id,
             unit_id: integration.unit_id,
             platform: integration.platform_id,
-            date_start: since || calculatedSince || formatDate(brasiliaToday),
-            date_end: until || calculatedUntil || formatDate(brasiliaToday),
+            date_start: calculatedSince || formatDate(brasiliaToday),
+            date_end: calculatedUntil || formatDate(brasiliaToday),
             date_filter_type: 'ad_date',
             trigger_type: 'manual',
             status: 'running',
@@ -124,46 +164,6 @@ Deno.serve(async (req) => {
             message: `Integração ${integration.account_name} disparada manualmente`,
             records_processed: 0
         });
-
-        // Calcular datas baseadas no horário de Brasília
-        const brasiliaToday = getBrasiliaDate();
-        let calculatedSince = since;
-        let calculatedUntil = until;
-
-        if (date_mode !== 'CUSTOM') {
-            const today = formatDate(brasiliaToday);
-            
-            if (date_mode === 'TODAY') {
-                calculatedSince = today;
-                calculatedUntil = today;
-            } else if (date_mode === 'YESTERDAY') {
-                const yesterday = new Date(brasiliaToday);
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = formatDate(yesterday);
-                calculatedSince = yesterdayStr;
-                calculatedUntil = yesterdayStr;
-            } else if (date_mode === 'LAST_7D') {
-                const sevenDaysAgo = new Date(brasiliaToday);
-                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                calculatedSince = formatDate(sevenDaysAgo);
-                calculatedUntil = today;
-            } else if (date_mode === 'LAST_14D') {
-                const fourteenDaysAgo = new Date(brasiliaToday);
-                fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-                calculatedSince = formatDate(fourteenDaysAgo);
-                calculatedUntil = today;
-            } else if (date_mode === 'LAST_28D') {
-                const twentyEightDaysAgo = new Date(brasiliaToday);
-                twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
-                calculatedSince = formatDate(twentyEightDaysAgo);
-                calculatedUntil = today;
-            } else if (date_mode === 'LAST_30D') {
-                const thirtyDaysAgo = new Date(brasiliaToday);
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                calculatedSince = formatDate(thirtyDaysAgo);
-                calculatedUntil = today;
-            }
-        }
 
         // Garantir que account_id tenha prefixo act_
         let accountId = integration.account_reference || '';
