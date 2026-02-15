@@ -416,6 +416,16 @@ export default function DataManagement() {
         >
           Resultados Salvos
         </button>
+        <button
+          onClick={() => setActiveTab('detailed')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'detailed'
+              ? 'text-blue-600 border-b-blue-600'
+              : 'text-gray-600 border-b-transparent hover:text-gray-900'
+          }`}
+        >
+          Dados Detalhados
+        </button>
       </div>
 
       {/* Conteúdo das Abas */}
@@ -561,6 +571,99 @@ export default function DataManagement() {
           </CardContent>
           </Card>
           )}
+
+      {activeTab === 'detailed' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Dados Detalhados - Visualização Tabular</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedUnit === 'all' ? (
+              <div className="text-center py-12 text-gray-500">
+                <Database className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium">Selecione uma unidade para visualizar</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <p className="text-lg font-medium">Nenhum dado encontrado</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filtered.map((result, idx) => {
+                  const data = result.result_json?.data || [];
+                  if (!Array.isArray(data) || data.length === 0) return null;
+
+                  const columns = Object.keys(data[0] || {});
+
+                  return (
+                    <div key={result.id} className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-3 border-b">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-sm">Job {idx + 1}: {result.job_id?.substring(0, 12)}...</p>
+                            <p className="text-xs text-gray-600">{result.account_id} • {data.length} linhas</p>
+                          </div>
+                          <Badge>{new Date(result.created_date).toLocaleDateString('pt-BR')}</Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="overflow-x-auto max-h-96">
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="px-2 py-2 text-left font-medium text-gray-700 border-r">#</th>
+                              {columns.map(col => (
+                                <th key={col} className="px-2 py-2 text-left font-medium text-gray-700">
+                                  {col}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {data.map((row, rowIdx) => (
+                              <tr key={rowIdx} className="hover:bg-gray-50">
+                                <td className="px-2 py-2 text-gray-500 border-r">{rowIdx + 1}</td>
+                                {columns.map(col => {
+                                  const value = row[col];
+                                  const isNumeric = !isNaN(parseFloat(value)) && typeof value !== 'object';
+                                  
+                                  return (
+                                    <td key={col} className={`px-2 py-2 ${isNumeric ? 'text-right' : 'text-left'}`}>
+                                      {typeof value === 'object' ? JSON.stringify(value).substring(0, 50) : value}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                            {/* Linha de totais */}
+                            <tr className="bg-blue-50 font-semibold border-t-2 border-blue-200">
+                              <td className="px-2 py-2 text-gray-700 border-r">TOTAL</td>
+                              {columns.map(col => {
+                                const sum = data.reduce((acc, row) => {
+                                  const val = parseFloat(row[col]);
+                                  return !isNaN(val) ? acc + val : acc;
+                                }, 0);
+                                
+                                const isNumeric = data.some(row => !isNaN(parseFloat(row[col])));
+                                
+                                return (
+                                  <td key={col} className={`px-2 py-2 ${isNumeric ? 'text-right' : 'text-left'}`}>
+                                    {isNumeric ? sum.toFixed(2) : '-'}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
           {/* Dialog de Confirmação */}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
