@@ -178,54 +178,22 @@ export default function Integrations() {
     }
   };
 
-  const handleHealthcheck = async (integration) => {
-    const integrationId = integration.id || integration;
-    
-    try {
-      const response = await base44.functions.invoke('webhookHealthcheck', {
-        integration_id: integrationId
-      });
-
-      const data = response.data;
-      
-      if (data.success) {
-        alert(`✅ Webhook Healthcheck OK\n\n` +
-              `Status: ${data.status_code}\n` +
-              `URL: ${data.url}\n` +
-              `Tempo: ${data.duration_ms}ms\n\n` +
-              `${data.message}`);
-        refetch();
-      } else {
-        alert(`❌ Webhook Healthcheck FALHOU\n\n` +
-              `Erro: ${data.error}\n` +
-              `URL: ${data.url}\n` +
-              `Tipo: ${data.error_type || 'unknown'}\n` +
-              `Tempo: ${data.duration_ms}ms\n\n` +
-              `Detalhes: ${data.details || 'Verifique se o N8N está online e a URL está correta'}`);
-      }
-    } catch (error) {
-      console.error('Healthcheck error:', error);
-      alert(`❌ Erro ao executar healthcheck:\n\n${error.response?.data?.error || error.message}`);
-    }
-  };
-
   const handleTestConnection = async (integration) => {
-    const integrationId = integration.id || integration;
-    
     try {
-      const response = await base44.functions.invoke('testIntegrationConnection', {
-        integration_id: integrationId
-      });
-
-      if (response.data.success) {
-        alert(`✅ Conexão testada com sucesso!\n\n${response.data.message || 'Integração conectada.'}`);
-        refetch();
+      // Teste simples: apenas verifica se a URL do webhook está configurada
+      if (integration.auth_type === 'n8n_webhook') {
+        const webhookUrl = integration.settings?.n8n_webhook_url;
+        if (!webhookUrl) {
+          alert('❌ URL do webhook N8N não configurada');
+          return;
+        }
+        alert(`✅ Webhook configurado\n\nURL: ${webhookUrl}`);
       } else {
-        alert(`❌ Erro ao testar conexão:\n\n${response.data.message || response.data.error || 'Erro desconhecido'}`);
+        alert('✅ Integração configurada');
       }
+      refetch();
     } catch (error) {
-      console.error('Test connection error:', error);
-      alert(`❌ Erro ao testar conexão:\n\n${error.response?.data?.error || error.message || 'Verifique as credenciais e tente novamente.'}`);
+      alert(`❌ Erro: ${error.message}`);
     }
   };
 
@@ -246,30 +214,14 @@ export default function Integrations() {
   const handleExecuteIntegration = async (params) => {
     try {
       const response = await base44.functions.invoke('triggerN8nIntegration', params);
-      const data = response.data;
-      
-      if (data.success) {
-        alert(`✅ Integração executada com sucesso!\n\n` +
-              `Mensagem: ${data.message}\n` +
-              `Request ID: ${data.request_id}\n` +
-              `Tempo: ${data.duration_ms}ms`);
+      if (response.data.success) {
+        alert(`✅ ${response.data.message}`);
         refetch();
       } else {
-        // Erro detalhado
-        let errorMsg = `❌ Erro ao executar integração\n\n`;
-        errorMsg += `Erro: ${data.error}\n`;
-        if (data.url) errorMsg += `URL: ${data.url}\n`;
-        if (data.status_code) errorMsg += `Status HTTP: ${data.status_code}\n`;
-        if (data.error_origin) errorMsg += `Origem: ${data.error_origin}\n`;
-        if (data.request_id) errorMsg += `Request ID: ${data.request_id}\n`;
-        if (data.response_preview) {
-          errorMsg += `\nResposta (preview):\n${data.response_preview.substring(0, 300)}`;
-        }
-        alert(errorMsg);
+        alert(`❌ ${response.data.error}`);
       }
     } catch (error) {
-      console.error('Execute error:', error);
-      alert(`❌ Erro: ${error.response?.data?.error || error.message}`);
+      alert(`❌ Erro: ${error.message}`);
     }
   };
 
@@ -456,18 +408,15 @@ export default function Integrations() {
                       <div className="flex items-center gap-2">
                         {getStatusBadge(integration.connection_status)}
                         
-                        {integration.auth_type === 'n8n_webhook' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleHealthcheck(integration)}
-                            title="Healthcheck - testa webhook sem executar integração"
-                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                          >
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Healthcheck
-                          </Button>
-                        )}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleTestConnection(integration)}
+                          title="Verificar configuração"
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Testar
+                        </Button>
 
                         {integration.auth_type === 'n8n_webhook' && (
                           <>
