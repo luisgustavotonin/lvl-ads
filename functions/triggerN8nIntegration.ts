@@ -34,14 +34,17 @@ Deno.serve(async (req) => {
         }
 
         // Buscar integração
-        const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
+        const integrations = await base44.asServiceRole.entities.Integration.filter({ id: integration_id });
         
-        if (!integration) {
+        if (integrations.length === 0) {
             return Response.json({ 
                 success: false, 
                 error: 'Integração não encontrada' 
             }, { status: 404 });
         }
+        
+        const integration = integrations[0];
+
 
         if (integration.auth_type !== 'n8n_webhook') {
             return Response.json({ 
