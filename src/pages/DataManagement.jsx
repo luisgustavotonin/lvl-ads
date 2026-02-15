@@ -831,6 +831,29 @@ export default function DataManagement() {
                           })}
                         </tr>
                       ))}
+                      {/* Linha de totais */}
+                      <tr className="bg-blue-50 font-semibold border-t-2 border-blue-200">
+                        <td className="px-2 py-2 text-gray-700" colSpan={2}>TOTAL</td>
+                        {availableColumns.filter(col => visibleColumns[col] !== false).map(col => {
+                          const colDef = CAMPAIGN_COLUMNS.find(c => c.key === col);
+                          const isNumeric = colDef && ['number', 'currency', 'decimal'].includes(colDef.type);
+                          
+                          if (!isNumeric) {
+                            return <td key={col} className="px-2 py-2 text-center">-</td>;
+                          }
+                          
+                          const sum = paginatedData.reduce((acc, row) => {
+                            const val = parseFloat(row[col]);
+                            return !isNaN(val) ? acc + val : acc;
+                          }, 0);
+                          
+                          return (
+                            <td key={col} className="px-2 py-2 text-right">
+                              {formatValue(sum, colDef.type)}
+                            </td>
+                          );
+                        })}
+                      </tr>
                     </tbody>
                   </table>
                 </div>
