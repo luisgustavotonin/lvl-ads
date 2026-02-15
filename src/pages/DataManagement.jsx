@@ -125,18 +125,19 @@ export default function DataManagement() {
     queryFn: () => base44.entities.Unit.list(),
   });
 
-  const { data: allJobResults = [], refetch: refetchMetrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ['metaJobResults', selectedUnit, dateFrom, dateTo],
+  const { data: allRuns = [], refetch: refetchMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['runs', selectedUnit, dateFrom, dateTo],
     queryFn: async () => {
       if (selectedUnit === 'all') {
         return [];
       }
 
-      const filters = { unit_id: selectedUnit };
+      let filters = { unit_id: selectedUnit };
       
-      // Filtros de data virão depois quando tivermos campo de data no result
+      if (dateFrom) filters.date_start = { $gte: dateFrom };
+      if (dateTo) filters.date_end = { $lte: dateTo };
       
-      return base44.entities.MetaJobsResults.filter(filters, '-created_date', 1000);
+      return base44.entities.Run.filter(filters, '-created_date', 1000);
     },
     enabled: selectedUnit !== 'all',
   });
@@ -159,9 +160,9 @@ export default function DataManagement() {
       return [];
     }
     
-    return allJobResults.filter(r => {
+    return allRuns.filter(r => {
       const matchUnit = r.unit_id === selectedUnit;
-      const matchPlatform = selectedPlatform === 'all' || selectedPlatform === 'META';
+      const matchPlatform = selectedPlatform === 'all' || r.platform === selectedPlatform;
       
       return matchUnit && matchPlatform;
     });
@@ -210,48 +211,31 @@ export default function DataManagement() {
   const filtered = getFilteredResults();
   const sorted = getSortedResults();
 
-  // Consolidar dados de todos os jobs em uma única lista
+  // Buscar dados detalhados dos RUNs filtrados
+  const { data: detailedData = [] } = useQuery({
+    queryKey: ['runDetails', filtered.map(r => r.run_id)],
+    queryFn: async () => {
+      if (filtered.length === 0) return [];
+      
+      const runIds = filtered.map(r => r.run_id);
+      const data = await base44.entities.MetaAdDaily.filter({
+        run_id: { $in: runIds },
+        unit_id: selectedUnit
+      }, '-date', 10000);
+      
+      return data;
+    },
+    enabled: filtered.length > 0 && selectedUnit !== 'all',
+  });
+
   const consolidatedData = useMemo(() => {
-    const allRows = [];
-    
-    filtered.forEach(result => {
-      const data = result.result_json?.data || [];
-      if (Array.isArray(data)) {
-        data.forEach(row => {
-          if (dateFrom || dateTo) {
-            if (dateFilterType === 'ad_date') {
-              const rowDate = normalizeDate(row.date || row.date_start);
-              const rowDateEnd = normalizeDate(row.date_stop || row.date);
-              
-              if (!rowDate) return;
-              
-              const filterStart = normalizeDate(dateFrom);
-              const filterEnd = normalizeDate(dateTo);
-              
-              if (filterStart && rowDate < filterStart) return;
-              if (filterEnd && (rowDateEnd || rowDate) > filterEnd) return;
-            } else if (dateFilterType === 'job_created') {
-              const jobDate = normalizeDate(result.created_date);
-              if (!jobDate) return;
-              
-              const filterStart = normalizeDate(dateFrom);
-              const filterEnd = normalizeDate(dateTo);
-              
-              if (filterStart && jobDate < filterStart) return;
-              if (filterEnd && jobDate > filterEnd) return;
-            }
-          }
-          
-          allRows.push({
-            ...row,
-            _job_id: result.job_id,
-            _created_at: result.created_date,
-          });
-        });
-      }
-    });
-    return allRows;
-  }, [filtered, dateFrom, dateTo, dateFilterType]);
+    return detailedData.map(row => ({
+      ...row,
+      _run_id: row.run_id,
+      _job_id: row.job_id,
+      _created_at: row.imported_at_utc || row.created_date
+    }));
+  }, [detailedData]);
 
   // Ordenar dados consolidados
   const sortedConsolidatedData = useMemo(() => {
@@ -285,10 +269,9 @@ export default function DataManagement() {
   }, [consolidatedData]);
 
   const deleteMetricsMutation = useMutation({
-    mutationFn: async ({ jobIds, unitId }) => {
-      // Usar função de exclusão em cascata
-      const response = await base44.functions.invoke('deleteJobCascade', {
-        job_ids: jobIds,
+    mutationFn: async ({ runIds, unitId }) => {
+      const response = await base44.functions.invoke('deleteRunCascade', {
+        run_ids: runIds,
         unit_id: unitId
       });
       
@@ -299,8 +282,8 @@ export default function DataManagement() {
       return response.data.deleted;
     },
     onSuccess: (deleted) => {
-      // Invalidar todas as queries relacionadas
-      queryClient.invalidateQueries({ queryKey: ['metaJobResults'] });
+      // Invalidar TODAS as queries
+      queryClient.invalidateQueries({ queryKey: ['runs'] });
       queryClient.invalidateQueries({ queryKey: ['currentMetrics'] });
       queryClient.invalidateQueries({ queryKey: ['previousMetrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
@@ -309,7 +292,7 @@ export default function DataManagement() {
       setSelectedMetrics([]);
       setDeletingItemId(null);
       
-      toast.success(`Exclusão concluída: ${deleted.jobs} jobs, ${deleted.ad_daily} registros detalhados excluídos!`, {
+      toast.success(`✅ Exclusão completa: ${deleted.runs} runs, ${deleted.jobs} jobs, ${deleted.ad_daily} registros excluídos!`, {
         duration: 5000
       });
     },

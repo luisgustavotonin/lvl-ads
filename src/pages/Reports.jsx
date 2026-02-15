@@ -97,12 +97,22 @@ export default function Reports() {
         if (!selectedUnit) return [];
         if (!selectedPlatforms.includes('META')) return [];
         
-        // Normalizar datas para YYYY-MM-DD às 00:00:00
         const startDate = format(period.start, 'yyyy-MM-dd');
         const endDate = format(period.end, 'yyyy-MM-dd');
         
+        // Buscar runs ativos da unidade
+        const runs = await base44.entities.Run.filter({
+          unit_id: selectedUnit,
+          status: { $in: ['success', 'partial'] }
+        });
+        
+        if (runs.length === 0) return [];
+        
+        const runIds = runs.map(r => r.run_id);
+        
         const data = await base44.entities.MetaAdDaily.filter({
           unit_id: selectedUnit,
+          run_id: { $in: runIds },
           date: { 
             $gte: startDate, 
             $lte: endDate
@@ -134,12 +144,22 @@ export default function Reports() {
         if (!selectedUnit) return [];
         if (!selectedPlatforms.includes('META')) return [];
         
-        // Normalizar datas para YYYY-MM-DD
         const startDate = format(previousPeriod.start, 'yyyy-MM-dd');
         const endDate = format(previousPeriod.end, 'yyyy-MM-dd');
         
+        // Buscar runs ativos da unidade
+        const runs = await base44.entities.Run.filter({
+          unit_id: selectedUnit,
+          status: { $in: ['success', 'partial'] }
+        });
+        
+        if (runs.length === 0) return [];
+        
+        const runIds = runs.map(r => r.run_id);
+        
         const data = await base44.entities.MetaAdDaily.filter({
           unit_id: selectedUnit,
+          run_id: { $in: runIds },
           date: { 
             $gte: startDate, 
             $lte: endDate

@@ -63,11 +63,20 @@ export default function Dashboard() {
     queryKey: ['dashboardMetrics', period.start, period.end],
     queryFn: async () => {
       try {
-        // Normalizar datas para YYYY-MM-DD
         const startDate = format(period.start, 'yyyy-MM-dd');
         const endDate = format(period.end, 'yyyy-MM-dd');
         
+        // Buscar apenas runs ativos da unidade
+        const runs = await base44.entities.Run.filter({
+          status: { $in: ['success', 'partial'] }
+        });
+        
+        if (runs.length === 0) return [];
+        
+        const runIds = runs.map(r => r.run_id);
+        
         const data = await base44.entities.MetaAdDaily.filter({
+          run_id: { $in: runIds },
           date: { 
             $gte: startDate, 
             $lte: endDate
@@ -79,7 +88,7 @@ export default function Dashboard() {
         return [];
       }
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
     retry: 1,
   });
