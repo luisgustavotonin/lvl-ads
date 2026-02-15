@@ -246,6 +246,7 @@ Deno.serve(async (req) => {
 
         // Processar anúncios com UPSERT (idempotência)
         let adsUpserted = 0;
+        let rawEventsSaved = 0;
 
         for (const ad of ads) {
             const { 
@@ -323,7 +324,34 @@ Deno.serve(async (req) => {
                 run_id: run_id || ''
             };
 
-            // UPSERT: buscar existente por chave única (unit_id, account_id, ad_id, date)
+            // 1️⃣ SALVAR RAW EVENT PRIMEIRO (novo - garantia)
+            try {
+                const event_id = crypto.randomUUID();
+                const payloadHash = await crypto.subtle.digest(
+                    'MD5',
+                    new TextEncoder().encode(JSON.stringify(ad))
+                ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''));
+
+                await base44.asServiceRole.entities.RawEvent.create({
+                    event_id,
+                    received_at_utc: new Date().toISOString(),
+                    unit_id,
+                    platform: 'META',
+                    run_id: run_id || '',
+                    job_id: integration_id, // usar integration_id como job_id temporariamente
+                    job_type: 'META_DAILY',
+                    payload: ad,
+                    payload_hash: payloadHash,
+                    source: 'n8n',
+                    row_index: adsUpserted
+                });
+                rawEventsSaved++;
+            } catch (rawError) {
+                console.warn(`⚠️ Falha ao salvar RawEvent para ad ${ad_id}:`, rawError.message);
+                // Não bloqueia o fluxo
+            }
+
+            // 2️⃣ UPSERT na tabela consolidada (mantém compatibilidade)
             const existing = await base44.asServiceRole.entities.MetaAdDaily.filter({
                 unit_id: unit_id,
                 account_id: account_id,
@@ -385,7 +413,7 @@ Deno.serve(async (req) => {
             status: 'sucesso',
             httpStatusCode: 200,
             durationMs: durationMs,
-            notes: `${adsUpserted} anúncios processados`
+            notes: `${adsUpserted} anúncios processados, ${rawEventsSaved} raw events salvos`
         });
 
         return Response.json({
@@ -395,6 +423,7 @@ Deno.serve(async (req) => {
             batch_total: batch_total,
             ads_received: ads.length,
             ads_upserted: adsUpserted,
+            raw_events_saved: rawEventsSaved,
             aggregation_triggered: isLastBatch,
             requestId: requestId,
             processed_at: getBrasiliaDate().toISOString()
