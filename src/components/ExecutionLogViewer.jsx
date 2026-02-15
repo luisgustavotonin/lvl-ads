@@ -70,7 +70,16 @@ export default function ExecutionLogViewer({ unitId, logType = null, limit: defa
           </thead>
           <tbody className="divide-y">
             {logs.map((log) => {
+              // Converter UTC para timezone local (America/Sao_Paulo)
               const executionDate = new Date(log.execution_time);
+              const localDate = executionDate.toLocaleDateString('pt-BR', { 
+                timeZone: 'America/Sao_Paulo'
+              });
+              const localTime = executionDate.toLocaleTimeString('pt-BR', { 
+                timeZone: 'America/Sao_Paulo',
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
               
               // Priorizar novos campos, fallback para antigos
               const executionType = log.execution_type || log.trigger_type;
@@ -94,10 +103,10 @@ export default function ExecutionLogViewer({ unitId, logType = null, limit: defa
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-gray-600">
-                    {executionDate.toLocaleDateString('pt-BR')}
+                    {localDate}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
-                    {executionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    {localTime}
                   </td>
                   <td className="px-4 py-3">
                     <Badge className={statusBadge.className}>

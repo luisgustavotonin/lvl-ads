@@ -46,6 +46,19 @@ Deno.serve(async (req) => {
             console.log(`⏳ [${i + 1}/${scheduledIntegrations.length}] Executando: ${integration.account_name || integration.integration_purpose}`);
 
             try {
+                // Criar log de execução agendada
+                const executionLog = await base44.asServiceRole.entities.ExecutionLog.create({
+                    unit_id: integration.unit_id,
+                    log_type: 'integration_execution',
+                    execution_type: 'scheduled',
+                    execution_status: 'completed',
+                    execution_time: new Date().toISOString(), // UTC
+                    integration_id: integration.id,
+                    platform: integration.platform_id,
+                    message: `Execução agendada às ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}`,
+                    records_processed: 0
+                });
+
                 // Invocar a função de trigger para esta integração
                 const response = await base44.asServiceRole.functions.invoke('triggerN8nIntegration', {
                     integration_id: integration.id,
@@ -57,7 +70,7 @@ Deno.serve(async (req) => {
                     integration_id: integration.id,
                     account_name: integration.account_name,
                     status: 'success',
-                    execution_log_id: response.data?.execution_log_id
+                    execution_log_id: executionLog.id
                 });
 
                 // Atualizar última execução da integração
@@ -70,6 +83,19 @@ Deno.serve(async (req) => {
 
             } catch (error) {
                 console.error(`❌ Erro na integração ${integration.id}:`, error.message);
+                
+                // Criar log de erro para execução agendada
+                await base44.asServiceRole.entities.ExecutionLog.create({
+                    unit_id: integration.unit_id,
+                    log_type: 'integration_execution',
+                    execution_type: 'scheduled',
+                    execution_status: 'failed',
+                    execution_time: new Date().toISOString(),
+                    integration_id: integration.id,
+                    platform: integration.platform_id,
+                    error_details: error.message,
+                    message: 'Erro na execução agendada'
+                });
                 
                 results.push({
                     integration_id: integration.id,

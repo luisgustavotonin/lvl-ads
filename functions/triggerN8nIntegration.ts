@@ -69,13 +69,15 @@ Deno.serve(async (req) => {
         };
         const provider = providerMap[integration.platform_id] || 'meta';
 
-        // Criar log de execução
+        // Criar log de execução (SEMPRE em UTC)
         const executionLog = await base44.asServiceRole.entities.ExecutionLog.create({
             unit_id: integration.unit_id,
             log_type: 'integration_execution',
-            status: 'pending',
-            trigger_type: 'manual',
-            execution_time: getBrasiliaDate().toISOString(),
+            execution_type: 'manual',
+            execution_status: 'completed',
+            status: 'pending', // deprecated
+            trigger_type: 'manual', // deprecated
+            execution_time: new Date().toISOString(), // UTC correto
             integration_id: integration_id,
             platform: integration.platform_id,
             message: `Integração ${integration.account_name} disparada manualmente`,
@@ -153,7 +155,8 @@ Deno.serve(async (req) => {
         if (!n8nResponse.ok) {
             const errorText = await n8nResponse.text();
             await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
-                status: 'error',
+                execution_status: 'failed',
+                status: 'error', // deprecated
                 error_details: `N8n returned ${n8nResponse.status}: ${errorText}`
             });
 
@@ -163,9 +166,11 @@ Deno.serve(async (req) => {
             }, { status: 500 });
         }
 
-        // Atualizar log como agendado
+        // Atualizar log como executado com sucesso
         await base44.asServiceRole.entities.ExecutionLog.update(executionLog.id, {
-            status: 'scheduled'
+            execution_status: 'completed',
+            status: 'success', // deprecated
+            message: `Integração executada com sucesso`
         });
 
         const n8nData = await n8nResponse.json();
