@@ -227,24 +227,57 @@ export default function DataManagement() {
   const filtered = getFilteredResults();
   const sorted = getSortedResults();
 
-  // Buscar dados detalhados dos RUNs filtrados
-  const { data: detailedData = [] } = useQuery({
-    queryKey: ['runDetails', filtered.map(r => r.run_id)],
+  // Buscar dados RAW dos RUNs filtrados (fonte primária)
+  const { data: rawData = [] } = useQuery({
+    queryKey: ['rawEvents', filtered.map(r => r.run_id)],
     queryFn: async () => {
       if (filtered.length === 0) return [];
       
       const runIds = filtered.map(r => r.run_id);
-      const data = await base44.entities.MetaAdDaily.filter({
+      const data = await base44.entities.RawEvent.filter({
         run_id: { $in: runIds },
         unit_id: selectedUnit
-      }, '-date', 10000);
+      }, '-received_at_utc', 10000);
       
       return data;
     },
     enabled: filtered.length > 0 && selectedUnit !== 'all',
   });
 
-  const consolidatedData = useMemo(() => {
+  // Buscar dados consolidados (fallback para RAW se não existir)
+  const { data: consolidatedData = [] } = useQuery({
+    queryKey: ['consolidatedData', filtered.map(r => r.run_id)],
+    queryFn: async () => {
+      if (filtered.length === 0) return [];
+      
+      const runIds = filtered.map(r => r.run_id);
+      
+      // Tentar MetaAdDaily primeiro
+      try {
+        const data = await base44.entities.MetaAdDaily.filter({
+          run_id: { $in: runIds },
+          unit_id: selectedUnit
+        }, '-date', 10000);
+        return data;
+      } catch {
+        return [];
+      }
+    },
+    enabled: filtered.length > 0 && selectedUnit !== 'all',
+  });
+
+  // Usar RAW como fonte principal, consolidado como alternativa
+  const detailedData = rawData.length > 0 
+    ? rawData.map(r => ({ ...r.payload, _event_id: r.event_id, _job_id: r.job_id, _created_at: r.received_at_utc }))
+    : consolidatedData;
+
+  const finalData = useMemo(() => {
+    if (!detailedData || detailedData.length === 0) return [];
+    
+    // Se já está mapeado (do RAW), retornar direto
+    if (detailedData[0]?._event_id) return detailedData;
+    
+    // Senão, é consolidado - adicionar metadados
     return detailedData.map(row => ({
       ...row,
       _run_id: row.run_id,
@@ -255,7 +288,7 @@ export default function DataManagement() {
 
   // Ordenar dados consolidados
   const sortedConsolidatedData = useMemo(() => {
-    const sorted = [...consolidatedData].sort((a, b) => {
+    const sorted = [...finalData].sort((a, b) => {
       let aVal = a[detailedSortField];
       let bVal = b[detailedSortField];
 
@@ -268,7 +301,7 @@ export default function DataManagement() {
       return detailedSortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
     });
     return sorted;
-  }, [consolidatedData, detailedSortField, detailedSortDirection]);
+  }, [finalData, detailedSortField, detailedSortDirection]);
 
   // Paginação
   const totalPages = Math.ceil(sortedConsolidatedData.length / pageSize);
@@ -279,10 +312,10 @@ export default function DataManagement() {
 
   // Obter colunas disponíveis dos dados consolidados
   const availableColumns = useMemo(() => {
-    if (consolidatedData.length === 0) return [];
-    const firstRow = consolidatedData[0];
+    if (finalData.length === 0) return [];
+    const firstRow = finalData[0];
     return Object.keys(firstRow).filter(k => !k.startsWith('_'));
-  }, [consolidatedData]);
+  }, [finalData]);
 
   const deleteMetricsMutation = useMutation({
     mutationFn: async ({ runIds, unitId }) => {
@@ -730,7 +763,9 @@ export default function DataManagement() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">Dados Detalhados - Visualização Consolidada</CardTitle>
+              <CardTitle className="text-lg">
+                Dados Detalhados - {rawData.length > 0 ? '📦 RAW' : '📊 Consolidado'}
+              </CardTitle>
               <div className="flex gap-2 items-center">
                 <Sheet>
                   <SheetTrigger asChild>
@@ -784,12 +819,21 @@ export default function DataManagement() {
                 <Database className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-medium">Selecione uma unidade para visualizar</p>
               </div>
-            ) : consolidatedData.length === 0 ? (
+            ) : finalData.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
                 <p className="text-lg font-medium">Nenhum dado encontrado</p>
-                <p className="text-sm mt-2">Os RUNs foram criados mas não persistiram dados detalhados</p>
-                <p className="text-xs mt-2 text-gray-400">Verifique a aba "Jobs" para ver erros</p>
+                <p className="text-sm mt-2">RUNs criados mas sem dados RAW ou consolidados</p>
+                <div className="mt-4 text-xs text-left max-w-md mx-auto bg-gray-50 p-3 rounded">
+                  <p className="font-semibold mb-2">Debug checklist:</p>
+                  <ul className="space-y-1 text-gray-600">
+                    <li>• Verifique aba "Jobs" para ver status e erros</li>
+                    <li>• Confirme se webhook do n8n está chegando</li>
+                    <li>• Verifique se função ingestRawData foi chamada</li>
+                    <li>• Total de RUNs: {filtered.length}</li>
+                    <li>• Total de Jobs: {allJobs.length}</li>
+                  </ul>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -801,11 +845,14 @@ export default function DataManagement() {
                   <table className="w-full text-xs">
                     <thead className="bg-gray-50 border-b sticky top-0">
                       <tr>
+                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_event_id')}>
+                          {rawData.length > 0 ? 'Event ID' : 'Record ID'} <DetailedSortIcon field="_event_id" />
+                        </th>
                         <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_job_id')}>
                           Job ID <DetailedSortIcon field="_job_id" />
                         </th>
                         <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_created_at')}>
-                          Created At <DetailedSortIcon field="_created_at" />
+                          Timestamp <DetailedSortIcon field="_created_at" />
                         </th>
                         {availableColumns.filter(col => visibleColumns[col] !== false).map(col => (
                           <th key={col} className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort(col)}>
@@ -817,6 +864,9 @@ export default function DataManagement() {
                     <tbody className="divide-y">
                       {paginatedData.map((row, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-2 py-2 text-gray-600 font-mono text-[10px]">
+                            {(row._event_id || row.id || idx)?.toString().substring(0, 12)}...
+                          </td>
                           <td className="px-2 py-2 text-gray-600 font-mono text-[10px]">
                             {row._job_id?.substring(0, 12)}...
                           </td>
@@ -844,7 +894,7 @@ export default function DataManagement() {
                       ))}
                       {/* Linha de totais */}
                       <tr className="bg-blue-50 font-semibold border-t-2 border-blue-200">
-                        <td className="px-2 py-2 text-gray-700" colSpan={2}>TOTAL</td>
+                        <td className="px-2 py-2 text-gray-700" colSpan={3}>TOTAL</td>
                         {availableColumns.filter(col => visibleColumns[col] !== false).map(col => {
                           const colDef = CAMPAIGN_COLUMNS.find(c => c.key === col);
                           const isNumeric = colDef && ['number', 'currency', 'decimal'].includes(colDef.type);
