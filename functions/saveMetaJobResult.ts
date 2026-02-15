@@ -3,9 +3,20 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const payload = await req.json();
+        let rawPayload = await req.json();
 
-        const { job_id, unit_id, account_id, result_json, row_count, payload_hash } = payload;
+        // N8n pode enviar array ou objeto - normalizar
+        if (Array.isArray(rawPayload)) {
+            if (rawPayload.length === 0) {
+                return Response.json({ 
+                    ok: false, 
+                    error: { message: 'Payload array está vazio', code: 'EMPTY_ARRAY' } 
+                }, { status: 400 });
+            }
+            rawPayload = rawPayload[0];
+        }
+
+        const { job_id, unit_id, account_id, result_json, row_count, payload_hash } = rawPayload;
 
         if (!job_id || !unit_id || !account_id || !result_json) {
             return Response.json({ 
