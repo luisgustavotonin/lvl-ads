@@ -4,6 +4,13 @@ Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         const payload = await req.json();
+        
+        console.log('🟢 ========== N8N CHAMOU enqueueMetaJob ==========');
+        console.log('🟢 Job Type:', payload.job_type);
+        console.log('🟢 Breakdown:', payload.breakdown || 'NENHUM');
+        console.log('🟢 Date Mode:', payload.date_mode);
+        console.log('🟢 Payload COMPLETO:', JSON.stringify(payload, null, 2));
+        console.log('🟢 ================================================');
 
         // Validar campos obrigatórios
         const required = ['job_id', 'unit_id', 'account_id', 'access_token', 'job_type', 'date_mode'];

@@ -63,12 +63,10 @@ Deno.serve(async (req) => {
             until: date_mode === 'CUSTOM' ? until : null
         };
 
-        console.log('🔵 Enviando para webhook:', {
-            url: webhookUrl,
-            date_mode: payload.date_mode,
-            since: payload.since,
-            until: payload.until
-        });
+        console.log('🔵 ========== ENVIANDO PARA N8N ==========');
+        console.log('🔵 URL:', webhookUrl);
+        console.log('🔵 Payload COMPLETO:', JSON.stringify(payload, null, 2));
+        console.log('🔵 ==========================================');
 
         const response = await fetch(webhookUrl, {
             method: 'POST',
