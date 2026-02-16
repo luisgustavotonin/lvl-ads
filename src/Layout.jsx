@@ -19,7 +19,8 @@ import {
   X,
   LogOut,
   Bell,
-  Activity
+  Activity,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +42,7 @@ const navigation = [
   { name: 'Usuários', href: 'Users', icon: Users },
   { name: 'Gestão de Dados', href: 'DataManagement', icon: Database },
   { name: 'Gestão de Fila', href: 'QueueManagement', icon: Activity },
+  { name: 'Debug – Enqueue', href: 'DebugEnqueue', icon: Search },
   { name: 'Configurações', href: 'Settings', icon: Settings },
 ];
 
