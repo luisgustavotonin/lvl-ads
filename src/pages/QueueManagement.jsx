@@ -123,12 +123,29 @@ export default function QueueManagement() {
 
   const bulkDeleteSelectedMutation = useMutation({
     mutationFn: async (jobIds) => {
-      await Promise.all(jobIds.map(id => base44.entities.MetaJobsQueue.delete(id)));
+      // Filtrar apenas jobs que podem ser deletados (não processing)
+      const jobsToDelete = jobIds.filter(id => {
+        const job = jobs.find(j => j.id === id);
+        return job && canDelete(job);
+      });
+      
+      if (jobsToDelete.length > 0) {
+        await Promise.all(jobsToDelete.map(id => base44.entities.MetaJobsQueue.delete(id)));
+      }
+      
+      return {
+        deleted: jobsToDelete.length,
+        skipped: jobIds.length - jobsToDelete.length
+      };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries(['metaJobsQueue']);
       setSelectedJobs([]);
       setDeleteDialog({ ...deleteDialog, open: false });
+      
+      if (result.skipped > 0) {
+        alert(`${result.deleted} jobs excluídos. ${result.skipped} jobs em processamento foram ignorados.`);
+      }
     }
   });
 
@@ -173,10 +190,10 @@ export default function QueueManagement() {
     }
   };
 
-  const selectedCanDelete = selectedJobs.every(id => {
+  const selectedDeletableCount = selectedJobs.filter(id => {
     const job = jobs.find(j => j.id === id);
     return job && canDelete(job);
-  });
+  }).length;
 
   return (
     <div className="space-y-6">
@@ -309,10 +326,10 @@ export default function QueueManagement() {
           <Button
             variant="destructive"
             onClick={() => setDeleteDialog({ open: true, type: 'selected', id: null })}
-            disabled={!selectedCanDelete}
+            disabled={selectedDeletableCount === 0}
           >
             <Trash2 className="w-4 h-4 mr-2" />
-            Excluir Selecionados ({selectedJobs.length})
+            Excluir Selecionados ({selectedDeletableCount}/{selectedJobs.length})
           </Button>
         )}
         <Button
@@ -465,7 +482,11 @@ export default function QueueManagement() {
                 <span>Tem certeza que deseja excluir <strong>todos os jobs criados há mais de {deleteDialog.days} dias</strong> (exceto os que estão processando)? Esta ação não pode ser desfeita.</span>
               )}
               {deleteDialog.type === 'selected' && (
-                <span>Tem certeza que deseja excluir <strong>{selectedJobs.length} jobs selecionados</strong>? Esta ação não pode ser desfeita.</span>
+                <span>Tem certeza que deseja excluir <strong>{selectedDeletableCount} jobs selecionados</strong>? 
+                {selectedDeletableCount < selectedJobs.length && (
+                  <span className="text-yellow-600"> ({selectedJobs.length - selectedDeletableCount} jobs em processamento serão ignorados)</span>
+                )}
+                Esta ação não pode ser desfeita.</span>
               )}
               {deleteDialog.type === 'single' && (
                 <span>Tem certeza que deseja excluir este job? Esta ação não pode ser desfeita.</span>
