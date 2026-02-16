@@ -89,7 +89,20 @@ export default function QueueManagement() {
     mutationFn: async (jobId) => {
       return base44.entities.MetaJobsQueue.delete(jobId);
     },
-    onSuccess: () => queryClient.invalidateQueries(['metaJobsQueue'])
+    onSuccess: () => {
+      queryClient.invalidateQueries(['metaJobsQueue']);
+      setDeleteDialog({ ...deleteDialog, open: false });
+    }
+  });
+
+  const forceDeleteJobMutation = useMutation({
+    mutationFn: async (jobId) => {
+      return base44.entities.MetaJobsQueue.delete(jobId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['metaJobsQueue']);
+      setDeleteDialog({ ...deleteDialog, open: false });
+    }
   });
 
   const bulkDeleteQueuedMutation = useMutation({
@@ -146,6 +159,18 @@ export default function QueueManagement() {
       if (result.skipped > 0) {
         alert(`${result.deleted} jobs excluídos. ${result.skipped} jobs em processamento foram ignorados.`);
       }
+    }
+  });
+
+  const forceDeleteSelectedMutation = useMutation({
+    mutationFn: async (jobIds) => {
+      await Promise.all(jobIds.map(id => base44.entities.MetaJobsQueue.delete(id)));
+      return jobIds.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries(['metaJobsQueue']);
+      setSelectedJobs([]);
+      setDeleteDialog({ ...deleteDialog, open: false });
     }
   });
 
@@ -323,14 +348,25 @@ export default function QueueManagement() {
       {/* Bulk Actions */}
       <div className="flex gap-2">
         {selectedJobs.length > 0 && (
-          <Button
-            variant="destructive"
-            onClick={() => setDeleteDialog({ open: true, type: 'selected', id: null })}
-            disabled={selectedDeletableCount === 0}
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Excluir Selecionados ({selectedDeletableCount}/{selectedJobs.length})
-          </Button>
+          <>
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteDialog({ open: true, type: 'selected', id: null })}
+              disabled={selectedDeletableCount === 0}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir Selecionados ({selectedDeletableCount}/{selectedJobs.length})
+            </Button>
+            {selectedDeletableCount < selectedJobs.length && (
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteDialog({ open: true, type: 'force_selected', id: null })}
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Forçar Exclusão de Todos ({selectedJobs.length})
+              </Button>
+            )}
+          </>
         )}
         <Button
           variant="destructive"
@@ -446,15 +482,25 @@ export default function QueueManagement() {
                           >
                             <Ban className="w-3 h-3" />
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setDeleteDialog({ open: true, type: 'single', id: job.id })}
-                            disabled={!canDelete(job)}
-                            title="Excluir Job"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          {canDelete(job) ? (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setDeleteDialog({ open: true, type: 'single', id: job.id })}
+                              title="Excluir Job"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setDeleteDialog({ open: true, type: 'force_single', id: job.id })}
+                              title="Forçar Exclusão (Job em Processamento)"
+                            >
+                              <AlertTriangle className="w-3 h-3" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -488,8 +534,18 @@ export default function QueueManagement() {
                 )}
                 Esta ação não pode ser desfeita.</span>
               )}
+              {deleteDialog.type === 'force_selected' && (
+                <span className="text-red-600">
+                  <strong>⚠️ ATENÇÃO:</strong> Você está prestes a <strong>forçar a exclusão de {selectedJobs.length} jobs</strong>, incluindo {selectedJobs.length - selectedDeletableCount} jobs em processamento. Isso pode causar inconsistências. Esta ação não pode ser desfeita.
+                </span>
+              )}
               {deleteDialog.type === 'single' && (
                 <span>Tem certeza que deseja excluir este job? Esta ação não pode ser desfeita.</span>
+              )}
+              {deleteDialog.type === 'force_single' && (
+                <span className="text-red-600">
+                  <strong>⚠️ ATENÇÃO:</strong> Este job está em processamento. Forçar a exclusão pode causar inconsistências. Tem certeza?
+                </span>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -503,14 +559,17 @@ export default function QueueManagement() {
                   bulkDeleteOldMutation.mutate(deleteDialog.days);
                 } else if (deleteDialog.type === 'selected') {
                   bulkDeleteSelectedMutation.mutate(selectedJobs);
+                } else if (deleteDialog.type === 'force_selected') {
+                  forceDeleteSelectedMutation.mutate(selectedJobs);
                 } else if (deleteDialog.type === 'single') {
                   deleteJobMutation.mutate(deleteDialog.id);
-                  setDeleteDialog({ ...deleteDialog, open: false });
+                } else if (deleteDialog.type === 'force_single') {
+                  forceDeleteJobMutation.mutate(deleteDialog.id);
                 }
               }}
               className="bg-red-600 hover:bg-red-700"
             >
-              Excluir
+              {deleteDialog.type?.includes('force') ? 'Forçar Exclusão' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
