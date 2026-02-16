@@ -59,7 +59,6 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
-import DebugEnqueue from './pages/DebugEnqueue';
 import __Layout from './Layout.jsx';
 
 
@@ -76,7 +75,6 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
-    "DebugEnqueue": DebugEnqueue,
 }
 
 export const pagesConfig = {
