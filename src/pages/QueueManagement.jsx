@@ -12,6 +12,20 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Clock, Database, CheckCircle, XCircle, Loader2, RotateCcw, Trash2, Ban, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
+// Função para formatar data no fuso horário de São Paulo
+const formatDateBR = (dateString) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+};
+
 export default function QueueManagement() {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({
@@ -457,10 +471,10 @@ export default function QueueManagement() {
                         <Badge variant="outline">{job.attempts || 0}</Badge>
                       </TableCell>
                       <TableCell className="text-xs">
-                        {job.created_date ? format(new Date(job.created_date), 'dd/MM/yyyy HH:mm') : '-'}
+                        {formatDateBR(job.created_date)}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {job.locked_until ? format(new Date(job.locked_until), 'dd/MM/yyyy HH:mm') : '-'}
+                        {formatDateBR(job.locked_until)}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
