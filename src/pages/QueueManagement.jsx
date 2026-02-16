@@ -21,6 +21,7 @@ export default function QueueManagement() {
     account_id: ''
   });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, type: '', id: null, days: 7 });
+  const [selectedJobs, setSelectedJobs] = useState([]);
 
   // Fetch jobs
   const { data: jobs = [], isLoading } = useQuery({
@@ -120,6 +121,17 @@ export default function QueueManagement() {
     }
   });
 
+  const bulkDeleteSelectedMutation = useMutation({
+    mutationFn: async (jobIds) => {
+      await Promise.all(jobIds.map(id => base44.entities.MetaJobsQueue.delete(id)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['metaJobsQueue']);
+      setSelectedJobs([]);
+      setDeleteDialog({ ...deleteDialog, open: false });
+    }
+  });
+
   const getStatusBadge = (status) => {
     const variants = {
       queued: { color: 'bg-blue-100 text-blue-800', icon: Clock },
@@ -143,6 +155,28 @@ export default function QueueManagement() {
 
   // Get unique job types
   const jobTypes = [...new Set(jobs.map(j => j.job_type))].filter(Boolean);
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedJobs.length === jobs.length) {
+      setSelectedJobs([]);
+    } else {
+      setSelectedJobs(jobs.map(j => j.id));
+    }
+  };
+
+  const toggleSelectJob = (jobId) => {
+    if (selectedJobs.includes(jobId)) {
+      setSelectedJobs(selectedJobs.filter(id => id !== jobId));
+    } else {
+      setSelectedJobs([...selectedJobs, jobId]);
+    }
+  };
+
+  const selectedCanDelete = selectedJobs.every(id => {
+    const job = jobs.find(j => j.id === id);
+    return job && canDelete(job);
+  });
 
   return (
     <div className="space-y-6">
@@ -271,6 +305,16 @@ export default function QueueManagement() {
 
       {/* Bulk Actions */}
       <div className="flex gap-2">
+        {selectedJobs.length > 0 && (
+          <Button
+            variant="destructive"
+            onClick={() => setDeleteDialog({ open: true, type: 'selected', id: null })}
+            disabled={!selectedCanDelete}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Excluir Selecionados ({selectedJobs.length})
+          </Button>
+        )}
         <Button
           variant="destructive"
           onClick={() => setDeleteDialog({ open: true, type: 'queued', id: null })}
@@ -298,6 +342,14 @@ export default function QueueManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedJobs.length === jobs.length && jobs.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Job Type</TableHead>
                   <TableHead>Job ID</TableHead>
@@ -326,6 +378,14 @@ export default function QueueManagement() {
                 ) : (
                   jobs.map((job) => (
                     <TableRow key={job.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selectedJobs.includes(job.id)}
+                          onChange={() => toggleSelectJob(job.id)}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                      </TableCell>
                       <TableCell>{getStatusBadge(job.status)}</TableCell>
                       <TableCell className="font-mono text-xs">{job.job_type}</TableCell>
                       <TableCell className="font-mono text-xs max-w-[200px] truncate" title={job.job_id}>
@@ -404,6 +464,9 @@ export default function QueueManagement() {
               {deleteDialog.type === 'old' && (
                 <span>Tem certeza que deseja excluir <strong>todos os jobs criados há mais de {deleteDialog.days} dias</strong> (exceto os que estão processando)? Esta ação não pode ser desfeita.</span>
               )}
+              {deleteDialog.type === 'selected' && (
+                <span>Tem certeza que deseja excluir <strong>{selectedJobs.length} jobs selecionados</strong>? Esta ação não pode ser desfeita.</span>
+              )}
               {deleteDialog.type === 'single' && (
                 <span>Tem certeza que deseja excluir este job? Esta ação não pode ser desfeita.</span>
               )}
@@ -417,6 +480,8 @@ export default function QueueManagement() {
                   bulkDeleteQueuedMutation.mutate();
                 } else if (deleteDialog.type === 'old') {
                   bulkDeleteOldMutation.mutate(deleteDialog.days);
+                } else if (deleteDialog.type === 'selected') {
+                  bulkDeleteSelectedMutation.mutate(selectedJobs);
                 } else if (deleteDialog.type === 'single') {
                   deleteJobMutation.mutate(deleteDialog.id);
                   setDeleteDialog({ ...deleteDialog, open: false });
