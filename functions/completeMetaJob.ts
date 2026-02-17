@@ -10,32 +10,51 @@ Deno.serve(async (req) => {
     });
 
   try {
-    const base44 = createClientFromRequest(req);
-    const payload = await req.json().catch(() => ({}));
+      const base44 = createClientFromRequest(req);
+      const payload = await req.json().catch(() => ({}));
 
-    const job_id = payload?.job_id;
-    const worker_id = payload?.worker_id;
-    const row_count = payload?.row_count;
-    const payload_hash = payload?.payload_hash;
+      const id = payload?.id;
+      const job_id = payload?.job_id;
+      const worker_id = payload?.worker_id;
+      const row_count = payload?.row_count;
+      const payload_hash = payload?.payload_hash;
 
-    if (!job_id || typeof job_id !== 'string' || !worker_id || typeof worker_id !== 'string') {
-      return json(
-        { ok: false, error: 'job_id (string) e worker_id (string) são obrigatórios' },
-        400
-      );
-    }
+      if (!worker_id || typeof worker_id !== 'string') {
+          return json(
+              { ok: false, error: 'worker_id (string) é obrigatório' },
+              400
+          );
+      }
 
-    // Buscar job
-    const jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+      if (!id && !job_id) {
+          return json(
+              { ok: false, error: 'id ou job_id é obrigatório' },
+              400
+          );
+      }
 
-    // Idempotente: não encontrado não derruba o worker
-    if (!jobs || jobs.length === 0) {
-      const duration = Date.now() - startTime;
-      console.log(`ℹ️ complete_job: job não encontrado (idempotente): ${job_id} [${duration}ms]`);
-      return json({ ok: true, job_id, message: 'Job não encontrado (tratado como idempotente)' });
-    }
+      // Buscar job: prioridade para id (PK), fallback para job_id
+      let job = null;
+      let searchKey = '';
 
-    const job = jobs[0];
+      if (id && typeof id === 'string') {
+          // Buscar diretamente por ID (chave primária)
+          const jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ id });
+          job = jobs?.[0] || null;
+          searchKey = `id=${id}`;
+      } else if (job_id && typeof job_id === 'string') {
+          // Fallback: buscar por job_id
+          const jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+          job = jobs?.[0] || null;
+          searchKey = `job_id=${job_id}`;
+      }
+
+      // Idempotente: não encontrado não derruba o worker
+      if (!job) {
+          const duration = Date.now() - startTime;
+          console.log(`ℹ️ complete_job: job não encontrado (idempotente): ${searchKey} [${duration}ms]`);
+          return json({ ok: true, job_id: job_id || id, message: 'Job não encontrado (tratado como idempotente)' });
+      }
 
     const status = String(job?.status ?? '');
     const locked_by = job?.locked_by ? String(job.locked_by) : null;
