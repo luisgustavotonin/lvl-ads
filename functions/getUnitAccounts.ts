@@ -1,11 +1,15 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClient } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
+    // Inicializar cliente com service role direto para aceitar chamadas externas
+    const base44 = createClient(
+      Deno.env.get('BASE44_APP_ID'),
+      Deno.env.get('BASE44_SERVICE_ROLE_KEY')
+    );
 
     // Buscar todas as unidades
-    const units = await base44.asServiceRole.entities.Unit.list();
+    const units = await base44.entities.Unit.list();
 
     // Formatar no formato esperado pelo n8n
     const accounts = units
