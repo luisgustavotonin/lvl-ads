@@ -106,16 +106,20 @@ Deno.serve(async (req) => {
                 payload.unit_ids = unit_ids;
             }
         } else {
-            // Payload para insights - com datas
+            // Payload para insights - com datas e unidades
             payload = {
-                execution_type: 'insights',
-                unit_id: integration.unit_id,
-                account_id: integration.account_reference || '',
-                access_token: accessToken,
+                mode: mode || 'manual',
+                run_type: run_type || 'single',
                 date_mode: date_mode,
                 since: date_mode === 'CUSTOM' ? since : null,
                 until: date_mode === 'CUSTOM' ? until : null
             };
+            
+            // Só incluir account_id e unit_ids se não for "all"
+            if (run_type !== 'all') {
+                payload.account_id = integration.account_reference || '';
+                payload.unit_ids = unit_ids;
+            }
         }
 
         console.log('🔵 ========== ENVIANDO PARA N8N ==========');

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Calendar, Play } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar, Play, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const DATE_MODES = [
@@ -23,19 +26,59 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
   const [since, setSince] = useState('');
   const [until, setUntil] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedUnits, setSelectedUnits] = useState([]);
+
+  const { data: units = [] } = useQuery({
+    queryKey: ['units'],
+    queryFn: () => base44.entities.Unit.list(),
+  });
+
+  const handleToggleUnit = (unitId) => {
+    setSelectedUnits(prev =>
+      prev.includes(unitId)
+        ? prev.filter(id => id !== unitId)
+        : [...prev, unitId]
+    );
+  };
+
+  const handleToggleAll = () => {
+    if (selectedUnits.length === units.length) {
+      setSelectedUnits([]);
+    } else {
+      setSelectedUnits(units.map(u => u.id));
+    }
+  };
 
   const handleExecute = async () => {
     setIsLoading(true);
     try {
+      // Determinar run_type baseado na seleção
+      let run_type;
+      let unit_ids_to_send;
+      
+      if (selectedUnits.length === units.length) {
+        run_type = 'all';
+        unit_ids_to_send = undefined;
+      } else if (selectedUnits.length === 1) {
+        run_type = 'single';
+        unit_ids_to_send = selectedUnits;
+      } else {
+        run_type = 'selected';
+        unit_ids_to_send = selectedUnits;
+      }
+
       await onExecute({
         integration_id: integration.id,
         date_mode: dateMode,
         since: dateMode === 'CUSTOM' ? since : null,
         until: dateMode === 'CUSTOM' ? until : null,
-        module: integration?.integration_purpose || 'core',
-        execution_type: integration?.executionType || 'insights'
+        execution_type: integration?.executionType || 'insights',
+        mode: 'manual',
+        run_type: run_type,
+        unit_ids: unit_ids_to_send
       });
       onClose();
+      setSelectedUnits([]);
     } catch (error) {
       console.error('Erro ao executar:', error);
     } finally {
@@ -43,7 +86,7 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
     }
   };
 
-  const isValid = dateMode !== 'CUSTOM' || (since && until);
+  const isValid = (dateMode !== 'CUSTOM' || (since && until)) && selectedUnits.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -101,10 +144,47 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
             </div>
           )}
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Unidades</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleAll}
+                className="h-8 text-xs"
+              >
+                {selectedUnits.length === units.length ? 'Desmarcar Todas' : 'Selecionar Todas'}
+              </Button>
+            </div>
+            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+              {units.map(unit => (
+                <div key={unit.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
+                  <Checkbox
+                    id={`unit-${unit.id}`}
+                    checked={selectedUnits.includes(unit.id)}
+                    onCheckedChange={() => handleToggleUnit(unit.id)}
+                  />
+                  <label
+                    htmlFor={`unit-${unit.id}`}
+                    className="flex-1 text-sm cursor-pointer flex items-center gap-2"
+                  >
+                    <Building2 className="w-4 h-4 text-gray-400" />
+                    {unit.name}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-xs text-blue-800">
               <Calendar className="w-3 h-3 inline mr-1" />
-              Esta execução será enviada ao N8n para processamento. O tempo de processamento pode variar conforme o volume de dados.
+              {selectedUnits.length === units.length 
+                ? 'Modo: all - Todas as unidades'
+                : selectedUnits.length === 1
+                ? 'Modo: single - 1 unidade'
+                : `Modo: selected - ${selectedUnits.length} unidades`}
             </p>
           </div>
         </div>
