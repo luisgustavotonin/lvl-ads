@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json();
-        const { integration_id, date_mode, since, until, execution_type = 'insights', unit_ids } = body;
+        const { integration_id, date_mode, since, until, execution_type = 'insights', unit_ids, mode, run_type } = body;
 
         if (!integration_id) {
             return Response.json({ 
@@ -27,10 +27,17 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
-        if (execution_type === 'creatives' && !unit_ids) {
+        if (execution_type === 'creatives' && !run_type) {
             return Response.json({ 
                 success: false, 
-                error: 'unit_ids é obrigatório para criativos' 
+                error: 'run_type é obrigatório para criativos (single, selected, all)' 
+            }, { status: 400 });
+        }
+        
+        if (execution_type === 'creatives' && run_type !== 'all' && !unit_ids) {
+            return Response.json({ 
+                success: false, 
+                error: 'unit_ids é obrigatório para run_type single/selected' 
             }, { status: 400 });
         }
 
@@ -84,22 +91,26 @@ Deno.serve(async (req) => {
 
         // Preparar payload baseado no tipo de execução
         let payload;
+        const accessToken = integration.settings?.access_token || '';
         
         if (execution_type === 'creatives') {
-            // Payload para criativos - sem datas, com unidades
+            // Payload para criativos - formato específico
             payload = {
-                execution_type: 'creatives',
-                unit_ids: unit_ids,
-                account_id: integration.account_reference || '',
-                access_token: integration.settings?.access_token || ''
+                mode: mode || 'manual',
+                run_type: run_type
             };
+            
+            // Só incluir unit_ids se não for "all"
+            if (run_type !== 'all') {
+                payload.unit_ids = unit_ids;
+            }
         } else {
             // Payload para insights - com datas
             payload = {
                 execution_type: 'insights',
                 unit_id: integration.unit_id,
                 account_id: integration.account_reference || '',
-                access_token: integration.settings?.access_token || '',
+                access_token: accessToken,
                 date_mode: date_mode,
                 since: date_mode === 'CUSTOM' ? since : null,
                 until: date_mode === 'CUSTOM' ? until : null
@@ -112,11 +123,21 @@ Deno.serve(async (req) => {
         console.log('🔵 Payload COMPLETO:', JSON.stringify(payload, null, 2));
         console.log('🔵 ==========================================');
 
+        // Preparar headers
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        // Adicionar access_token no header para criativos
+        if (execution_type === 'creatives' && accessToken) {
+            headers['Authorization'] = `Bearer ${accessToken}`;
+            headers['X-Access-Token'] = accessToken;
+            console.log('🔵 Access Token adicionado aos headers');
+        }
+
         const response = await fetch(webhookUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify(payload)
         });
 
@@ -131,7 +152,7 @@ Deno.serve(async (req) => {
         }
 
         const logMessage = execution_type === 'creatives' 
-            ? `Criativos executados: ${unit_ids === 'all' ? 'todas as unidades' : `${Array.isArray(unit_ids) ? unit_ids.length : 1} unidade(s)`}`
+            ? `Criativos executados: run_type=${run_type}${run_type !== 'all' && unit_ids ? ` (${Array.isArray(unit_ids) ? unit_ids.length : 1} unidade(s))` : ''}`
             : `Insights executados: ${date_mode}${date_mode === 'CUSTOM' ? ` (${since} a ${until})` : ''}`;
 
         await base44.asServiceRole.entities.ExecutionLog.create({

@@ -35,10 +35,27 @@ export default function CreativesExecutionModal({ open, onClose, integration, on
   const handleExecute = async () => {
     setIsLoading(true);
     try {
+      // Determinar run_type baseado na seleção
+      let run_type;
+      let unit_ids_to_send;
+      
+      if (selectedUnits.length === units.length) {
+        run_type = 'all';
+        unit_ids_to_send = undefined; // Não enviar unit_ids quando for "all"
+      } else if (selectedUnits.length === 1) {
+        run_type = 'single';
+        unit_ids_to_send = selectedUnits;
+      } else {
+        run_type = 'selected';
+        unit_ids_to_send = selectedUnits;
+      }
+
       await onExecute({
         integration_id: integration.id,
         execution_type: 'creatives',
-        unit_ids: selectedUnits.length === units.length ? 'all' : selectedUnits
+        mode: 'manual',
+        run_type: run_type,
+        unit_ids: unit_ids_to_send
       });
       onClose();
       setSelectedUnits([]);
@@ -107,8 +124,10 @@ export default function CreativesExecutionModal({ open, onClose, integration, on
             <p className="text-xs text-purple-800">
               <Image className="w-3 h-3 inline mr-1" />
               {selectedUnits.length === units.length 
-                ? 'Todas as unidades serão processadas'
-                : `${selectedUnits.length} unidade(s) selecionada(s)`}
+                ? 'Modo: all - Todas as unidades'
+                : selectedUnits.length === 1
+                ? 'Modo: single - 1 unidade'
+                : `Modo: selected - ${selectedUnits.length} unidades`}
             </p>
           </div>
         </div>
