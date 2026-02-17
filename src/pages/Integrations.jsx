@@ -63,6 +63,8 @@ export default function Integrations() {
     account_reference: '',
     auth_type: 'token',
     integration_purpose: '',
+    n8n_webhook_insights_url: '',
+    n8n_webhook_creatives_url: '',
     settings: {
       access_token: '',
       api_key: '',
@@ -143,6 +145,8 @@ export default function Integrations() {
       account_reference: integration.account_reference || '',
       auth_type: integration.auth_type || 'token',
       integration_purpose: integration.integration_purpose || '',
+      n8n_webhook_insights_url: integration.n8n_webhook_insights_url || '',
+      n8n_webhook_creatives_url: integration.n8n_webhook_creatives_url || '',
       settings: {
         access_token: integration.settings?.access_token || '',
         api_key: integration.settings?.api_key || '',
@@ -424,12 +428,23 @@ export default function Integrations() {
                               variant="outline" 
                               size="sm"
                               onClick={() => {
-                                setExecutionModal(integration);
+                                setExecutionModal({ ...integration, executionType: 'insights' });
                                 setIntegrationsListDialog(null);
                               }}
                             >
                               <Play className="w-3 h-3 mr-1" />
-                              Executar
+                              Executar Insights
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setExecutionModal({ ...integration, executionType: 'creatives' });
+                                setIntegrationsListDialog(null);
+                              }}
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              Executar Criativos
                             </Button>
                             <Button 
                               variant="outline" 
@@ -455,18 +470,6 @@ export default function Integrations() {
                             }}
                           >
                             Buscar Dados
-                          </Button>
-                        )}
-
-                        {integration.platform_id === 'META' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              alert('Funcionalidade de Criativos em desenvolvimento');
-                            }}
-                          >
-                            Criativos
                           </Button>
                         )}
 
@@ -628,15 +631,28 @@ export default function Integrations() {
             {editDialog?.auth_type === 'n8n_webhook' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="edit_n8n_webhook_url">URL do Webhook N8n</Label>
+                  <Label htmlFor="edit_n8n_webhook_insights_url">URL do Webhook N8n - Insights</Label>
                   <Input
-                    id="edit_n8n_webhook_url"
-                    value={editFormData.settings.n8n_webhook_url}
+                    id="edit_n8n_webhook_insights_url"
+                    value={editFormData.n8n_webhook_insights_url}
                     onChange={(e) => setEditFormData({ 
                       ...editFormData, 
-                      settings: { ...editFormData.settings, n8n_webhook_url: e.target.value }
+                      n8n_webhook_insights_url: e.target.value
                     })}
-                    placeholder="https://seu-n8n.com/webhook/..."
+                    placeholder="https://seu-n8n.com/webhook/insights..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_n8n_webhook_creatives_url">URL do Webhook N8n - Criativos</Label>
+                  <Input
+                    id="edit_n8n_webhook_creatives_url"
+                    value={editFormData.n8n_webhook_creatives_url}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      n8n_webhook_creatives_url: e.target.value
+                    })}
+                    placeholder="https://seu-n8n.com/webhook/creatives..."
                   />
                 </div>
 
