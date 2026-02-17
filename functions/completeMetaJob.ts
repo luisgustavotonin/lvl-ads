@@ -1,104 +1,54 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
-  const startTime = Date.now();
-
-  const json = (body, status = 200) =>
-    Response.json(body, {
-      status,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-    });
+  const start = Date.now();
 
   try {
-      const base44 = createClientFromRequest(req);
-      const payload = await req.json().catch(() => ({}));
+    const base44 = createClientFromRequest(req);
+    const body = await req.json().catch(() => ({}));
 
-      const id = payload?.id;
-      const job_id = payload?.job_id;
-      const worker_id = payload?.worker_id;
-      const row_count = payload?.row_count;
-      const payload_hash = payload?.payload_hash;
+    const id = body?.id;
+    const job_id = body?.job_id;
+    const worker_id = body?.worker_id;
+    const row_count = body?.row_count;
+    const payload_hash = body?.payload_hash;
 
-      if (!worker_id || typeof worker_id !== 'string') {
-          return json(
-              { ok: false, error: 'worker_id (string) é obrigatório' },
-              400
-          );
-      }
+    if (!worker_id) {
+      return Response.json({ ok: false, error: 'worker_id é obrigatório' }, { status: 400 });
+    }
 
-      if (!id && !job_id) {
-          return json(
-              { ok: false, error: 'id ou job_id é obrigatório' },
-              400
-          );
-      }
+    if (!id && !job_id) {
+      return Response.json({ ok: false, error: 'id ou job_id é obrigatório' }, { status: 400 });
+    }
 
-      // Buscar job: prioridade para id (PK), fallback para job_id
-      let job = null;
-      let searchKey = '';
+    let jobs = [];
 
-      if (id && typeof id === 'string') {
-          // Buscar diretamente por ID (chave primária)
-          const jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ id });
-          job = jobs?.[0] || null;
-          searchKey = `id=${id}`;
-      } else if (job_id && typeof job_id === 'string') {
-          // Fallback: buscar por job_id
-          const jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
-          job = jobs?.[0] || null;
-          searchKey = `job_id=${job_id}`;
-      }
+    if (id) {
+      jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ id });
+    } else {
+      jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+    }
 
-      // Idempotente: não encontrado não derruba o worker
-      if (!job) {
-          const duration = Date.now() - startTime;
-          console.log(`ℹ️ complete_job: job não encontrado (idempotente): ${searchKey} [${duration}ms]`);
-          return json({ ok: true, job_id: job_id || id, message: 'Job não encontrado (tratado como idempotente)' });
-      }
+    if (!jobs || jobs.length === 0) {
+      return Response.json({ ok: true, message: 'Job não encontrado (idempotente)' });
+    }
 
-    const status = String(job?.status ?? '');
-    const locked_by = job?.locked_by ? String(job.locked_by) : null;
-    const canonical_job_id = String(job?.job_id ?? job_id);
+    const job = jobs[0];
+    const status = job?.status;
+    const locked_by = job?.locked_by;
 
-    // Idempotência: já completado
     if (status === 'completed') {
-      const duration = Date.now() - startTime;
-      console.log(`✅ complete_job: já completed (idempotente): ${canonical_job_id} [${duration}ms]`);
-      return json({
-        ok: true,
-        job_id: canonical_job_id,
-        status: 'completed',
-        message: 'Job já estava completo',
-      });
+      return Response.json({ ok: true, status: 'completed' });
     }
 
-    // DEFENSIVO: se não estiver processing, não quebrar o fluxo
     if (status !== 'processing') {
-      const duration = Date.now() - startTime;
-      console.log(`ℹ️ complete_job ignorado (status=${status}): ${canonical_job_id} [${duration}ms]`);
-      return json({
-        ok: true,
-        job_id: canonical_job_id,
-        status,
-        message: 'Job já finalizado ou não elegível para completar',
-      });
+      return Response.json({ ok: true, status });
     }
 
-    // DEFENSIVO: se travado por outro worker, não quebrar o fluxo
     if (locked_by && locked_by !== worker_id) {
-      const duration = Date.now() - startTime;
-      console.log(
-        `ℹ️ complete_job ignorado (locked_by=${locked_by}, worker_id=${worker_id}): ${canonical_job_id} [${duration}ms]`
-      );
-      return json({
-        ok: true,
-        job_id: canonical_job_id,
-        status,
-        message: 'Job está/esteve travado por outro worker (idempotente)',
-      });
+      return Response.json({ ok: true, status });
     }
 
-    // Transição permitida: processing -> completed
     const now = new Date().toISOString();
 
     const updateData = {
@@ -114,19 +64,15 @@ Deno.serve(async (req) => {
 
     await base44.asServiceRole.entities.MetaJobsQueue.update(job.id, updateData);
 
-    const duration = Date.now() - startTime;
-    console.log(`✅ complete_job: completed: ${canonical_job_id} [${duration}ms]`);
-
-    return json({
+    return Response.json({
       ok: true,
-      job_id: canonical_job_id,
+      id: job.id,
+      job_id: job.job_id,
       status: 'completed',
-      duration_ms: duration,
+      duration_ms: Date.now() - start,
     });
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`❌ Erro no complete_job [${duration}ms]:`, error?.message ?? error);
 
-    return json({ ok: false, error: error?.message ?? String(error) }, 500);
+  } catch (e) {
+    return Response.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }
 });
