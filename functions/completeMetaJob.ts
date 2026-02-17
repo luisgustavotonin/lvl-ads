@@ -91,9 +91,9 @@ Deno.serve(async (req) => {
         const duration = Date.now() - startTime;
         
         if (duration > 500) {
-            console.warn(`⚠️ Complete job demorado: ${job_id} [${duration}ms]`);
+            console.warn(`⚠️ Complete job demorado: ${job.job_id} [${duration}ms]`);
         } else {
-            console.log(`✅ Job completed: ${job_id} [${duration}ms]`);
+            console.log(`✅ Job completed: ${job.job_id} [${duration}ms]`);
         }
 
         return Response.json({ 
