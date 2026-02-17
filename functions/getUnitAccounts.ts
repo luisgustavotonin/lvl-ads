@@ -1,18 +1,17 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClient } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
   try {
-    // ✅ Auth via secret interno (não expira)
-    const secret = req.headers.get('x-internal-secret');
-    if (!secret || secret !== Deno.env.get('INTERNAL_SECRET')) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const base44 = createClientFromRequest(req);
+    // Service role direto - sem autenticação para permitir chamadas do n8n
+    const base44 = createClient(
+      Deno.env.get('BASE44_APP_ID'),
+      Deno.env.get('BASE44_SERVICE_ROLE_KEY')
+    );
 
     // Buscar todas as unidades
-    const units = await base44.asServiceRole.entities.Unit.list();
+    const units = await base44.entities.Unit.list();
 
+    // Formatar no formato esperado pelo n8n
     const accounts = units
       .filter(u => u.status === 'active')
       .map(unit => ({
@@ -27,8 +26,10 @@ Deno.serve(async (req) => {
       total: accounts.length,
       timestamp: new Date().toISOString()
     });
-
   } catch (error) {
-    return Response.json({ error: error?.message || String(error), accounts: [] }, { status: 500 });
+    return Response.json({ 
+      error: error.message,
+      accounts: []
+    }, { status: 500 });
   }
 });
