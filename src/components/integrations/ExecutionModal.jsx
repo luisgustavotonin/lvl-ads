@@ -32,7 +32,8 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
         date_mode: dateMode,
         since: dateMode === 'CUSTOM' ? since : null,
         until: dateMode === 'CUSTOM' ? until : null,
-        module: integration?.integration_purpose || 'core'
+        module: integration?.integration_purpose || 'core',
+        execution_type: integration?.executionType || 'insights'
       });
       onClose();
     } catch (error) {
@@ -50,7 +51,7 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Play className="w-5 h-5 text-blue-600" />
-            Executar Integração
+            Executar {integration?.executionType === 'creatives' ? 'Criativos' : 'Insights'}
           </DialogTitle>
           <DialogDescription>
             Configure o período de dados para buscar de {integration?.account_name || 'integração'}
