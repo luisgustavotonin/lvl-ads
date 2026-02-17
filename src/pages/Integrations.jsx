@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import DataFetchModal from '../components/integrations/DataFetchModal';
 import N8nWebhookCard from '../components/integrations/N8nWebhookCard';
 import ExecutionModal from '../components/integrations/ExecutionModal';
+import CreativesExecutionModal from '../components/integrations/CreativesExecutionModal';
 import ScheduleModal from '../components/integrations/ScheduleModal';
 import {
   Dialog,
@@ -47,6 +48,7 @@ export default function Integrations() {
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [fetchDataModal, setFetchDataModal] = useState(null);
   const [executionModal, setExecutionModal] = useState(null);
+  const [creativesModal, setCreativesModal] = useState(null);
   const [scheduleModal, setScheduleModal] = useState(null);
   const [platformLogoFile, setPlatformLogoFile] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -439,7 +441,7 @@ export default function Integrations() {
                               variant="outline" 
                               size="sm"
                               onClick={() => {
-                                setExecutionModal({ ...integration, executionType: 'creatives' });
+                                setCreativesModal(integration);
                                 setIntegrationsListDialog(null);
                               }}
                             >
@@ -990,6 +992,15 @@ export default function Integrations() {
           open={!!executionModal}
           onClose={() => setExecutionModal(null)}
           integration={executionModal}
+          onExecute={handleExecuteIntegration}
+        />
+      )}
+
+      {creativesModal && (
+        <CreativesExecutionModal
+          open={!!creativesModal}
+          onClose={() => setCreativesModal(null)}
+          integration={creativesModal}
           onExecute={handleExecuteIntegration}
         />
       )}
