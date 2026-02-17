@@ -7,44 +7,31 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         const payload = await req.json();
 
-        const { job_id, id, worker_id, row_count, payload_hash } = payload;
+        const { job_id, worker_id, row_count, payload_hash } = payload;
 
-        // Aceitar job_id (string job_...) OU id (PK)
-        if ((!job_id && !id) || !worker_id) {
+        if (!job_id || !worker_id) {
             return Response.json({ 
                 ok: false, 
-                error: 'job_id (ou id) e worker_id são obrigatórios'
+                error: 'job_id e worker_id são obrigatórios'
             }, { status: 400 });
         }
 
-        let job;
-
-        // Buscar por ID (PK) se fornecido - mais rápido
-        if (id) {
-            job = await base44.asServiceRole.entities.MetaJobsQueue.get(id);
-            if (!job) {
-                return Response.json({ 
-                    ok: false, 
-                    error: 'Job não encontrado (por id)'
-                }, { status: 404 });
-            }
-        } else {
-            // Buscar por job_id (string job_...)
-            const allJobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
-            
-            if (allJobs.length === 0) {
-                return Response.json({ 
-                    ok: false, 
-                    error: 'Job não encontrado (por job_id)'
-                }, { status: 404 });
-            }
-            job = allJobs[0];
+        // Buscar job
+        const allJobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+        
+        if (allJobs.length === 0) {
+            return Response.json({ 
+                ok: false, 
+                error: 'Job não encontrado'
+            }, { status: 404 });
         }
+
+        const job = allJobs[0];
 
         // IDEMPOTÊNCIA: Se já está completed, retornar sucesso
         if (job.status === 'completed') {
             const duration = Date.now() - startTime;
-            console.log(`✅ Job já completed (idempotente): ${job.job_id} [${duration}ms]`);
+            console.log(`✅ Job já completed (idempotente): ${job_id} [${duration}ms]`);
             return Response.json({ 
                 ok: true, 
                 job_id: job.job_id,
@@ -55,12 +42,9 @@ Deno.serve(async (req) => {
 
         // Validar se está em processamento
         if (job.status !== 'processing') {
-            console.warn(`⚠️ Tentativa de completar job com status ${job.status}: ${job.job_id}`);
             return Response.json({ 
                 ok: false, 
-                error: `Job não está em processamento (status atual: ${job.status})`,
-                current_status: job.status,
-                job_id: job.job_id
+                error: `Status inválido: ${job.status}`
             }, { status: 400 });
         }
 
@@ -91,9 +75,9 @@ Deno.serve(async (req) => {
         const duration = Date.now() - startTime;
         
         if (duration > 500) {
-            console.warn(`⚠️ Complete job demorado: ${job.job_id} [${duration}ms]`);
+            console.warn(`⚠️ Complete job demorado: ${job_id} [${duration}ms]`);
         } else {
-            console.log(`✅ Job completed: ${job.job_id} [${duration}ms]`);
+            console.log(`✅ Job completed: ${job_id} [${duration}ms]`);
         }
 
         return Response.json({ 
