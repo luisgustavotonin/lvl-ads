@@ -97,12 +97,12 @@ Deno.serve(async (req) => {
             // Payload para criativos - formato específico
             payload = {
                 mode: mode || 'manual',
-                run_type: run_type,
-                account_id: integration.account_reference || ''
+                run_type: run_type
             };
             
-            // Só incluir unit_ids se não for "all"
+            // Só incluir account_id e unit_ids se não for "all"
             if (run_type !== 'all') {
+                payload.account_id = integration.account_reference || '';
                 payload.unit_ids = unit_ids;
             }
         } else {
