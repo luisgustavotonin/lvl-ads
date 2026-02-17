@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
         // IDEMPOTÊNCIA: Se já está completed, retornar sucesso
         if (job.status === 'completed') {
             const duration = Date.now() - startTime;
-            console.log(`✅ Job já completed (idempotente): ${job_id} [${duration}ms]`);
+            console.log(`✅ Job já completed (idempotente): ${job.job_id} [${duration}ms]`);
             return Response.json({ 
                 ok: true, 
                 job_id: job.job_id,
@@ -55,9 +55,12 @@ Deno.serve(async (req) => {
 
         // Validar se está em processamento
         if (job.status !== 'processing') {
+            console.warn(`⚠️ Tentativa de completar job com status ${job.status}: ${job.job_id}`);
             return Response.json({ 
                 ok: false, 
-                error: `Status inválido: ${job.status}`
+                error: `Job não está em processamento (status atual: ${job.status})`,
+                current_status: job.status,
+                job_id: job.job_id
             }, { status: 400 });
         }
 
