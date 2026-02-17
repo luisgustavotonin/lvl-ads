@@ -1,64 +1,99 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
+    const startTime = Date.now();
+
+    const json = (body, status = 200) =>
+        Response.json(body, {
+            status,
+            headers: { 'content-type': 'application/json; charset=utf-8' },
+        });
+
     try {
         const base44 = createClientFromRequest(req);
-        const payload = await req.json();
+        const payload = await req.json().catch(() => ({}));
 
-        const { job_id, worker_id, error: jobError } = payload;
+        const job_id = payload?.job_id;
+        const worker_id = payload?.worker_id;
+        const jobError = payload?.error;
 
-        if (!job_id || !worker_id) {
-            return Response.json({ 
-                ok: false, 
-                error: { message: 'job_id e worker_id são obrigatórios', code: 'MISSING_PARAMS' } 
-            }, { status: 400 });
+        if (!job_id || typeof job_id !== 'string' || !worker_id || typeof worker_id !== 'string') {
+            return json(
+                { ok: false, error: 'job_id (string) e worker_id (string) são obrigatórios' },
+                400
+            );
         }
 
         // Buscar job
-        const allJobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
-        
-        if (allJobs.length === 0) {
-            return Response.json({ 
-                ok: false, 
-                error: { message: 'Job não encontrado', code: 'JOB_NOT_FOUND' } 
-            }, { status: 404 });
+        const jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+
+        // Idempotente: não encontrado não derruba o worker
+        if (!jobs || jobs.length === 0) {
+            const duration = Date.now() - startTime;
+            console.log(`ℹ️ fail_job: job não encontrado (idempotente): ${job_id} [${duration}ms]`);
+            return json({ ok: true, job_id, message: 'Job não encontrado (tratado como idempotente)' });
         }
 
-        const job = allJobs[0];
+        const job = jobs[0];
+        const status = String(job?.status ?? '');
+        const locked_by = job?.locked_by ? String(job.locked_by) : null;
+        const canonical_job_id = String(job?.job_id ?? job_id);
 
-        // Validar se pode falhar
-        if (job.status !== 'processing') {
-            return Response.json({ 
-                ok: false, 
-                error: { message: 'Job não está em processamento', code: 'INVALID_STATUS' } 
-            }, { status: 400 });
+        // Idempotência: já failed ou completed
+        if (status === 'failed' || status === 'completed') {
+            const duration = Date.now() - startTime;
+            console.log(`✅ fail_job: já finalizado (idempotente): ${canonical_job_id}, status=${status} [${duration}ms]`);
+            return json({
+                ok: true,
+                job_id: canonical_job_id,
+                status,
+                message: 'Job já estava finalizado',
+            });
         }
 
-        if (job.locked_by !== worker_id) {
-            return Response.json({ 
-                ok: false, 
-                error: { message: 'Job travado por outro worker', code: 'WRONG_WORKER' } 
-            }, { status: 403 });
+        // DEFENSIVO: se não estiver processing, não quebrar o fluxo
+        if (status !== 'processing') {
+            const duration = Date.now() - startTime;
+            console.log(`ℹ️ fail_job ignorado (status=${status}): ${canonical_job_id} [${duration}ms]`);
+            return json({
+                ok: true,
+                job_id: canonical_job_id,
+                status,
+                message: 'Job não elegível para falhar',
+            });
         }
 
+        // DEFENSIVO: se travado por outro worker, não quebrar o fluxo
+        if (locked_by && locked_by !== worker_id) {
+            const duration = Date.now() - startTime;
+            console.log(
+                `ℹ️ fail_job ignorado (locked_by=${locked_by}, worker_id=${worker_id}): ${canonical_job_id} [${duration}ms]`
+            );
+            return json({
+                ok: true,
+                job_id: canonical_job_id,
+                status,
+                message: 'Job está/esteve travado por outro worker (idempotente)',
+            });
+        }
+
+        // Transição permitida: processing -> failed ou queued (retry)
         const now = new Date().toISOString();
-        const newAttempts = (job.attempts || 0) + 1;
+        const currentAttempts = job.attempts || 0;
         const maxAttempts = job.max_attempts || 3;
 
         // Calcular backoff
-        const backoffSeconds = [60, 300, 900][newAttempts - 1] || 900;
+        const backoffSeconds = [60, 300, 900][currentAttempts] || 900;
         const nextAvailableAt = new Date(Date.now() + backoffSeconds * 1000).toISOString();
 
-        const shouldRetry = newAttempts < maxAttempts;
+        const shouldRetry = currentAttempts < maxAttempts;
 
-        // Atualizar job
         const updateData = {
-            attempts: newAttempts,
-            last_error: JSON.stringify(jobError),
+            last_error: JSON.stringify(jobError || 'Unknown error'),
             last_error_at: now,
             locked_by: null,
             locked_at: null,
-            locked_until: null
+            locked_until: null,
         };
 
         if (shouldRetry) {
@@ -70,25 +105,24 @@ Deno.serve(async (req) => {
 
         await base44.asServiceRole.entities.MetaJobsQueue.update(job.id, updateData);
 
-        console.log(`⚠️ Job failed: ${job_id}, attempts: ${newAttempts}/${maxAttempts}, status: ${updateData.status}`);
+        const duration = Date.now() - startTime;
+        console.log(
+            `⚠️ fail_job: ${canonical_job_id}, attempts: ${currentAttempts}/${maxAttempts}, new_status: ${updateData.status} [${duration}ms]`
+        );
 
-        return Response.json({ 
+        return json({
             ok: true,
+            job_id: canonical_job_id,
             status: updateData.status,
             next_available_at: shouldRetry ? nextAvailableAt : null,
-            attempts: newAttempts,
-            max_attempts: maxAttempts
+            attempts: currentAttempts,
+            max_attempts: maxAttempts,
+            duration_ms: duration,
         });
-
     } catch (error) {
-        console.error('❌ Erro ao falhar job:', error);
-        return Response.json({ 
-            ok: false, 
-            error: { 
-                message: error.message, 
-                code: 'FAIL_ERROR',
-                details: error.stack 
-            } 
-        }, { status: 500 });
+        const duration = Date.now() - startTime;
+        console.error(`❌ Erro no fail_job [${duration}ms]:`, error?.message ?? error);
+
+        return json({ ok: false, error: error?.message ?? String(error) }, 500);
     }
 });
