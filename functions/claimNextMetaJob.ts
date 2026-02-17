@@ -1,92 +1,113 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
-    try {
-        const base44 = createClientFromRequest(req);
-        const payload = await req.json();
+  const startTime = Date.now();
 
-        const { worker_id, limit = 1, lock_ttl_seconds = 300 } = payload;
+  const json = (body, status = 200) =>
+    Response.json(body, {
+      status,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    });
 
-        if (!worker_id) {
-            return Response.json({ 
-                ok: false, 
-                error: { message: 'worker_id é obrigatório', code: 'MISSING_WORKER_ID' } 
-            }, { status: 400 });
-        }
+  try {
+    const base44 = createClientFromRequest(req);
+    const payload = await req.json().catch(() => ({}));
 
-        const now = new Date().toISOString();
-        const lockedUntil = new Date(Date.now() + lock_ttl_seconds * 1000).toISOString();
+    const job_id = payload?.job_id;
+    const worker_id = payload?.worker_id;
+    const row_count = payload?.row_count;
+    const payload_hash = payload?.payload_hash;
 
-        const allJobs = await base44.asServiceRole.entities.MetaJobsQueue.list('-created_at', 100);
-        
-        const eligibleJobs = allJobs.filter(job => {
-            if (job.status === 'queued') {
-                const availableAt = job.available_at || job.created_date;
-                return new Date(availableAt) <= new Date(now);
-            }
-            if (job.status === 'processing' && job.locked_until) {
-                return new Date(job.locked_until) < new Date(now);
-            }
-            return false;
-        });
-
-        if (eligibleJobs.length === 0) {
-            return Response.json({ job: null });
-        }
-
-        const job = eligibleJobs.sort((a, b) => 
-            new Date(a.available_at || a.created_date) - new Date(b.available_at || b.created_date)
-        )[0];
-
-        const currentJob = await base44.asServiceRole.entities.MetaJobsQueue.get(job.id);
-        
-        const stillEligible = 
-            (currentJob.status === 'queued') || 
-            (currentJob.status === 'processing' && new Date(currentJob.locked_until || 0) < new Date(now));
-
-        if (!stillEligible) {
-            return Response.json({ job: null });
-        }
-
-        const updatedJob = await base44.asServiceRole.entities.MetaJobsQueue.update(job.id, {
-            status: 'processing',
-            locked_by: worker_id,
-            locked_at: now,
-            locked_until: lockedUntil,
-            started_at: currentJob.started_at || now
-        });
-
-        console.log(`✅ Job claimed: ${updatedJob.job_id} | date_mode=${updatedJob.date_mode} | since=${updatedJob.since} | until=${updatedJob.until}`);
-
-        // CRÍTICO: Retornar EXATAMENTE os valores salvos, sem alterações
-        return Response.json({
-            job: {
-                id: updatedJob.id,
-                job_id: updatedJob.job_id,
-                unit_id: updatedJob.unit_id,
-                account_id: updatedJob.account_id,
-                access_token: updatedJob.access_token,
-                job_type: updatedJob.job_type,
-                breakdown: updatedJob.breakdown,
-                timezone: updatedJob.timezone,
-                date_mode: updatedJob.date_mode,
-                since: updatedJob.since,
-                until: updatedJob.until,
-                attempts: updatedJob.attempts,
-                payload_json: updatedJob.payload_json,
-                locked_until: updatedJob.locked_until
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ Erro ao fazer claim:', error);
-        return Response.json({ 
-            ok: false, 
-            error: { 
-                message: error.message, 
-                code: 'CLAIM_ERROR',
-                details: error.stack 
-            } 
-        }, { status: 500 });
+    if (!job_id || typeof job_id !== 'string' || !worker_id || typeof worker_id !== 'string') {
+      return json(
+        { ok: false, error: 'job_id (string) e worker_id (string) são obrigatórios' },
+        400
+      );
     }
+
+    // Buscar job
+    const jobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+
+    // Idempotente: não encontrado não derruba o worker
+    if (!jobs || jobs.length === 0) {
+      const duration = Date.now() - startTime;
+      console.log(`ℹ️ complete_job: job não encontrado (idempotente): ${job_id} [${duration}ms]`);
+      return json({ ok: true, job_id, message: 'Job não encontrado (tratado como idempotente)' });
+    }
+
+    const job = jobs[0];
+
+    const status = String(job?.status ?? '');
+    const locked_by = job?.locked_by ? String(job.locked_by) : null;
+    const canonical_job_id = String(job?.job_id ?? job_id);
+
+    // Idempotência: já completado
+    if (status === 'completed') {
+      const duration = Date.now() - startTime;
+      console.log(`✅ complete_job: já completed (idempotente): ${canonical_job_id} [${duration}ms]`);
+      return json({
+        ok: true,
+        job_id: canonical_job_id,
+        status: 'completed',
+        message: 'Job já estava completo',
+      });
+    }
+
+    // DEFENSIVO: se não estiver processing, não quebrar o fluxo
+    if (status !== 'processing') {
+      const duration = Date.now() - startTime;
+      console.log(`ℹ️ complete_job ignorado (status=${status}): ${canonical_job_id} [${duration}ms]`);
+      return json({
+        ok: true,
+        job_id: canonical_job_id,
+        status,
+        message: 'Job já finalizado ou não elegível para completar',
+      });
+    }
+
+    // DEFENSIVO: se travado por outro worker, não quebrar o fluxo
+    if (locked_by && locked_by !== worker_id) {
+      const duration = Date.now() - startTime;
+      console.log(
+        `ℹ️ complete_job ignorado (locked_by=${locked_by}, worker_id=${worker_id}): ${canonical_job_id} [${duration}ms]`
+      );
+      return json({
+        ok: true,
+        job_id: canonical_job_id,
+        status,
+        message: 'Job está/esteve travado por outro worker (idempotente)',
+      });
+    }
+
+    // Transição permitida: processing -> completed
+    const now = new Date().toISOString();
+
+    const updateData = {
+      status: 'completed',
+      completed_at: now,
+      locked_by: null,
+      locked_at: null,
+      locked_until: null,
+    };
+
+    if (row_count !== undefined) updateData.row_count = row_count;
+    if (payload_hash) updateData.payload_hash = payload_hash;
+
+    await base44.asServiceRole.entities.MetaJobsQueue.update(job.id, updateData);
+
+    const duration = Date.now() - startTime;
+    console.log(`✅ complete_job: completed: ${canonical_job_id} [${duration}ms]`);
+
+    return json({
+      ok: true,
+      job_id: canonical_job_id,
+      status: 'completed',
+      duration_ms: duration,
+    });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`❌ Erro no complete_job [${duration}ms]:`, error?.message ?? error);
+
+    return json({ ok: false, error: error?.message ?? String(error) }, 500);
+  }
 });
