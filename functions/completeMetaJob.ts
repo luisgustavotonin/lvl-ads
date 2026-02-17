@@ -10,20 +10,26 @@ Deno.serve(async (req) => {
         const { job_id, worker_id, row_count, payload_hash } = payload;
 
         if (!job_id || !worker_id) {
-            return Response.json({ 
+            return new Response(JSON.stringify({ 
                 ok: false, 
                 error: 'job_id e worker_id são obrigatórios'
-            }, { status: 400 });
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         // Buscar job
         const allJobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
         
         if (allJobs.length === 0) {
-            return Response.json({ 
+            return new Response(JSON.stringify({ 
                 ok: false, 
                 error: 'Job não encontrado'
-            }, { status: 404 });
+            }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         const job = allJobs[0];
@@ -32,27 +38,36 @@ Deno.serve(async (req) => {
         if (job.status === 'completed') {
             const duration = Date.now() - startTime;
             console.log(`✅ Job já completed (idempotente): ${job_id} [${duration}ms]`);
-            return Response.json({ 
+            return new Response(JSON.stringify({ 
                 ok: true, 
                 job_id: job.job_id,
                 status: 'completed',
                 message: 'Job já estava completo'
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
             });
         }
 
         // Validar se está em processamento
         if (job.status !== 'processing') {
-            return Response.json({ 
+            return new Response(JSON.stringify({ 
                 ok: false, 
                 error: `Status inválido: ${job.status}`
-            }, { status: 400 });
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         if (job.locked_by !== worker_id) {
-            return Response.json({ 
+            return new Response(JSON.stringify({ 
                 ok: false, 
                 error: 'Job travado por outro worker'
-            }, { status: 403 });
+            }), {
+                status: 403,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         const now = new Date().toISOString();
@@ -80,20 +95,26 @@ Deno.serve(async (req) => {
             console.log(`✅ Job completed: ${job_id} [${duration}ms]`);
         }
 
-        return Response.json({ 
+        return new Response(JSON.stringify({ 
             ok: true, 
             job_id: job.job_id,
             status: 'completed',
             duration_ms: duration
+        }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (error) {
         const duration = Date.now() - startTime;
         console.error(`❌ Erro ao completar job [${duration}ms]:`, error.message);
         
-        return Response.json({ 
+        return new Response(JSON.stringify({ 
             ok: false, 
             error: error.message
-        }, { status: 500 });
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 });
