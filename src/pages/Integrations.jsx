@@ -458,6 +458,18 @@ export default function Integrations() {
                           </Button>
                         )}
 
+                        {integration.platform_id === 'META' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              alert('Funcionalidade de Criativos em desenvolvimento');
+                            }}
+                          >
+                            Criativos
+                          </Button>
+                        )}
+
                         <Button 
                           variant="outline" 
                           size="sm"
