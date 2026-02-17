@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json();
-        const { integration_id, date_mode, since, until } = body;
+        const { integration_id, date_mode, since, until, execution_type = 'insights' } = body;
 
         if (!integration_id || !date_mode) {
             return Response.json({ 
@@ -45,12 +45,24 @@ Deno.serve(async (req) => {
             }, { status: 404 });
         }
 
-        const webhookUrl = integration.settings?.n8n_webhook_url;
-        if (!webhookUrl) {
-            return Response.json({ 
-                success: false, 
-                error: 'URL do webhook não configurada' 
-            }, { status: 400 });
+        // Selecionar webhook baseado no tipo de execução
+        let webhookUrl;
+        if (execution_type === 'creatives') {
+            webhookUrl = integration.n8n_webhook_creatives_url;
+            if (!webhookUrl) {
+                return Response.json({ 
+                    success: false, 
+                    error: 'URL do webhook de criativos não configurada' 
+                }, { status: 400 });
+            }
+        } else {
+            webhookUrl = integration.n8n_webhook_insights_url || integration.settings?.n8n_webhook_url;
+            if (!webhookUrl) {
+                return Response.json({ 
+                    success: false, 
+                    error: 'URL do webhook de insights não configurada' 
+                }, { status: 400 });
+            }
         }
 
         // Preparar payload EXATAMENTE conforme recebido
@@ -64,6 +76,7 @@ Deno.serve(async (req) => {
         };
 
         console.log('🔵 ========== ENVIANDO PARA N8N ==========');
+        console.log('🔵 Tipo:', execution_type);
         console.log('🔵 URL:', webhookUrl);
         console.log('🔵 Payload COMPLETO:', JSON.stringify(payload, null, 2));
         console.log('🔵 ==========================================');
@@ -94,7 +107,7 @@ Deno.serve(async (req) => {
             execution_time: new Date().toISOString(),
             integration_id: integration_id,
             platform: integration.platform_id,
-            message: `Webhook executado: ${date_mode}${date_mode === 'CUSTOM' ? ` (${since} a ${until})` : ''}`
+            message: `Webhook ${execution_type} executado: ${date_mode}${date_mode === 'CUSTOM' ? ` (${since} a ${until})` : ''}`
         });
 
         console.log('✅ Webhook executado com sucesso');
