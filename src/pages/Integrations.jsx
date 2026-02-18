@@ -48,10 +48,9 @@ export default function Integrations() {
   const [fetchDataModal, setFetchDataModal] = useState(null);
   const [executionModal, setExecutionModal] = useState(null);
   const [creativesModal, setCreativesModal] = useState(null);
-  const [scheduleModal, setScheduleModal] = useState(null);
   const [platformLogoFile, setPlatformLogoFile] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [integrationsListDialog, setIntegrationsListDialog] = useState(null);
+  const [platformConfigDialog, setPlatformConfigDialog] = useState(null);
   
   const [formData, setFormData] = useState({
     unit_id: '',
