@@ -79,6 +79,7 @@ export default function DataManagement() {
    const [detailedSortField, setDetailedSortField] = useState('date');
    const [detailedSortDirection, setDetailedSortDirection] = useState('desc');
    const [deletingItemId, setDeletingItemId] = useState(null);
+  const [confirmDeleteDetailed, setConfirmDeleteDetailed] = useState(false);
   
   // Carregar ordem e visibilidade das colunas do localStorage
   const [columnOrder, setColumnOrder] = useState(() => {
