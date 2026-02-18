@@ -31,8 +31,8 @@ Deno.serve(async (req) => {
     });
 
     eligible.sort((a, b) => {
-      const da = a?.created_at ? new Date(String(a.created_at)).getTime() : 0;
-      const db = b?.created_at ? new Date(String(b.created_at)).getTime() : 0;
+      const da = a?.created_date ? new Date(String(a.created_date)).getTime() : 0;
+      const db = b?.created_date ? new Date(String(b.created_date)).getTime() : 0;
       return da - db;
     });
 
@@ -49,30 +49,24 @@ Deno.serve(async (req) => {
       started_at: job?.started_at ?? now.toISOString(),
     });
 
-    // 3) Período: preset OU since/until
     const date_preset = job?.date_preset ?? null;
     const since = job?.since ?? null;
     const until = job?.until ?? null;
     const timezone = job?.timezone ?? null;
-
-    const date_mode =
-      job?.date_mode ??
-      (date_preset ? 'preset' : (since || until ? 'custom' : null));
+    const date_mode = job?.date_mode ?? (date_preset ? 'preset' : (since || until ? 'custom' : null));
 
     return Response.json({
       ok: true,
       job: {
         id: job.id,
         job_id: String(job.job_id),
+        run_id: job.run_id ?? null,        // ✅ PROPAGADO
+        unit_id: job.unit_id ?? null,       // ✅ PROPAGADO
         status: 'processing',
         breakdown: job.breakdown ?? null,
-
         org_id: job.org_id ?? null,
-        unit_id: job.unit_id ?? null,
-
         account_id: job.account_id ?? null,
         access_token: job.access_token ?? null,
-
         date_mode,
         date_preset,
         since,
