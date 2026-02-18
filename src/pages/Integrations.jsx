@@ -408,131 +408,14 @@ export default function Integrations() {
         })}
       </div>
 
-      {/* Dialog para listar integrações */}
-      <Dialog open={!!integrationsListDialog} onOpenChange={() => setIntegrationsListDialog(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
-              Integrações - {integrationsListDialog?.platform?.name}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {integrationsListDialog?.integrations?.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              Nenhuma integração cadastrada
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {integrationsListDialog?.integrations?.map(integration => {
-                const unit = units.find(u => u.id === integration.unit_id);
-                
-                return (
-                  <div key={integration.id} className="p-4 border rounded-lg bg-white">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{unit?.name || 'Unidade'}</p>
-                        <p className="text-xs text-gray-500">
-                          {integration.auth_type === 'n8n_webhook' 
-                            ? integration.integration_purpose || 'N8n Webhook'
-                            : `ID: ${integration.account_reference || 'Não configurado'}`
-                          }
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(integration.connection_status)}
-                        
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleTestConnection(integration)}
-                          title="Verificar configuração"
-                        >
-                          <RefreshCw className="w-3 h-3 mr-1" />
-                          Testar
-                        </Button>
-
-                        {integration.auth_type === 'n8n_webhook' && (
-                          <>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setExecutionModal({ ...integration, executionType: 'insights' });
-                                setIntegrationsListDialog(null);
-                              }}
-                            >
-                              <Play className="w-3 h-3 mr-1" />
-                              Executar Insights
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setCreativesModal(integration);
-                                setIntegrationsListDialog(null);
-                              }}
-                            >
-                              <Play className="w-3 h-3 mr-1" />
-                              Executar Criativos
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setScheduleModal(integration);
-                                setIntegrationsListDialog(null);
-                              }}
-                            >
-                              <Calendar className="w-3 h-3 mr-1" />
-                              Agendar
-                            </Button>
-                          </>
-                        )}
-
-                        {integration.connection_status === 'connected' && integration.platform_id === 'META' && integration.auth_type !== 'n8n_webhook' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setFetchDataModal(integration);
-                              setIntegrationsListDialog(null);
-                            }}
-                          >
-                            Buscar Dados
-                          </Button>
-                        )}
-
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            handleOpenEditDialog(integration);
-                            setIntegrationsListDialog(null);
-                          }}
-                        >
-                          <Settings className="w-3 h-3 mr-1" />
-                          Configurar
-                        </Button>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => {
-                            setDeleteDialog(integration);
-                            setIntegrationsListDialog(null);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Platform Config Dialog */}
+      {platformConfigDialog && (
+        <PlatformConfigDialog
+          open={!!platformConfigDialog}
+          onClose={() => setPlatformConfigDialog(null)}
+          platform={platformConfigDialog}
+        />
+      )}
 
       {/* Add Integration Dialog */}
       <Dialog open={addDialog} onOpenChange={setAddDialog}>
