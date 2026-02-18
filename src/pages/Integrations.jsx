@@ -8,10 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import DataFetchModal from '../components/integrations/DataFetchModal';
-import N8nWebhookCard from '../components/integrations/N8nWebhookCard';
 import ExecutionModal from '../components/integrations/ExecutionModal';
 import CreativesExecutionModal from '../components/integrations/CreativesExecutionModal';
-import ScheduleModal from '../components/integrations/ScheduleModal';
+import PlatformConfigDialog from '../components/integrations/PlatformConfigDialog';
 import {
   Dialog,
   DialogContent,
