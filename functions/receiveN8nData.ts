@@ -73,29 +73,7 @@ Deno.serve(async (req) => {
 
         console.log(`📊 Total de registros: ${data.length}`);
 
-        // ✅ PASSO 1: Buscar ou criar MetaJobsResults
-        const resultJsonString = JSON.stringify(normalizedResultJson);
-        let savedResult;
-
-        const existing = await base44.asServiceRole.entities.MetaJobsResults.filter({ run_id });
-        if (existing.length > 0) {
-            // Atualizar se já existe
-            savedResult = await base44.asServiceRole.entities.MetaJobsResults.update(existing[0].id, {
-                result_json: normalizedResultJson,
-                row_count: normalizedRowCount
-            });
-            console.log(`✅ MetaJobsResults ATUALIZADO: ${existing[0].id}`);
-        } else {
-            // Criar novo
-            savedResult = await base44.asServiceRole.entities.MetaJobsResults.create({
-                run_id,
-                unit_id,
-                account_id,
-                result_json: normalizedResultJson,
-                row_count: normalizedRowCount
-            });
-            console.log(`✅ MetaJobsResults CRIADO: ${savedResult.id}`);
-        }
+        // ✅ PASSO 1: Log (sem salvar em MetaJobsResults - fluxo simplificado)
 
         // ✅ PASSO 2: Transformar e salvar em MetaAdDaily
         let upsertCount = 0;
