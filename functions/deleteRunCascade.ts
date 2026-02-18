@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
         // 2️⃣ EXCLUIR MetaAdDaily (dados detalhados)
         try {
             const adDaily = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                run_id: { $in: run_ids },
+                run_id: { $in: resolvedRunIds },
                 unit_id: unit_id
             }, null, 50000);
 
