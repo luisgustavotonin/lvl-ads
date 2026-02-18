@@ -364,7 +364,7 @@ export default function Integrations() {
                         onClick={() => setExecutionModal({ ...insightsWebhook, executionType: 'insights' })}
                       >
                         <Play className="w-3 h-3" />
-                        Executar Insights
+                        {insightsWebhook.settings?.execution_button_label || 'Executar Insights'}
                       </Button>
                     )}
                     {creativesWebhook && (
@@ -375,7 +375,7 @@ export default function Integrations() {
                         onClick={() => setCreativesModal(creativesWebhook)}
                       >
                         <Play className="w-3 h-3" />
-                        Executar Criativos
+                        {creativesWebhook.settings?.execution_button_label || 'Executar Criativos'}
                       </Button>
                     )}
                     <Button
