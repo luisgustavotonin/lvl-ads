@@ -36,31 +36,11 @@ function StatusBadge({ status }) {
   );
 }
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-const WEBHOOK_TYPE_OPTIONS = [
-  { value: 'insights', label: 'Insights' },
-  { value: 'creatives', label: 'Criativos' },
-  { value: 'general', label: 'Geral' },
-];
-
 function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
-  // Detecta o tipo atual: se só tem creatives_url = creatives, else insights/general
-  const detectType = () => {
-    if (integration?.webhook_type) return integration.webhook_type;
-    if (integration?.n8n_webhook_creatives_url && !integration?.n8n_webhook_insights_url) return 'creatives';
-    return 'insights';
-  };
-
-  const getUrlForType = (type) => {
-    if (type === 'creatives') return integration?.n8n_webhook_creatives_url || '';
-    return integration?.n8n_webhook_insights_url || '';
-  };
-
-  const [webhookType, setWebhookType] = useState(detectType());
   const [form, setForm] = useState({
     integration_purpose: integration?.integration_purpose || '',
-    webhook_url: getUrlForType(detectType()),
+    n8n_webhook_insights_url: integration?.n8n_webhook_insights_url || '',
+    n8n_webhook_creatives_url: integration?.n8n_webhook_creatives_url || '',
     unit_ids: integration?.unit_ids || (integration?.unit_id ? [integration.unit_id] : []),
     settings: {
       access_token: integration?.settings?.access_token || '',
@@ -68,31 +48,11 @@ function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
     }
   });
 
-  const handleTypeChange = (type) => {
-    setWebhookType(type);
-    // ao trocar o tipo, pré-preenche a URL com o valor já salvo para esse tipo
-    setForm(f => ({
-      ...f,
-      webhook_url: getUrlForType(type),
-    }));
-  };
-
   const toggleUnit = (id) => {
     setForm(f => ({
       ...f,
       unit_ids: f.unit_ids.includes(id) ? f.unit_ids.filter(u => u !== id) : [...f.unit_ids, id]
     }));
-  };
-
-  const handleSave = () => {
-    const saveData = {
-      ...form,
-      webhook_type: webhookType,
-      n8n_webhook_insights_url: webhookType === 'insights' ? form.webhook_url : (integration?.n8n_webhook_insights_url || ''),
-      n8n_webhook_creatives_url: webhookType === 'creatives' ? form.webhook_url : (integration?.n8n_webhook_creatives_url || ''),
-    };
-    delete saveData.webhook_url;
-    onSave(saveData);
   };
 
   return (
@@ -102,31 +62,25 @@ function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
         <Input
           value={form.integration_purpose}
           onChange={e => setForm(f => ({ ...f, integration_purpose: e.target.value }))}
-          placeholder="Ex: Dados Gerais, Criativos"
+          placeholder="Ex: Insights, Criativos"
         />
       </div>
 
       <div className="space-y-1">
-        <Label>Tipo do Webhook</Label>
-        <Select value={webhookType} onValueChange={handleTypeChange}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {WEBHOOK_TYPE_OPTIONS.map(opt => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-gray-400">Define qual botão de execução este webhook aciona</p>
+        <Label>URL Webhook Insights</Label>
+        <Input
+          value={form.n8n_webhook_insights_url}
+          onChange={e => setForm(f => ({ ...f, n8n_webhook_insights_url: e.target.value }))}
+          placeholder="https://seu-n8n.com/webhook/insights"
+        />
       </div>
 
       <div className="space-y-1">
-        <Label>URL do Webhook N8n</Label>
+        <Label>URL Webhook Criativos</Label>
         <Input
-          value={form.webhook_url}
-          onChange={e => setForm(f => ({ ...f, webhook_url: e.target.value }))}
-          placeholder="https://seu-n8n.com/webhook/..."
+          value={form.n8n_webhook_creatives_url}
+          onChange={e => setForm(f => ({ ...f, n8n_webhook_creatives_url: e.target.value }))}
+          placeholder="https://seu-n8n.com/webhook/creatives"
         />
       </div>
 
@@ -162,7 +116,7 @@ function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
 
       <div className="flex justify-end gap-2 pt-2 border-t">
         <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={isSaving}>
+        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => onSave(form)} disabled={isSaving}>
           {isSaving ? 'Salvando...' : 'Salvar'}
         </Button>
       </div>
