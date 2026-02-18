@@ -330,10 +330,13 @@ export default function Integrations() {
         {platforms.map((platform) => {
           const platformIntegrations = integrations.filter(i => i.platform_id === platform.platform_id);
           
+          // Pegar a primeira integração n8n_webhook da plataforma (para usar como referência de webhook)
+          const n8nIntegration = platformIntegrations.find(i => i.auth_type === 'n8n_webhook');
+
           return (
             <Card key={platform.id} className="border-gray-200 hover:border-gray-300 transition-colors">
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
                     <div 
                       className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
@@ -365,14 +368,38 @@ export default function Integrations() {
                       </button>
                     </div>
                   </div>
-                  <Button
-                    onClick={() => handleOpenAddDialog(platform)}
-                    className="gap-2"
-                    style={{ backgroundColor: platform.color }}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar Integração
-                  </Button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {n8nIntegration && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => setExecutionModal({ ...n8nIntegration, executionType: 'insights' })}
+                        >
+                          <Play className="w-3 h-3" />
+                          Executar Insights
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => setCreativesModal(n8nIntegration)}
+                        >
+                          <Play className="w-3 h-3" />
+                          Executar Criativos
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      onClick={() => handleOpenAddDialog(platform)}
+                      className="gap-2"
+                      style={{ backgroundColor: platform.color }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar Integração
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
             </Card>
