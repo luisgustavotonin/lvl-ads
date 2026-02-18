@@ -229,18 +229,7 @@ export default function Integrations() {
     }
   };
 
-  const handleSaveSchedule = async (scheduleData) => {
-    try {
-      await updateMutation.mutateAsync({
-        id: scheduleModal.id,
-        data: scheduleData
-      });
-      alert('✅ Agendamento salvo com sucesso!');
-      refetch();
-    } catch (error) {
-      alert(`❌ Erro ao salvar: ${error.message}`);
-    }
-  };
+
 
   const handleCreateIntegration = () => {
     if (!formData.unit_id) {
