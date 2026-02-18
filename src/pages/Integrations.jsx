@@ -915,14 +915,7 @@ export default function Integrations() {
         />
       )}
 
-      {scheduleModal && (
-        <ScheduleModal
-          open={!!scheduleModal}
-          onClose={() => setScheduleModal(null)}
-          integration={scheduleModal}
-          onSave={handleSaveSchedule}
-        />
-      )}
+
     </div>
   );
 }
