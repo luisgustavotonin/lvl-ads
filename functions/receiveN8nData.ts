@@ -1,315 +1,205 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-function generateRequestId() {
-    return crypto.randomUUID();
-}
-
-// Helper: Valida e normaliza data para formato YYYY-MM-DD (SEM timezone)
-function normalizeDateString(dateInput) {
-    if (!dateInput) return null;
-    const dateStr = String(dateInput);
-    const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (!match) throw new Error(`Data inválida: ${dateStr}. Formato esperado: YYYY-MM-DD`);
-    return match[1];
-}
-
-function getBrasiliaDate() {
-    const now = new Date();
-    return new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-}
+/**
+ * ENDPOINT ÚNICO para receber dados do N8N
+ * POST /functions/receiveN8nData
+ * 
+ * Recebe: run_id, unit_id, account_id, result_json, row_count
+ * Faz: Salva em MetaJobsResults + transforma em MetaAdDaily + atualiza Run
+ * Retorna: { ok: true, run_id, records_processed }
+ */
 
 Deno.serve(async (req) => {
-    const startTime = Date.now();
-    const requestId = generateRequestId();
-    let diagnosticId = null;
-
     try {
         const base44 = createClientFromRequest(req);
+        let rawPayload = await req.json();
 
-        const bodyText = await req.text();
-        let body = JSON.parse(bodyText);
-        const requestSizeBytes = new TextEncoder().encode(bodyText).length;
-        const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-        const userAgent = req.headers.get('user-agent') || 'unknown';
-
-        if (Array.isArray(body) && body.length > 0) body = body[0];
-        const payload = body.payload ?? body.data ?? body;
-
-        const {
-            run_id,
-            integration_id,
-            secret_token,
-            account_id,
-            unit_id,
-            provider,
-            generated_at,
-            batch_index,
-            batch_total,
-            ads_count,
-            approx_chars,
-            ads = []
-        } = payload;
-
-        // Registrar diagnóstico
-        const diagnostic = await base44.asServiceRole.entities.ApiDiagnostics.create({
-            route: '/receiveN8nData',
-            method: 'POST',
-            status: 'iniciado',
-            requestId,
-            requestSizeBytes,
-            clientIp,
-            userAgent,
-            source: 'n8n',
-            eventId: run_id || null
-        });
-        diagnosticId = diagnostic.id;
-
-        console.log('🔔 WEBHOOK RECEBIDO (BATCH):', JSON.stringify({
-            run_id, integration_id, unit_id, account_id, provider,
-            batch_index, batch_total, ads_count, approx_chars, generated_at, requestId
-        }, null, 2));
-
-        // Validação obrigatória
-        if (!integration_id || !unit_id || !provider) {
-            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro', httpStatusCode: 400,
-                errorType: 'ValidationError',
-                errorMessage: 'integration_id, unit_id e provider são obrigatórios',
-                durationMs: Date.now() - startTime
-            });
-            return Response.json({ ok: false, error: 'integration_id, unit_id e provider são obrigatórios', requestId }, { status: 400 });
-        }
-
-        // ✅ CORREÇÃO 3: Validar run_id — deve existir na tabela Run (gerado pelo Base)
-        if (run_id) {
-            const existingRuns = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
-            if (existingRuns.length === 0) {
-                console.warn(`⚠️ run_id ${run_id} não encontrado na tabela Run. Criando automaticamente para compatibilidade.`);
-                // Criar Run automaticamente para não quebrar fluxo legado
-                await base44.asServiceRole.entities.Run.create({
-                    run_id,
-                    unit_id,
-                    platform: 'META',
-                    status: 'receiving',
-                    started_at_utc: new Date().toISOString(),
-                    trigger_type: 'webhook',
-                    metadata: { source: 'legacy_n8n_callback' }
-                });
-            } else {
-                // Atualizar status para "receiving"
-                await base44.asServiceRole.entities.Run.update(existingRuns[0].id, {
-                    status: 'receiving'
-                });
+        // N8N pode enviar array ou objeto
+        if (Array.isArray(rawPayload)) {
+            if (rawPayload.length === 0) {
+                return Response.json({ 
+                    ok: false, 
+                    error: 'Payload array vazio' 
+                }, { status: 400 });
             }
+            rawPayload = rawPayload[0];
         }
 
-        // IDEMPOTÊNCIA: Verificar se este batch já foi processado
-        if (run_id && batch_index !== undefined) {
-            const existingLog = await base44.asServiceRole.entities.WebhookLog.filter({
-                integration_id,
-                source: 'n8n',
-                'payload_received.run_id': run_id,
-                'payload_received.batch_index': batch_index
-            });
-            if (existingLog.length > 0) {
-                console.log(`⚠️ Batch duplicado ignorado: run_id=${run_id}, batch=${batch_index}`);
-                await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                    status: 'sucesso', httpStatusCode: 200,
-                    durationMs: Date.now() - startTime, notes: 'Batch duplicado ignorado'
-                });
-                return Response.json({ ok: true, duplicate: true, message: 'Batch já processado anteriormente', run_id, batch_index, requestId });
-            }
+        const { run_id, unit_id, account_id, result_json, row_count } = rawPayload;
+
+        // Validar campos obrigatórios
+        if (!run_id || !unit_id || !account_id || !result_json) {
+            return Response.json({
+                ok: false,
+                error: 'run_id, unit_id, account_id e result_json são obrigatórios'
+            }, { status: 400 });
         }
 
-        // Buscar integração e validar secret token
-        const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
-        if (!integration) {
-            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro', httpStatusCode: 404,
-                errorType: 'NotFoundError', errorMessage: 'Integração não encontrada',
-                durationMs: Date.now() - startTime
-            });
-            return Response.json({ ok: false, error: 'Integração não encontrada', requestId }, { status: 404 });
-        }
+        console.log(`🔵 ========== receiveN8nData ==========`);
+        console.log(`📥 run_id: ${run_id}`);
+        console.log(`📥 unit_id: ${unit_id}`);
+        console.log(`📥 account_id: ${account_id}`);
+        console.log(`📥 row_count: ${row_count}`);
 
-        const expectedToken = integration.settings?.n8n_secret_token;
-        if (!secret_token || secret_token !== expectedToken) {
-            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro', httpStatusCode: 401,
-                errorType: 'AuthError', errorMessage: 'Token de segurança inválido ou ausente',
-                durationMs: Date.now() - startTime
-            });
-            return Response.json({ ok: false, error: 'Token de segurança inválido ou ausente', requestId }, { status: 401 });
-        }
-
-        if (provider !== 'meta') {
-            await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro', httpStatusCode: 400,
-                errorType: 'ValidationError', errorMessage: 'Apenas provider "meta" é suportado',
-                durationMs: Date.now() - startTime
-            });
-            return Response.json({ ok: false, error: 'Apenas provider "meta" é suportado no momento', requestId }, { status: 400 });
-        }
-
-        const ensureObject = (value) => {
-            if (Array.isArray(value)) return value.length > 0 ? Object.assign({}, ...value) : {};
-            return typeof value === 'object' && value !== null ? value : {};
-        };
-
-        // ✅ CORREÇÃO 4: UPSERT com chave composta (run_id + ad_id + date)
-        let adsUpserted = 0;
-
-        for (const ad of ads) {
-            const {
-                ad_id,
-                date: rawDate,
-                campaign_id, campaign_name,
-                adset_id, adset_name,
-                ad_name, ad_effective_status,
-                creative_id, creative_thumbnail_url,
-                metrics = {},
-                breakdowns = {}
-            } = ad;
-
-            if (!ad_id || !rawDate) {
-                console.warn('⚠️ Ad sem ad_id ou date, pulando:', ad);
-                continue;
-            }
-
-            let date;
+        // Normalizar result_json
+        let normalizedResultJson;
+        if (typeof result_json === 'string') {
             try {
-                date = normalizeDateString(rawDate);
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                    console.error(`❌ Data inválida após normalização: ${date} (ad_id: ${ad_id})`);
-                    continue;
-                }
-            } catch (error) {
-                console.error(`❌ Erro ao normalizar data para ad_id ${ad_id}:`, error.message);
+                normalizedResultJson = JSON.parse(result_json);
+            } catch (e) {
+                return Response.json({ 
+                    ok: false, 
+                    error: 'result_json inválido' 
+                }, { status: 400 });
+            }
+        } else if (typeof result_json === 'object' && result_json !== null) {
+            normalizedResultJson = result_json;
+        } else {
+            return Response.json({ 
+                ok: false, 
+                error: 'result_json deve ser objeto ou string JSON' 
+            }, { status: 400 });
+        }
+
+        const data = normalizedResultJson.data || [];
+        if (!Array.isArray(data)) {
+            return Response.json({ 
+                ok: false, 
+                error: 'result_json.data deve ser um array' 
+            }, { status: 400 });
+        }
+
+        const normalizedRowCount = row_count || data.length || 0;
+
+        console.log(`📊 Total de registros: ${data.length}`);
+
+        // ✅ PASSO 1: Buscar ou criar MetaJobsResults
+        const resultJsonString = JSON.stringify(normalizedResultJson);
+        let savedResult;
+
+        const existing = await base44.asServiceRole.entities.MetaJobsResults.filter({ run_id });
+        if (existing.length > 0) {
+            // Atualizar se já existe
+            savedResult = await base44.asServiceRole.entities.MetaJobsResults.update(existing[0].id, {
+                result_json: normalizedResultJson,
+                row_count: normalizedRowCount
+            });
+            console.log(`✅ MetaJobsResults ATUALIZADO: ${existing[0].id}`);
+        } else {
+            // Criar novo
+            savedResult = await base44.asServiceRole.entities.MetaJobsResults.create({
+                run_id,
+                unit_id,
+                account_id,
+                result_json: normalizedResultJson,
+                row_count: normalizedRowCount
+            });
+            console.log(`✅ MetaJobsResults CRIADO: ${savedResult.id}`);
+        }
+
+        // ✅ PASSO 2: Transformar e salvar em MetaAdDaily
+        let upsertCount = 0;
+        let skipCount = 0;
+
+        for (const row of data) {
+            const rawDate = row.date || row.date_start || row.day;
+            const ad_id = row.ad_id;
+
+            if (!rawDate || !ad_id) {
+                skipCount++;
                 continue;
             }
 
-            const adRecord = {
-                unit_id, account_id, date,
-                ad_id, ad_name: ad_name || ad_id,
-                ad_effective_status: ad_effective_status || 'UNKNOWN',
-                creative_id: creative_id || '',
-                creative_thumbnail_url: creative_thumbnail_url || '',
-                adset_id: adset_id || '', adset_name: adset_name || '',
-                campaign_id: campaign_id || '', campaign_name: campaign_name || '',
-                spend: parseFloat(metrics.spend || 0),
-                impressions: parseInt(metrics.impressions || 0),
-                reach: parseInt(metrics.reach || 0),
-                frequency: parseFloat(metrics.frequency || 0),
-                clicks: parseInt(metrics.clicks || 0),
-                link_clicks: parseInt(metrics.link_clicks || 0),
-                ctr_link: parseFloat(metrics.ctr_link || 0),
-                cpc_link: parseFloat(metrics.cpc_link || 0),
-                cpm: parseFloat(metrics.cpm || 0),
-                wa_conversations_started_7d: parseInt(metrics.wa_conversations_started_7d || 0),
-                wa_total_messaging_connection: parseInt(metrics.wa_total_messaging_connection || 0),
-                wa_messaging_first_reply: parseInt(metrics.wa_messaging_first_reply || 0),
-                cost_per_conversation: parseFloat(metrics.cost_per_conversation || 0),
-                cost_per_total_contact: parseFloat(metrics.cost_per_total_contact || 0),
-                cost_per_first_reply: parseFloat(metrics.cost_per_first_reply || 0),
-                demographics_json: ensureObject(breakdowns.demographics),
-                placement_json: ensureObject(breakdowns.placement),
-                devices_json: ensureObject(breakdowns.devices),
-                run_id: run_id || '',
+            // Normalizar data para YYYY-MM-DD
+            const dateMatch = String(rawDate).match(/^(\d{4}-\d{2}-\d{2})/);
+            if (!dateMatch) {
+                console.warn(`⚠️ Data inválida: ${rawDate}`);
+                skipCount++;
+                continue;
+            }
+            const date = dateMatch[1];
+
+            const record = {
+                run_id,                                              // ✅ ESSENCIAL
+                unit_id,
+                account_id,
+                platform: 'META',
+                date,
+                ad_id,
+                ad_name: row.ad_name || ad_id,
+                ad_effective_status: row.ad_effective_status || 'UNKNOWN',
+                creative_id: row.creative_id || '',
+                creative_thumbnail_url: row.thumbnail_url || row.creative_thumbnail_url || '',
+                campaign_id: row.campaign_id || '',
+                campaign_name: row.campaign_name || '',
+                adset_id: row.adset_id || '',
+                adset_name: row.adset_name || '',
+                spend: parseFloat(row.spend) || 0,
+                impressions: parseInt(row.impressions) || 0,
+                reach: parseInt(row.reach) || 0,
+                frequency: parseFloat(row.frequency) || 0,
+                clicks: parseInt(row.clicks) || 0,
+                link_clicks: parseInt(row.link_clicks || row.inline_link_clicks) || 0,
+                ctr_link: parseFloat(row.ctr_link || row.ctr) || 0,
+                cpc_link: parseFloat(row.cpc_link || row.cpc) || 0,
+                cpm: parseFloat(row.cpm) || 0,
+                wa_conversations_started_7d: parseInt(row.wa_conversations_started_7d || row.conversations) || 0,
+                wa_total_messaging_connection: parseInt(row.wa_total_messaging_connection || row.total_contact) || 0,
+                wa_messaging_first_reply: parseInt(row.wa_messaging_first_reply || row.first_reply) || 0,
+                cost_per_conversation: parseFloat(row.cost_per_conversation) || 0,
+                cost_per_total_contact: parseFloat(row.cost_per_total_contact) || 0,
+                cost_per_first_reply: parseFloat(row.cost_per_first_reply) || 0,
                 imported_at_utc: new Date().toISOString()
             };
 
-            // UPSERT por chave composta: run_id + ad_id + date (idempotente dentro do mesmo run)
-            const existing = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                unit_id, account_id, ad_id, date, run_id: run_id || ''
+            // UPSERT por (run_id + ad_id + date)
+            const existingRecords = await base44.asServiceRole.entities.MetaAdDaily.filter({
+                run_id,
+                ad_id,
+                date,
+                unit_id
             });
 
-            if (existing.length > 0) {
-                await base44.asServiceRole.entities.MetaAdDaily.update(existing[0].id, adRecord);
+            if (existingRecords.length > 0) {
+                await base44.asServiceRole.entities.MetaAdDaily.update(existingRecords[0].id, record);
             } else {
-                await base44.asServiceRole.entities.MetaAdDaily.create(adRecord);
+                await base44.asServiceRole.entities.MetaAdDaily.create(record);
             }
 
-            adsUpserted++;
+            upsertCount++;
         }
 
-        // Log do webhook
-        await base44.asServiceRole.entities.WebhookLog.create({
-            integration_id,
-            source: 'n8n',
-            status: 'success',
-            payload_received: { run_id, batch_index, batch_total, ads_count, generated_at },
-            records_processed: { ads_upserted: adsUpserted }
-        });
+        console.log(`✅ MetaAdDaily: ${upsertCount} upserted, ${skipCount} skipped`);
 
-        // ✅ CORREÇÃO 2: Atualizar Run com status correto após receber dados
-        const isLastBatch = batch_index !== undefined ? batch_index === batch_total : true;
-        if (run_id) {
-            const runs = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
-            if (runs.length > 0) {
-                const currentRun = runs[0];
-                const newTotalRecords = (currentRun.total_records || 0) + adsUpserted;
-                const newCompletedBatches = (currentRun.completed_jobs || 0) + 1;
-
-                await base44.asServiceRole.entities.Run.update(currentRun.id, {
-                    total_records: newTotalRecords,
-                    completed_jobs: newCompletedBatches,
-                    status: isLastBatch ? 'success' : 'receiving',
-                    finished_at_utc: isLastBatch ? new Date().toISOString() : null
-                });
-
-                // ✅ Atualizar ExecutionLog para "completed" no último batch
-                if (isLastBatch) {
-                    const execLogs = await base44.asServiceRole.entities.ExecutionLog.filter({
-                        unit_id, message: { $regex: run_id.substring(0, 8) }
-                    });
-                    for (const log of execLogs) {
-                        await base44.asServiceRole.entities.ExecutionLog.update(log.id, {
-                            message: log.message.replace('[SENT]', '[COMPLETED]'),
-                            error_details: `${newTotalRecords} registros processados`
-                        });
-                    }
-                }
-            }
+        // ✅ PASSO 3: Atualizar Run com status success
+        const runs = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
+        if (runs.length > 0) {
+            await base44.asServiceRole.entities.Run.update(runs[0].id, {
+                status: 'success',
+                total_records: upsertCount,
+                finished_at_utc: new Date().toISOString()
+            });
+            console.log(`✅ Run atualizado: status=success, records=${upsertCount}`);
+        } else {
+            console.warn(`⚠️ Run não encontrado: ${run_id}`);
         }
 
-        // Agregar automaticamente no último batch
-        if (isLastBatch) {
-            console.log('🔄 Último batch recebido, iniciando agregação automática...');
-            base44.asServiceRole.functions.invoke('aggregateMetaAdDaily', { unit_id })
-                .then(() => console.log('✅ Agregação concluída'))
-                .catch(err => console.error('⚠️ Erro na agregação (não fatal):', err.message));
-        }
-
-        await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-            status: 'sucesso', httpStatusCode: 200,
-            durationMs: Date.now() - startTime,
-            notes: `${adsUpserted} anúncios processados`
-        });
+        console.log(`🔵 =====================================`);
 
         return Response.json({
             ok: true,
             run_id,
-            batch_index, batch_total,
-            ads_received: ads.length,
-            ads_upserted: adsUpserted,
-            run_status: isLastBatch ? 'success' : 'receiving',
-            requestId,
-            processed_at: getBrasiliaDate().toISOString()
+            unit_id,
+            records_processed: upsertCount,
+            records_skipped: skipCount,
+            stored_at: new Date().toISOString()
         });
 
     } catch (error) {
-        console.error('❌ ERRO ao processar webhook:', error);
-        if (diagnosticId) {
-            try {
-                const base44 = createClientFromRequest(req);
-                await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                    status: 'erro', httpStatusCode: 500,
-                    errorType: error.name || 'UnknownError',
-                    errorMessage: error.message,
-                    durationMs: Date.now() - startTime
-                });
-            } catch (_) {}
-        }
-        return Response.json({ ok: false, error: error.message, requestId }, { status: 500 });
+        console.error('❌ Erro em receiveN8nData:', error);
+        return Response.json({ 
+            ok: false, 
+            error: error.message 
+        }, { status: 500 });
     }
 });
