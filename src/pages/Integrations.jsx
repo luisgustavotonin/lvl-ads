@@ -328,15 +328,21 @@ export default function Integrations() {
         {platforms.map((platform) => {
           const platformIntegrations = integrations.filter(i => i.platform_id === platform.platform_id);
           
-          // Pegar a primeira integração n8n_webhook da plataforma (para usar como referência de webhook)
-          const n8nIntegration = platformIntegrations.find(i => i.auth_type === 'n8n_webhook');
+          // Webhooks n8n desta plataforma
+          const n8nWebhooks = platformIntegrations.filter(i => i.auth_type === 'n8n_webhook');
+          const insightsWebhook = n8nWebhooks.find(i =>
+            (i.integration_purpose || '').toLowerCase().includes('insight') || i.n8n_webhook_insights_url
+          ) || n8nWebhooks[0];
+          const creativesWebhook = n8nWebhooks.find(i =>
+            (i.integration_purpose || '').toLowerCase().includes('criativ') || i.n8n_webhook_creatives_url
+          ) || n8nWebhooks[0];
 
           return (
             <Card key={platform.id} className="border-gray-200 hover:border-gray-300 transition-colors">
               <CardHeader>
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
-                    <div 
+                    <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
                       style={{ backgroundColor: `${platform.color}15` }}
                     >
@@ -358,44 +364,40 @@ export default function Integrations() {
                           <Edit2 className="w-3 h-3 text-gray-400" />
                         </Button>
                       </div>
-                      <button
-                        onClick={() => setIntegrationsListDialog({ platform, integrations: platformIntegrations })}
-                        className="text-sm text-blue-600 hover:underline text-left"
-                      >
-                        {platformIntegrations.length} integração(ões) configurada(s)
-                      </button>
+                      <p className="text-sm text-gray-500">{n8nWebhooks.length} webhook(s) configurado(s)</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {n8nIntegration && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => setExecutionModal({ ...n8nIntegration, executionType: 'insights' })}
-                        >
-                          <Play className="w-3 h-3" />
-                          Executar Insights
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => setCreativesModal(n8nIntegration)}
-                        >
-                          <Play className="w-3 h-3" />
-                          Executar Criativos
-                        </Button>
-                      </>
+                    {insightsWebhook && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setExecutionModal({ ...insightsWebhook, executionType: 'insights' })}
+                      >
+                        <Play className="w-3 h-3" />
+                        Executar Insights
+                      </Button>
+                    )}
+                    {creativesWebhook && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setCreativesModal(creativesWebhook)}
+                      >
+                        <Play className="w-3 h-3" />
+                        Executar Criativos
+                      </Button>
                     )}
                     <Button
-                      onClick={() => handleOpenAddDialog(platform)}
-                      className="gap-2"
-                      style={{ backgroundColor: platform.color }}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setPlatformConfigDialog(platform)}
                     >
-                      <Plus className="w-4 h-4" />
-                      Adicionar Integração
+                      <Settings className="w-3 h-3" />
+                      Configurar
                     </Button>
                   </div>
                 </div>
