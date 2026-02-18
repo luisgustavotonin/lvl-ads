@@ -319,12 +319,15 @@ export default function Integrations() {
           
           // Webhooks n8n desta plataforma
           const n8nWebhooks = platformIntegrations.filter(i => i.auth_type === 'n8n_webhook');
-          const insightsWebhook = n8nWebhooks.find(i =>
-            (i.integration_purpose || '').toLowerCase().includes('insight') || i.n8n_webhook_insights_url
-          ) || n8nWebhooks[0];
-          const creativesWebhook = n8nWebhooks.find(i =>
-            (i.integration_purpose || '').toLowerCase().includes('criativ') || i.n8n_webhook_creatives_url
-          ) || n8nWebhooks[0];
+          // Prioriza webhook_type, depois fallback por URL/nome
+          const insightsWebhook = n8nWebhooks.find(i => i.webhook_type === 'insights')
+            || n8nWebhooks.find(i => i.n8n_webhook_insights_url)
+            || n8nWebhooks.find(i => (i.integration_purpose || '').toLowerCase().includes('insight'))
+            || n8nWebhooks.find(i => i.webhook_type === 'general' || !i.webhook_type)
+            || n8nWebhooks[0];
+          const creativesWebhook = n8nWebhooks.find(i => i.webhook_type === 'creatives')
+            || n8nWebhooks.find(i => i.n8n_webhook_creatives_url && !i.n8n_webhook_insights_url)
+            || n8nWebhooks.find(i => (i.integration_purpose || '').toLowerCase().includes('criativ'));
 
           return (
             <Card key={platform.id} className="border-gray-200 hover:border-gray-300 transition-colors">
