@@ -731,7 +731,7 @@ export default function DataManagement() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg">
-                Dados Detalhados - {rawData.length > 0 ? '📦 RAW' : '📊 Consolidado'}
+                Dados Detalhados — {finalData.length} registros
               </CardTitle>
               <div className="flex gap-2 items-center">
                 <Sheet>
@@ -790,15 +790,14 @@ export default function DataManagement() {
               <div className="text-center py-12 text-gray-500">
                 <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
                 <p className="text-lg font-medium">Nenhum dado encontrado</p>
-                <p className="text-sm mt-2">RUNs criados mas sem dados RAW ou consolidados</p>
+                <p className="text-sm mt-2">Sem registros em MetaAdDaily para esta unidade e período</p>
                 <div className="mt-4 text-xs text-left max-w-md mx-auto bg-gray-50 p-3 rounded">
-                  <p className="font-semibold mb-2">Debug checklist:</p>
+                  <p className="font-semibold mb-2">Verifique:</p>
                   <ul className="space-y-1 text-gray-600">
-                    <li>• Verifique aba "Jobs" para ver status e erros</li>
-                    <li>• Confirme se webhook do n8n está chegando</li>
-                    <li>• Verifique se função ingestRawData foi chamada</li>
-                    <li>• Total de RUNs: {filtered.length}</li>
-                    <li>• Total de Jobs: {allJobs.length}</li>
+                    <li>• A unidade selecionada está correta?</li>
+                    <li>• O período abrange as datas dos anúncios?</li>
+                    <li>• O N8N retornou dados via saveMetaJobResult?</li>
+                    <li>• Deixe Data Início e Fim em branco para ver tudo</li>
                   </ul>
                 </div>
               </div>
@@ -812,8 +811,8 @@ export default function DataManagement() {
                   <table className="w-full text-xs">
                     <thead className="bg-gray-50 border-b sticky top-0">
                       <tr>
-                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_event_id')}>
-                          {rawData.length > 0 ? 'Event ID' : 'Record ID'} <DetailedSortIcon field="_event_id" />
+                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('id')}>
+                          Record ID <DetailedSortIcon field="id" />
                         </th>
                         <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_job_id')}>
                           Job ID <DetailedSortIcon field="_job_id" />
@@ -832,7 +831,7 @@ export default function DataManagement() {
                       {paginatedData.map((row, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
                           <td className="px-2 py-2 text-gray-600 font-mono text-[10px]">
-                            {(row._event_id || row.id || idx)?.toString().substring(0, 12)}...
+                            {(row.id || idx)?.toString().substring(0, 12)}...
                           </td>
                           <td className="px-2 py-2 text-gray-600 font-mono text-[10px]">
                             {row._job_id?.substring(0, 12)}...
