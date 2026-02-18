@@ -43,6 +43,14 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Integração não encontrada' }, { status: 404 });
         }
 
+        // Resolver unit_id: usar campo legado ou primeiro da lista unit_ids
+        const resolved_unit_id = integration.unit_id || (integration.unit_ids && integration.unit_ids[0]) || null;
+        if (!resolved_unit_id) {
+            return Response.json({ success: false, error: 'Nenhuma unidade associada à integração' }, { status: 400 });
+        }
+        // Sobrescrever para garantir consistência no restante da função
+        integration.unit_id = resolved_unit_id;
+
         // Selecionar webhook baseado no tipo de execução
         let webhookUrl;
         if (execution_type === 'creatives') {
