@@ -1,15 +1,11 @@
-import { createClient } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
   try {
-    // Service role direto - sem autenticação para permitir chamadas do n8n
-    const base44 = createClient(
-      Deno.env.get('BASE44_APP_ID'),
-      Deno.env.get('BASE44_SERVICE_ROLE_KEY')
-    );
+    const base44 = createClientFromRequest(req);
 
-    // Buscar todas as unidades
-    const units = await base44.entities.Unit.list();
+    // Buscar todas as unidades via service role (sem autenticação de usuário necessária)
+    const units = await base44.asServiceRole.entities.Unit.list();
 
     // Formatar no formato esperado pelo n8n
     const accounts = units
