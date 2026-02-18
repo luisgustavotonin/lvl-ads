@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
         // CRÍTICO: Salvar payload EXATAMENTE como recebido
         const jobData = {
             job_id: payload.job_id,
+            run_id: payload.run_id,        // ✅ Propagado do executeN8nWebhook
             status: 'queued',
             queue_key: queueKey,
             unit_id: payload.unit_id,
