@@ -40,9 +40,10 @@ Deno.serve(async (req) => {
         };
         const errors = [];
 
-        // 1️⃣ BUSCAR TODOS OS RUNS DA UNIDADE E FILTRAR LOCALMENTE
+        // 1️⃣ BUSCAR RUNS PELO ID DO BANCO (run_ids pode ser id ou run_id)
         const allRuns = await base44.asServiceRole.entities.Run.filter({ unit_id: unit_id }, null, 1000);
-        const runs = allRuns.filter(r => run_ids.includes(r.run_id));
+        // Aceita tanto o id do banco quanto o run_id UUID
+        const runs = allRuns.filter(r => run_ids.includes(r.id) || run_ids.includes(r.run_id));
 
         if (runs.length === 0) {
             return Response.json({
@@ -50,6 +51,9 @@ Deno.serve(async (req) => {
                 requested: run_ids.length
             }, { status: 404 });
         }
+
+        // Coletar os run_ids UUID para usar nos filtros de dados relacionados
+        const resolvedRunIds = runs.map(r => r.run_id).filter(Boolean);
 
         console.log(`✅ Validado: ${runs.length} RUNs da unidade ${unit_id}`);
 
