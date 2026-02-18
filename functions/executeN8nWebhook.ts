@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
             date_start: date_mode === 'CUSTOM' ? since : date_mode,
             date_end: date_mode === 'CUSTOM' ? until : null,
             trigger_type: 'manual',
-            status: 'sent',
+            status: 'queued',
             started_at_utc: now,
             metadata: { execution_type, date_mode, since, until, run_type }
         });
