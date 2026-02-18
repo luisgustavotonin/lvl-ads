@@ -954,6 +954,40 @@ export default function DataManagement() {
         </Card>
       )}
 
+      {/* Dialog exclusão Dados Detalhados */}
+      <AlertDialog open={confirmDeleteDetailed} onOpenChange={setConfirmDeleteDetailed}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Excluir Dados Detalhados
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-2">
+                <p>Você está prestes a excluir <strong>{finalData.length} registros</strong> de MetaAdDaily para:</p>
+                <ul className="list-disc ml-5 space-y-1 text-sm">
+                  <li>Unidade: <strong>{getUnitName(selectedUnit)}</strong></li>
+                  {dateFrom && <li>A partir de: <strong>{dateFrom}</strong></li>}
+                  {dateTo && <li>Até: <strong>{dateTo}</strong></li>}
+                  {selectedPlatform !== 'all' && <li>Plataforma: <strong>{selectedPlatform}</strong></li>}
+                </ul>
+                <p className="text-red-600 font-bold mt-3">⚠️ Esta ação não pode ser desfeita!</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteDetailedMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteDetailedMutation.isPending}
+              onClick={() => deleteDetailedMutation.mutate({ unitId: selectedUnit, dateFrom, dateTo })}
+            >
+              {deleteDetailedMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Excluindo...</> : 'Confirmar Exclusão'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
           {/* Dialog de Confirmação */}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
