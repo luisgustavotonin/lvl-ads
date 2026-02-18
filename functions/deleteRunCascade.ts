@@ -40,18 +40,15 @@ Deno.serve(async (req) => {
         };
         const errors = [];
 
-        // 1️⃣ VALIDAR QUE TODOS OS RUNS PERTENCEM À UNIDADE
-        const runs = await base44.asServiceRole.entities.Run.filter({
-            run_id: { $in: run_ids },
-            unit_id: unit_id
-        });
+        // 1️⃣ BUSCAR TODOS OS RUNS DA UNIDADE E FILTRAR LOCALMENTE
+        const allRuns = await base44.asServiceRole.entities.Run.filter({ unit_id: unit_id }, null, 1000);
+        const runs = allRuns.filter(r => run_ids.includes(r.run_id));
 
-        if (runs.length !== run_ids.length) {
+        if (runs.length === 0) {
             return Response.json({
-                error: 'Alguns RUNs não pertencem a esta unidade',
-                found: runs.length,
+                error: 'Nenhum RUN encontrado para esta unidade',
                 requested: run_ids.length
-            }, { status: 403 });
+            }, { status: 404 });
         }
 
         console.log(`✅ Validado: ${runs.length} RUNs da unidade ${unit_id}`);
