@@ -285,6 +285,30 @@ export default function DataManagement() {
     return Object.keys(firstRow).filter(k => !k.startsWith('_'));
   }, [finalData]);
 
+  const deleteDetailedMutation = useMutation({
+    mutationFn: async ({ unitId, dateFrom, dateTo }) => {
+      const filters = { unit_id: unitId };
+      if (dateFrom) filters.date = { $gte: dateFrom };
+      if (dateTo) filters.date = { ...filters.date, $lte: dateTo };
+      if (selectedPlatform !== 'all') filters.platform = selectedPlatform;
+
+      const records = await base44.entities.MetaAdDaily.filter(filters, '-date', 10000);
+      for (const r of records) {
+        await base44.entities.MetaAdDaily.delete(r.id);
+      }
+      return records.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['consolidatedData'] });
+      toast.success(`✅ ${count} registros excluídos de MetaAdDaily!`, { duration: 4000 });
+      setConfirmDeleteDetailed(false);
+    },
+    onError: (error) => {
+      toast.error(`Erro: ${error.message}`);
+      setConfirmDeleteDetailed(false);
+    },
+  });
+
   const deleteMetricsMutation = useMutation({
     mutationFn: async ({ runIds, unitId }) => {
       const response = await base44.functions.invoke('deleteRunCascade', {
