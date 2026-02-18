@@ -759,6 +759,18 @@ export default function DataManagement() {
                 Dados Detalhados — {finalData.length} registros
               </CardTitle>
               <div className="flex gap-2 items-center">
+                {finalData.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setConfirmDeleteDetailed(true)}
+                    disabled={deleteDetailedMutation.isPending}
+                  >
+                    {deleteDetailedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    Excluir {finalData.length} registros
+                  </Button>
+                )}
                 <Sheet>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
