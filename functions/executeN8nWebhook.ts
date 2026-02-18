@@ -62,18 +62,18 @@ Deno.serve(async (req) => {
         const now = new Date().toISOString();
 
         // ✅ CORREÇÃO 2: Criar Run com status "sent" (não "completed")
-        const runData = {
+        const resolvedDateEnd = date_mode === 'CUSTOM' ? until : until || since || new Date().toISOString().split('T')[0];
+        await base44.asServiceRole.entities.Run.create({
             run_id,
             unit_id: integration.unit_id,
             platform: integration.platform_id || 'META',
             date_start: date_mode === 'CUSTOM' ? since : date_mode,
+            date_end: resolvedDateEnd,
             trigger_type: 'manual',
             status: 'queued',
             started_at_utc: now,
             metadata: { execution_type, date_mode, since, until, run_type }
-        };
-        if (date_mode === 'CUSTOM' && until) runData.date_end = until;
-        await base44.asServiceRole.entities.Run.create(runData);
+        });
 
         // ✅ CORREÇÃO 2: ExecutionLog com status "sent"
         const logMessage = execution_type === 'creatives'
