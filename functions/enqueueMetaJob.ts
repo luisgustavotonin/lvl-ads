@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
         console.log('🟢 ================================================');
 
         // Validar campos obrigatórios
-        const required = ['job_id', 'unit_id', 'account_id', 'access_token', 'job_type', 'date_mode'];
+        const required = ['job_id', 'run_id', 'unit_id', 'account_id', 'access_token', 'job_type', 'date_mode'];
         for (const field of required) {
             if (!payload[field]) {
                 return Response.json({ 
