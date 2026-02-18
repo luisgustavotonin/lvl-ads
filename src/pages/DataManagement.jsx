@@ -227,43 +227,46 @@ export default function DataManagement() {
   const filtered = getFilteredResults();
   const sorted = getSortedResults();
 
+  // Limitar a no máximo 10 runs para evitar payload gigante (502)
+  const MAX_RUNS_FOR_DETAIL = 10;
+  const filteredForDetail = filtered.slice(0, MAX_RUNS_FOR_DETAIL);
+
   // Buscar dados RAW dos RUNs filtrados (fonte primária)
   const { data: rawData = [] } = useQuery({
-    queryKey: ['rawEvents', filtered.map(r => r.run_id)],
+    queryKey: ['rawEvents', filteredForDetail.map(r => r.run_id)],
     queryFn: async () => {
-      if (filtered.length === 0) return [];
+      if (filteredForDetail.length === 0) return [];
       
-      const runIds = filtered.map(r => r.run_id);
+      const runIds = filteredForDetail.map(r => r.run_id);
       const data = await base44.entities.RawEvent.filter({
         run_id: { $in: runIds },
         unit_id: selectedUnit
-      }, '-received_at_utc', 10000);
+      }, '-received_at_utc', 5000);
       
       return data;
     },
-    enabled: filtered.length > 0 && selectedUnit !== 'all',
+    enabled: filteredForDetail.length > 0 && selectedUnit !== 'all' && activeTab === 'detailed',
   });
 
   // Buscar dados consolidados (fallback para RAW se não existir)
   const { data: consolidatedData = [] } = useQuery({
-    queryKey: ['consolidatedData', filtered.map(r => r.run_id)],
+    queryKey: ['consolidatedData', filteredForDetail.map(r => r.run_id)],
     queryFn: async () => {
-      if (filtered.length === 0) return [];
+      if (filteredForDetail.length === 0) return [];
       
-      const runIds = filtered.map(r => r.run_id);
+      const runIds = filteredForDetail.map(r => r.run_id);
       
-      // Tentar MetaAdDaily primeiro
       try {
         const data = await base44.entities.MetaAdDaily.filter({
           run_id: { $in: runIds },
           unit_id: selectedUnit
-        }, '-date', 10000);
+        }, '-date', 5000);
         return data;
       } catch {
         return [];
       }
     },
-    enabled: filtered.length > 0 && selectedUnit !== 'all',
+    enabled: filteredForDetail.length > 0 && selectedUnit !== 'all' && activeTab === 'detailed',
   });
 
   // Usar RAW como fonte principal, consolidado como alternativa
