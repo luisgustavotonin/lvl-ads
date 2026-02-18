@@ -7,23 +7,15 @@ function generateRequestId() {
 // Helper: Valida e normaliza data para formato YYYY-MM-DD (SEM timezone)
 function normalizeDateString(dateInput) {
     if (!dateInput) return null;
-    
-    // Se for string, pegar apenas YYYY-MM-DD (ignorar hora/timezone)
     const dateStr = String(dateInput);
     const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
-    
-    if (!match) {
-        throw new Error(`Data inválida: ${dateStr}. Formato esperado: YYYY-MM-DD`);
-    }
-    
-    return match[1]; // Retorna somente YYYY-MM-DD
+    if (!match) throw new Error(`Data inválida: ${dateStr}. Formato esperado: YYYY-MM-DD`);
+    return match[1];
 }
 
-// Helper para obter data/hora atual em Brasília
 function getBrasiliaDate() {
     const now = new Date();
-    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    return brasiliaTime;
+    return new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
 }
 
 Deno.serve(async (req) => {
@@ -33,25 +25,20 @@ Deno.serve(async (req) => {
 
     try {
         const base44 = createClientFromRequest(req);
-        
-        // Parse JSON body e normalizar payload
+
         const bodyText = await req.text();
         let body = JSON.parse(bodyText);
         const requestSizeBytes = new TextEncoder().encode(bodyText).length;
         const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
         const userAgent = req.headers.get('user-agent') || 'unknown';
-        
-        // Se vier como array, pegar o primeiro elemento
-        if (Array.isArray(body) && body.length > 0) {
-            body = body[0];
-        }
-        
+
+        if (Array.isArray(body) && body.length > 0) body = body[0];
         const payload = body.payload ?? body.data ?? body;
-        
-        const { 
+
+        const {
             run_id,
-            integration_id, 
-            secret_token, 
+            integration_id,
+            secret_token,
             account_id,
             unit_id,
             provider,
@@ -63,245 +50,152 @@ Deno.serve(async (req) => {
             ads = []
         } = payload;
 
-        // Registrar início do request
+        // Registrar diagnóstico
         const diagnostic = await base44.asServiceRole.entities.ApiDiagnostics.create({
             route: '/receiveN8nData',
             method: 'POST',
             status: 'iniciado',
-            requestId: requestId,
-            requestSizeBytes: requestSizeBytes,
-            clientIp: clientIp,
-            userAgent: userAgent,
+            requestId,
+            requestSizeBytes,
+            clientIp,
+            userAgent,
             source: 'n8n',
             eventId: run_id || null
         });
         diagnosticId = diagnostic.id;
-        
+
         console.log('🔔 WEBHOOK RECEBIDO (BATCH):', JSON.stringify({
-            run_id,
-            integration_id,
-            unit_id,
-            account_id,
-            provider,
-            batch_index,
-            batch_total,
-            ads_count,
-            approx_chars,
-            generated_at,
-            requestId
+            run_id, integration_id, unit_id, account_id, provider,
+            batch_index, batch_total, ads_count, approx_chars, generated_at, requestId
         }, null, 2));
 
         // Validação obrigatória
         if (!integration_id || !unit_id || !provider) {
-            const durationMs = Date.now() - startTime;
             await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro',
-                httpStatusCode: 400,
+                status: 'erro', httpStatusCode: 400,
                 errorType: 'ValidationError',
                 errorMessage: 'integration_id, unit_id e provider são obrigatórios',
-                durationMs: durationMs
+                durationMs: Date.now() - startTime
             });
-            
-            return Response.json({ 
-                ok: false,
-                error: 'integration_id, unit_id e provider são obrigatórios',
-                requestId: requestId
-            }, { status: 400 });
+            return Response.json({ ok: false, error: 'integration_id, unit_id e provider são obrigatórios', requestId }, { status: 400 });
         }
 
-        // VERIFICAR RATE LIMIT
-        const rateLimitConfig = await base44.asServiceRole.entities.ApiRateLimit.filter({
-            route: '/receiveN8nData'
-        });
-        
-        if (rateLimitConfig.length > 0 && rateLimitConfig[0].enabled) {
-            const config = rateLimitConfig[0];
-            const now = Date.now();
-            
-            // Contar requests nos últimos 10s e 60s
-            const recentRequests = await base44.asServiceRole.entities.ApiDiagnostics.filter({
-                route: '/receiveN8nData'
-            });
-            
-            const last10s = recentRequests.filter(r => (now - new Date(r.created_date).getTime()) < 10000).length;
-            const last60s = recentRequests.filter(r => (now - new Date(r.created_date).getTime()) < 60000).length;
-            
-            const rateLimitExceeded = last10s > config.max_requests_per_10s || last60s > config.max_requests_per_60s;
-            
-            if (rateLimitExceeded && config.block_on_exceed) {
-                const durationMs = Date.now() - startTime;
-                await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                    status: 'erro',
-                    httpStatusCode: 429,
-                    errorType: 'RateLimitError',
-                    errorMessage: `Rate limit excedido: ${last10s} req/10s, ${last60s} req/60s`,
-                    durationMs: durationMs,
-                    rateLimitSuspected: true
+        // ✅ CORREÇÃO 3: Validar run_id — deve existir na tabela Run (gerado pelo Base)
+        if (run_id) {
+            const existingRuns = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
+            if (existingRuns.length === 0) {
+                console.warn(`⚠️ run_id ${run_id} não encontrado na tabela Run. Criando automaticamente para compatibilidade.`);
+                // Criar Run automaticamente para não quebrar fluxo legado
+                await base44.asServiceRole.entities.Run.create({
+                    run_id,
+                    unit_id,
+                    platform: 'META',
+                    status: 'receiving',
+                    started_at_utc: new Date().toISOString(),
+                    trigger_type: 'webhook',
+                    metadata: { source: 'legacy_n8n_callback' }
                 });
-                
-                return Response.json({
-                    ok: false,
-                    error: 'Rate limit',
-                    requestId: requestId,
-                    details: `${last10s} requests nos últimos 10s, ${last60s} nos últimos 60s`
-                }, { status: 429 });
+            } else {
+                // Atualizar status para "receiving"
+                await base44.asServiceRole.entities.Run.update(existingRuns[0].id, {
+                    status: 'receiving'
+                });
             }
         }
 
         // IDEMPOTÊNCIA: Verificar se este batch já foi processado
         if (run_id && batch_index !== undefined) {
             const existingLog = await base44.asServiceRole.entities.WebhookLog.filter({
-                integration_id: integration_id,
+                integration_id,
                 source: 'n8n',
                 'payload_received.run_id': run_id,
                 'payload_received.batch_index': batch_index
             });
-
             if (existingLog.length > 0) {
                 console.log(`⚠️ Batch duplicado ignorado: run_id=${run_id}, batch=${batch_index}`);
-                
-                const durationMs = Date.now() - startTime;
                 await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                    status: 'sucesso',
-                    httpStatusCode: 200,
-                    durationMs: durationMs,
-                    notes: 'Batch duplicado ignorado'
+                    status: 'sucesso', httpStatusCode: 200,
+                    durationMs: Date.now() - startTime, notes: 'Batch duplicado ignorado'
                 });
-                
-                return Response.json({
-                    ok: true,
-                    duplicate: true,
-                    message: 'Batch já processado anteriormente',
-                    run_id: run_id,
-                    batch_index: batch_index,
-                    requestId: requestId
-                });
+                return Response.json({ ok: true, duplicate: true, message: 'Batch já processado anteriormente', run_id, batch_index, requestId });
             }
         }
 
-        // Buscar integração para validar o secret token
+        // Buscar integração e validar secret token
         const integration = await base44.asServiceRole.entities.Integration.get(integration_id);
-        
         if (!integration) {
-            const durationMs = Date.now() - startTime;
             await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro',
-                httpStatusCode: 404,
-                errorType: 'NotFoundError',
-                errorMessage: 'Integração não encontrada',
-                durationMs: durationMs
+                status: 'erro', httpStatusCode: 404,
+                errorType: 'NotFoundError', errorMessage: 'Integração não encontrada',
+                durationMs: Date.now() - startTime
             });
-            
-            return Response.json({ 
-                ok: false,
-                error: 'Integração não encontrada',
-                requestId: requestId
-            }, { status: 404 });
+            return Response.json({ ok: false, error: 'Integração não encontrada', requestId }, { status: 404 });
         }
 
-        // Validar secret token (obrigatório)
         const expectedToken = integration.settings?.n8n_secret_token;
         if (!secret_token || secret_token !== expectedToken) {
-            const durationMs = Date.now() - startTime;
             await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro',
-                httpStatusCode: 401,
-                errorType: 'AuthError',
-                errorMessage: 'Token de segurança inválido ou ausente',
-                durationMs: durationMs
+                status: 'erro', httpStatusCode: 401,
+                errorType: 'AuthError', errorMessage: 'Token de segurança inválido ou ausente',
+                durationMs: Date.now() - startTime
             });
-            
-            return Response.json({ 
-                ok: false,
-                error: 'Token de segurança inválido ou ausente',
-                requestId: requestId
-            }, { status: 401 });
+            return Response.json({ ok: false, error: 'Token de segurança inválido ou ausente', requestId }, { status: 401 });
         }
 
-        // Validar provider
         if (provider !== 'meta') {
-            const durationMs = Date.now() - startTime;
             await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                status: 'erro',
-                httpStatusCode: 400,
-                errorType: 'ValidationError',
-                errorMessage: 'Apenas provider "meta" é suportado',
-                durationMs: durationMs
+                status: 'erro', httpStatusCode: 400,
+                errorType: 'ValidationError', errorMessage: 'Apenas provider "meta" é suportado',
+                durationMs: Date.now() - startTime
             });
-            
-            return Response.json({ 
-                ok: false,
-                error: 'Apenas provider "meta" é suportado no momento',
-                requestId: requestId
-            }, { status: 400 });
+            return Response.json({ ok: false, error: 'Apenas provider "meta" é suportado no momento', requestId }, { status: 400 });
         }
 
-        // Função para garantir que o valor seja sempre um objeto
         const ensureObject = (value) => {
-            if (Array.isArray(value)) {
-                return value.length > 0 ? Object.assign({}, ...value) : {};
-            }
+            if (Array.isArray(value)) return value.length > 0 ? Object.assign({}, ...value) : {};
             return typeof value === 'object' && value !== null ? value : {};
         };
 
-        // Processar anúncios com UPSERT (idempotência)
+        // ✅ CORREÇÃO 4: UPSERT com chave composta (run_id + ad_id + date)
         let adsUpserted = 0;
 
         for (const ad of ads) {
-            const { 
-                ad_id, 
+            const {
+                ad_id,
                 date: rawDate,
-                campaign_id, 
-                campaign_name, 
-                adset_id, 
-                adset_name, 
-                ad_name,
-                ad_effective_status,
-                creative_id,
-                creative_thumbnail_url,
+                campaign_id, campaign_name,
+                adset_id, adset_name,
+                ad_name, ad_effective_status,
+                creative_id, creative_thumbnail_url,
                 metrics = {},
                 breakdowns = {}
             } = ad;
-            
+
             if (!ad_id || !rawDate) {
                 console.warn('⚠️ Ad sem ad_id ou date, pulando:', ad);
                 continue;
             }
 
-            // CRÍTICO: Normalizar data sem timezone (YYYY-MM-DD apenas)
             let date;
             try {
                 date = normalizeDateString(rawDate);
-                
-                // Guard anti-bug: verificar se a data normalizada é válida
                 if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                    console.error(`❌ Data no formato incorreto após normalização: ${date} (ad_id: ${ad_id})`);
+                    console.error(`❌ Data inválida após normalização: ${date} (ad_id: ${ad_id})`);
                     continue;
-                }
-                
-                // Log se a data foi alterada pela normalização
-                if (date !== rawDate) {
-                    console.log(`ℹ️ Data normalizada: ${rawDate} → ${date} (ad_id: ${ad_id})`);
                 }
             } catch (error) {
                 console.error(`❌ Erro ao normalizar data para ad_id ${ad_id}:`, error.message);
                 continue;
             }
 
-            // N8n já envia TUDO calculado - apenas pegar os valores
             const adRecord = {
-                unit_id: unit_id,
-                account_id: account_id,
-                date: date,
-                ad_id: ad_id,
-                ad_name: ad_name || ad_id,
+                unit_id, account_id, date,
+                ad_id, ad_name: ad_name || ad_id,
                 ad_effective_status: ad_effective_status || 'UNKNOWN',
                 creative_id: creative_id || '',
                 creative_thumbnail_url: creative_thumbnail_url || '',
-                adset_id: adset_id || '',
-                adset_name: adset_name || '',
-                campaign_id: campaign_id || '',
-                campaign_name: campaign_name || '',
+                adset_id: adset_id || '', adset_name: adset_name || '',
+                campaign_id: campaign_id || '', campaign_name: campaign_name || '',
                 spend: parseFloat(metrics.spend || 0),
                 impressions: parseInt(metrics.impressions || 0),
                 reach: parseInt(metrics.reach || 0),
@@ -320,110 +214,102 @@ Deno.serve(async (req) => {
                 demographics_json: ensureObject(breakdowns.demographics),
                 placement_json: ensureObject(breakdowns.placement),
                 devices_json: ensureObject(breakdowns.devices),
-                run_id: run_id || ''
+                run_id: run_id || '',
+                imported_at_utc: new Date().toISOString()
             };
 
-            // UPSERT: buscar existente por chave única (unit_id, account_id, ad_id, date)
+            // UPSERT por chave composta: run_id + ad_id + date (idempotente dentro do mesmo run)
             const existing = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                unit_id: unit_id,
-                account_id: account_id,
-                ad_id: ad_id,
-                date: date
+                unit_id, account_id, ad_id, date, run_id: run_id || ''
             });
 
             if (existing.length > 0) {
-                // UPDATE
                 await base44.asServiceRole.entities.MetaAdDaily.update(existing[0].id, adRecord);
-                console.log(`✅ Updated ad ${ad_id} for date ${date}`);
             } else {
-                // INSERT
                 await base44.asServiceRole.entities.MetaAdDaily.create(adRecord);
-                console.log(`✅ Inserted ad ${ad_id} for date ${date}`);
             }
-            
+
             adsUpserted++;
         }
 
         // Log do webhook
         await base44.asServiceRole.entities.WebhookLog.create({
-            integration_id: integration_id,
+            integration_id,
             source: 'n8n',
             status: 'success',
-            payload_received: {
-                run_id,
-                batch_index,
-                batch_total,
-                ads_count,
-                generated_at
-            },
-            records_processed: {
-                ads_upserted: adsUpserted
-            }
+            payload_received: { run_id, batch_index, batch_total, ads_count, generated_at },
+            records_processed: { ads_upserted: adsUpserted }
         });
 
-        // Se for o último batch, agregar dados automaticamente
-        const isLastBatch = batch_index === batch_total;
-        if (isLastBatch) {
-            console.log('🔄 Último batch recebido, iniciando agregação automática...');
-            
-            try {
-                // Chamar função de agregação
-                const aggregationResult = await base44.asServiceRole.functions.invoke('aggregateMetaAdDaily', {
-                    unit_id: unit_id
+        // ✅ CORREÇÃO 2: Atualizar Run com status correto após receber dados
+        const isLastBatch = batch_index !== undefined ? batch_index === batch_total : true;
+        if (run_id) {
+            const runs = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
+            if (runs.length > 0) {
+                const currentRun = runs[0];
+                const newTotalRecords = (currentRun.total_records || 0) + adsUpserted;
+                const newCompletedBatches = (currentRun.completed_jobs || 0) + 1;
+
+                await base44.asServiceRole.entities.Run.update(currentRun.id, {
+                    total_records: newTotalRecords,
+                    completed_jobs: newCompletedBatches,
+                    status: isLastBatch ? 'success' : 'receiving',
+                    finished_at_utc: isLastBatch ? new Date().toISOString() : null
                 });
-                
-                console.log('✅ Agregação concluída:', aggregationResult);
-            } catch (aggError) {
-                console.error('⚠️ Erro na agregação (não fatal):', aggError.message);
-                // Não falha o webhook se a agregação falhar
+
+                // ✅ Atualizar ExecutionLog para "completed" no último batch
+                if (isLastBatch) {
+                    const execLogs = await base44.asServiceRole.entities.ExecutionLog.filter({
+                        unit_id, message: { $regex: run_id.substring(0, 8) }
+                    });
+                    for (const log of execLogs) {
+                        await base44.asServiceRole.entities.ExecutionLog.update(log.id, {
+                            message: log.message.replace('[SENT]', '[COMPLETED]'),
+                            error_details: `${newTotalRecords} registros processados`
+                        });
+                    }
+                }
             }
         }
 
-        // Atualizar diagnóstico com sucesso
-        const durationMs = Date.now() - startTime;
+        // Agregar automaticamente no último batch
+        if (isLastBatch) {
+            console.log('🔄 Último batch recebido, iniciando agregação automática...');
+            base44.asServiceRole.functions.invoke('aggregateMetaAdDaily', { unit_id })
+                .then(() => console.log('✅ Agregação concluída'))
+                .catch(err => console.error('⚠️ Erro na agregação (não fatal):', err.message));
+        }
+
         await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-            status: 'sucesso',
-            httpStatusCode: 200,
-            durationMs: durationMs,
+            status: 'sucesso', httpStatusCode: 200,
+            durationMs: Date.now() - startTime,
             notes: `${adsUpserted} anúncios processados`
         });
 
         return Response.json({
             ok: true,
-            run_id: run_id,
-            batch_index: batch_index,
-            batch_total: batch_total,
+            run_id,
+            batch_index, batch_total,
             ads_received: ads.length,
             ads_upserted: adsUpserted,
-            aggregation_triggered: isLastBatch,
-            requestId: requestId,
+            run_status: isLastBatch ? 'success' : 'receiving',
+            requestId,
             processed_at: getBrasiliaDate().toISOString()
         });
 
     } catch (error) {
         console.error('❌ ERRO ao processar webhook:', error);
-        
-        // Atualizar diagnóstico com erro
         if (diagnosticId) {
-            const durationMs = Date.now() - startTime;
             try {
                 const base44 = createClientFromRequest(req);
                 await base44.asServiceRole.entities.ApiDiagnostics.update(diagnosticId, {
-                    status: 'erro',
-                    httpStatusCode: 500,
+                    status: 'erro', httpStatusCode: 500,
                     errorType: error.name || 'UnknownError',
                     errorMessage: error.message,
-                    durationMs: durationMs
+                    durationMs: Date.now() - startTime
                 });
-            } catch (updateError) {
-                console.error('Erro ao atualizar diagnóstico:', updateError);
-            }
+            } catch (_) {}
         }
-        
-        return Response.json({ 
-            ok: false,
-            error: error.message,
-            requestId: requestId
-        }, { status: 500 });
+        return Response.json({ ok: false, error: error.message, requestId }, { status: 500 });
     }
 });
