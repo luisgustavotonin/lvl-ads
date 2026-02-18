@@ -49,7 +49,6 @@
  */
 import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
-import Integrations from './pages/Integrations';
 import ParametersAlerts from './pages/ParametersAlerts';
 import Profiles from './pages/Profiles';
 import QueueManagement from './pages/QueueManagement';
@@ -65,7 +64,6 @@ import __Layout from './Layout.jsx';
 export const PAGES = {
     "Dashboard": Dashboard,
     "DataManagement": DataManagement,
-    "Integrations": Integrations,
     "ParametersAlerts": ParametersAlerts,
     "Profiles": Profiles,
     "QueueManagement": QueueManagement,
