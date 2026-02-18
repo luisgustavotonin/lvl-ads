@@ -12,6 +12,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Settings, Trash2, Plus, Calendar, CheckCircle2,
   AlertCircle, XCircle, ChevronDown, ChevronUp, Building2
@@ -39,13 +40,11 @@ function StatusBadge({ status }) {
 function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
   const [form, setForm] = useState({
     integration_purpose: integration?.integration_purpose || '',
-    n8n_webhook_insights_url: integration?.n8n_webhook_insights_url || '',
-    n8n_webhook_creatives_url: integration?.n8n_webhook_creatives_url || '',
+    webhook_url: integration?.webhook_url || integration?.n8n_webhook_insights_url || integration?.n8n_webhook_creatives_url || '',
     unit_ids: integration?.unit_ids || (integration?.unit_id ? [integration.unit_id] : []),
-    settings: {
-      access_token: integration?.settings?.access_token || '',
-      n8n_secret_token: integration?.settings?.n8n_secret_token || '',
-    }
+    // botão de execução: tipo (insights | creatives | none) e rótulo
+    execution_button_type: integration?.settings?.execution_button_type || 'none',
+    execution_button_label: integration?.settings?.execution_button_label || '',
   });
 
   const toggleUnit = (id) => {
@@ -53,6 +52,21 @@ function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
       ...f,
       unit_ids: f.unit_ids.includes(id) ? f.unit_ids.filter(u => u !== id) : [...f.unit_ids, id]
     }));
+  };
+
+  const handleSave = () => {
+    const { execution_button_type, execution_button_label, ...rest } = form;
+    onSave({
+      ...rest,
+      // manter retrocompatibilidade preenchendo os campos antigos
+      n8n_webhook_insights_url: execution_button_type === 'insights' ? form.webhook_url : (integration?.n8n_webhook_insights_url || ''),
+      n8n_webhook_creatives_url: execution_button_type === 'creatives' ? form.webhook_url : (integration?.n8n_webhook_creatives_url || ''),
+      settings: {
+        ...(integration?.settings || {}),
+        execution_button_type,
+        execution_button_label,
+      }
+    });
   };
 
   return (
@@ -67,30 +81,11 @@ function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
       </div>
 
       <div className="space-y-1">
-        <Label>URL Webhook Insights</Label>
+        <Label>URL do Webhook</Label>
         <Input
-          value={form.n8n_webhook_insights_url}
-          onChange={e => setForm(f => ({ ...f, n8n_webhook_insights_url: e.target.value }))}
-          placeholder="https://seu-n8n.com/webhook/insights"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <Label>URL Webhook Criativos</Label>
-        <Input
-          value={form.n8n_webhook_creatives_url}
-          onChange={e => setForm(f => ({ ...f, n8n_webhook_creatives_url: e.target.value }))}
-          placeholder="https://seu-n8n.com/webhook/creatives"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <Label>Access Token</Label>
-        <Input
-          type="password"
-          value={form.settings.access_token}
-          onChange={e => setForm(f => ({ ...f, settings: { ...f.settings, access_token: e.target.value } }))}
-          placeholder="Cole seu access token"
+          value={form.webhook_url}
+          onChange={e => setForm(f => ({ ...f, webhook_url: e.target.value }))}
+          placeholder="https://seu-n8n.com/webhook/..."
         />
       </div>
 
@@ -114,9 +109,43 @@ function WebhookConfigForm({ integration, units, onSave, onCancel, isSaving }) {
         <p className="text-xs text-gray-400">{form.unit_ids.length} unidade(s) selecionada(s)</p>
       </div>
 
+      {/* Botão de execução */}
+      <div className="space-y-3 border-t pt-3">
+        <Label className="text-sm font-semibold text-gray-700">Botão de execução</Label>
+        <p className="text-xs text-gray-400">Associe este webhook a um botão de execução na tela de integrações</p>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Tipo de execução</Label>
+          <Select
+            value={form.execution_button_type}
+            onValueChange={v => setForm(f => ({ ...f, execution_button_type: v }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nenhum</SelectItem>
+              <SelectItem value="insights">Insights</SelectItem>
+              <SelectItem value="creatives">Criativos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {form.execution_button_type !== 'none' && (
+          <div className="space-y-1">
+            <Label className="text-xs">Rótulo do botão</Label>
+            <Input
+              value={form.execution_button_label}
+              onChange={e => setForm(f => ({ ...f, execution_button_label: e.target.value }))}
+              placeholder={form.execution_button_type === 'insights' ? 'Ex: Executar Insights' : 'Ex: Executar Criativos'}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="flex justify-end gap-2 pt-2 border-t">
         <Button variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => onSave(form)} disabled={isSaving}>
+        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={isSaving}>
           {isSaving ? 'Salvando...' : 'Salvar'}
         </Button>
       </div>
@@ -195,6 +224,13 @@ export default function PlatformConfigDialog({ open, onClose, platform }) {
     return unit_ids.map(id => units.find(u => u.id === id)?.name).filter(Boolean).join(', ') || '—';
   };
 
+  const getButtonTypeBadge = (wh) => {
+    const type = wh.settings?.execution_button_type;
+    if (type === 'insights') return <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs">Insights</Badge>;
+    if (type === 'creatives') return <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-xs">Criativos</Badge>;
+    return null;
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -211,17 +247,20 @@ export default function PlatformConfigDialog({ open, onClose, platform }) {
               <div key={wh.id} className="border rounded-lg overflow-hidden">
                 <div className="flex items-center justify-between p-3 bg-gray-50">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{wh.integration_purpose || 'Webhook'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{wh.integration_purpose || 'Webhook'}</p>
+                      {getButtonTypeBadge(wh)}
+                    </div>
                     <p className="text-xs text-gray-400 truncate">
                       <Building2 className="w-3 h-3 inline mr-1" />
                       {getUnitNames(wh.unit_ids || (wh.unit_id ? [wh.unit_id] : []))}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 ml-2">
+                  <div className="flex items-center gap-1 ml-2">
                     <StatusBadge status={wh.connection_status} />
                     <Button
                       variant="ghost" size="icon" className="h-8 w-8"
-                      onClick={() => { setScheduleTarget(wh); }}
+                      onClick={() => setScheduleTarget(wh)}
                       title="Agendar"
                     >
                       <Calendar className="w-4 h-4 text-gray-500" />
@@ -229,6 +268,7 @@ export default function PlatformConfigDialog({ open, onClose, platform }) {
                     <Button
                       variant="ghost" size="icon" className="h-8 w-8"
                       onClick={() => setExpandedId(expandedId === wh.id ? null : wh.id)}
+                      title="Configurar"
                     >
                       <Settings className="w-4 h-4 text-gray-500" />
                     </Button>
