@@ -227,64 +227,31 @@ export default function DataManagement() {
   const filtered = getFilteredResults();
   const sorted = getSortedResults();
 
-  // Buscar dados RAW dos RUNs filtrados (fonte primária)
-  const { data: rawData = [] } = useQuery({
-    queryKey: ['rawEvents', filtered.map(r => r.run_id)],
-    queryFn: async () => {
-      if (filtered.length === 0) return [];
-      
-      const runIds = filtered.map(r => r.run_id);
-      const data = await base44.entities.RawEvent.filter({
-        run_id: { $in: runIds },
-        unit_id: selectedUnit
-      }, '-received_at_utc', 10000);
-      
-      return data;
-    },
-    enabled: filtered.length > 0 && selectedUnit !== 'all',
-  });
-
-  // Buscar dados consolidados (fallback para RAW se não existir)
+  // ✅ Buscar MetaAdDaily diretamente por unit_id + date range (não depende de Run)
   const { data: consolidatedData = [] } = useQuery({
-    queryKey: ['consolidatedData', filtered.map(r => r.run_id)],
+    queryKey: ['consolidatedData', selectedUnit, dateFrom, dateTo, selectedPlatform],
     queryFn: async () => {
-      if (filtered.length === 0) return [];
-      
-      const runIds = filtered.map(r => r.run_id);
-      
-      // Tentar MetaAdDaily primeiro
-      try {
-        const data = await base44.entities.MetaAdDaily.filter({
-          run_id: { $in: runIds },
-          unit_id: selectedUnit
-        }, '-date', 10000);
-        return data;
-      } catch {
-        return [];
-      }
-    },
-    enabled: filtered.length > 0 && selectedUnit !== 'all',
-  });
+      if (selectedUnit === 'all') return [];
 
-  // Usar RAW como fonte principal, consolidado como alternativa
-  const detailedData = rawData.length > 0 
-    ? rawData.map(r => ({ ...r.payload, _event_id: r.event_id, _job_id: r.job_id, _created_at: r.received_at_utc }))
-    : consolidatedData;
+      const filters = { unit_id: selectedUnit };
+      if (dateFrom) filters.date = { $gte: dateFrom };
+      if (dateTo) filters.date = { ...filters.date, $lte: dateTo };
+      if (selectedPlatform !== 'all') filters.platform = selectedPlatform;
+
+      return base44.entities.MetaAdDaily.filter(filters, '-date', 10000);
+    },
+    enabled: selectedUnit !== 'all',
+  });
 
   const finalData = useMemo(() => {
-    if (!detailedData || detailedData.length === 0) return [];
-    
-    // Se já está mapeado (do RAW), retornar direto
-    if (detailedData[0]?._event_id) return detailedData;
-    
-    // Senão, é consolidado - adicionar metadados
-    return detailedData.map(row => ({
+    if (!consolidatedData || consolidatedData.length === 0) return [];
+    return consolidatedData.map(row => ({
       ...row,
       _run_id: row.run_id,
       _job_id: row.job_id,
       _created_at: row.imported_at_utc || row.created_date
     }));
-  }, [detailedData]);
+  }, [consolidatedData]);
 
   // Ordenar dados consolidados
   const sortedConsolidatedData = useMemo(() => {
