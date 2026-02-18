@@ -107,18 +107,17 @@ Deno.serve(async (req) => {
             }
         } else {
             payload = {
-                run_id,
+                run_id,                                          // ✅ sempre presente
+                unit_id: integration.unit_id || '',             // ✅ sempre presente
+                account_id: integration.account_reference || '',
                 mode: mode || 'manual',
                 run_type: run_type || 'single',
                 date_mode,
                 since: date_mode === 'CUSTOM' ? since : null,
                 until: date_mode === 'CUSTOM' ? until : null,
+                unit_ids: unit_ids || null,
                 callback_url: `https://api.base44.com/api/apps/${Deno.env.get('BASE44_APP_ID')}/functions/receiveN8nData`
             };
-            if (run_type !== 'all') {
-                payload.account_id = integration.account_reference || '';
-                payload.unit_ids = unit_ids;
-            }
         }
 
         console.log('🔵 ========== ENVIANDO PARA N8N ==========');
