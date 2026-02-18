@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
         // 3️⃣ EXCLUIR JOBS
         try {
             const jobs = await base44.asServiceRole.entities.Job.filter({
-                run_id: { $in: run_ids },
+                run_id: { $in: resolvedRunIds },
                 unit_id: unit_id
             });
 
