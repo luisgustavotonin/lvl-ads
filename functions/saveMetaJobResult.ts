@@ -96,10 +96,9 @@ Deno.serve(async (req) => {
 
         // Transformar para MetaAdDaily (passando run_id explicitamente)
         try {
-            await base44.asServiceRole.functions.invoke('transformJobResultsToAdDaily', { job_id, run_id, unit_id, account_id });
-            console.log(`✅ transformJobResultsToAdDaily invocado para job: ${job_id}`);
+            await base44.functions.invoke('transformJobResultsToAdDaily', { job_id, run_id, unit_id, account_id });
         } catch (transformError) {
-            console.error(`❌ Falha ao transformar para MetaAdDaily:`, transformError.message);
+            console.warn(`⚠️ Falha ao transformar para MetaAdDaily:`, transformError.message);
         }
 
         return Response.json({
