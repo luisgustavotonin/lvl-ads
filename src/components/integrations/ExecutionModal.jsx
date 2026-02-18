@@ -28,10 +28,14 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUnits, setSelectedUnits] = useState([]);
 
-  const { data: units = [] } = useQuery({
+  const { data: allUnits = [] } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
   });
+
+  // Só mostrar unidades associadas ao webhook
+  const webhookUnitIds = integration?.unit_ids || (integration?.unit_id ? [integration.unit_id] : []);
+  const units = allUnits.filter(u => webhookUnitIds.includes(u.id));
 
   const handleToggleUnit = (unitId) => {
     setSelectedUnits(prev =>
