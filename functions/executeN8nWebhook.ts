@@ -153,7 +153,6 @@ Deno.serve(async (req) => {
         console.log('🔵 ========== ENVIANDO PARA N8N ==========');
         console.log('🔵 Tipo:', execution_type);
         console.log('🔵 URL:', webhookUrl);
-        console.log('🔵 run_id gerado:', run_id);
         console.log('🔵 Payload COMPLETO:', JSON.stringify(payload, null, 2));
         console.log('🔵 ==========================================');
 
