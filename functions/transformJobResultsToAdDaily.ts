@@ -36,67 +36,124 @@ Deno.serve(async (req) => {
             return Response.json({ ok: false, error: 'Nenhum dado para processar' }, { status: 400 });
         }
 
-        let upserted = 0;
+        // ─── Helpers para extrair de arrays actions ───────────────────────────
+        const getAction = (actions, type) => {
+            if (!Array.isArray(actions)) return 0;
+            const a = actions.find(a => a.action_type === type);
+            return a ? parseFloat(a.value) || 0 : 0;
+        };
+
+        // ─── PASSO 1: Agregar por ad_id + date ────────────────────────────────
+        // O Meta retorna linhas quebradas por breakdown (device, placement, etc.)
+        // Se não agregarmos, os valores ficam multiplicados pelo número de breakdowns
+        const aggregated = {};
+
         let skipped = 0;
 
         for (const row of data) {
             const rawDate = row.date || row.date_start || row.day;
             const ad_id = row.ad_id;
 
-            if (!rawDate || !ad_id) {
-                skipped++;
-                continue;
-            }
+            if (!rawDate || !ad_id) { skipped++; continue; }
 
-            // Normalizar data para YYYY-MM-DD
             const dateMatch = String(rawDate).match(/^(\d{4}-\d{2}-\d{2})/);
-            if (!dateMatch) {
-                console.warn(`⚠️ Data inválida: ${rawDate}`);
-                skipped++;
-                continue;
-            }
+            if (!dateMatch) { console.warn(`⚠️ Data inválida: ${rawDate}`); skipped++; continue; }
             const date = dateMatch[1];
 
+            const key = `${ad_id}::${date}`;
+
+            if (!aggregated[key]) {
+                aggregated[key] = {
+                    ad_id,
+                    ad_name: row.ad_name || ad_id,
+                    ad_effective_status: row.ad_effective_status || 'UNKNOWN',
+                    creative_id: row.creative_id || '',
+                    creative_thumbnail_url: row.thumbnail_url || row.creative_thumbnail_url || '',
+                    campaign_id: row.campaign_id || '',
+                    campaign_name: row.campaign_name || '',
+                    adset_id: row.adset_id || '',
+                    adset_name: row.adset_name || '',
+                    date,
+                    spend: 0,
+                    impressions: 0,
+                    reach: 0,
+                    clicks: 0,
+                    link_clicks: 0,
+                    wa_conversations_started_7d: 0,
+                    wa_total_messaging_connection: 0,
+                    wa_messaging_first_reply: 0,
+                };
+            }
+
+            const agg = aggregated[key];
+            agg.spend       += parseFloat(row.spend) || 0;
+            agg.impressions += parseInt(row.impressions) || 0;
+            agg.reach       += parseInt(row.reach) || 0;
+            agg.clicks      += parseInt(row.clicks) || 0;
+            agg.link_clicks += parseInt(row.inline_link_clicks || row.link_clicks) || 0;
+
+            agg.wa_conversations_started_7d   += getAction(row.actions, 'onsite_conversion.messaging_conversation_started_7d')
+                                                || parseInt(row.wa_conversations_started_7d || row.conversations) || 0;
+            agg.wa_total_messaging_connection += getAction(row.actions, 'onsite_conversion.total_messaging_connection')
+                                                || parseInt(row.wa_total_messaging_connection || row.total_contact) || 0;
+            agg.wa_messaging_first_reply      += getAction(row.actions, 'onsite_conversion.messaging_first_reply')
+                                                || parseInt(row.wa_messaging_first_reply || row.first_reply) || 0;
+        }
+
+        console.log(`📊 Agregado: ${Object.keys(aggregated).length} registros únicos (ad+date), ${data.length} linhas brutas`);
+
+        // ─── PASSO 2: Calcular métricas derivadas e salvar ────────────────────
+        let upserted = 0;
+        const now = new Date().toISOString();
+
+        for (const key of Object.keys(aggregated)) {
+            const agg = aggregated[key];
+
+            const frequency         = agg.reach > 0 ? agg.impressions / agg.reach : 0;
+            const ctr_link          = agg.impressions > 0 ? agg.link_clicks / agg.impressions : 0;
+            const cpc_link          = agg.link_clicks > 0 ? agg.spend / agg.link_clicks : 0;
+            const cpm               = agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0;
+            const cost_per_conversation  = agg.wa_conversations_started_7d > 0 ? agg.spend / agg.wa_conversations_started_7d : 0;
+            const cost_per_total_contact = agg.wa_total_messaging_connection > 0 ? agg.spend / agg.wa_total_messaging_connection : 0;
+            const cost_per_first_reply   = agg.wa_messaging_first_reply > 0 ? agg.spend / agg.wa_messaging_first_reply : 0;
+
             const record = {
-                run_id,                                                             // ✅ OBRIGATÓRIO
+                run_id,
                 job_id,
                 unit_id,
                 account_id,
                 platform: 'META',
-                date,
-                ad_id,
-                ad_name: row.ad_name || ad_id,
-                ad_effective_status: row.ad_effective_status || 'UNKNOWN',
-                creative_id: row.creative_id || '',
-                creative_thumbnail_url: row.thumbnail_url || row.creative_thumbnail_url || '',
-                campaign_id: row.campaign_id || '',
-                campaign_name: row.campaign_name || '',
-                adset_id: row.adset_id || '',
-                adset_name: row.adset_name || '',
-                spend: parseFloat(row.spend) || 0,
-                impressions: parseInt(row.impressions) || 0,
-                reach: parseInt(row.reach) || 0,
-                frequency: parseFloat(row.frequency) || 0,
-                clicks: parseInt(row.clicks) || 0,
-                link_clicks: parseInt(row.link_clicks || row.inline_link_clicks) || 0,
-                ctr_link: parseFloat(row.ctr_link || row.ctr) || 0,
-                cpc_link: parseFloat(row.cpc_link || row.cpc) || 0,
-                cpm: parseFloat(row.cpm) || 0,
-                wa_conversations_started_7d: parseInt(row.wa_conversations_started_7d || row.conversations) || 0,
-                wa_total_messaging_connection: parseInt(row.wa_total_messaging_connection || row.total_contact) || 0,
-                wa_messaging_first_reply: parseInt(row.wa_messaging_first_reply || row.first_reply) || 0,
-                cost_per_conversation: parseFloat(row.cost_per_conversation) || 0,
-                cost_per_total_contact: parseFloat(row.cost_per_total_contact) || 0,
-                cost_per_first_reply: parseFloat(row.cost_per_first_reply) || 0,
-                imported_at_utc: new Date().toISOString()
+                date: agg.date,
+                ad_id: agg.ad_id,
+                ad_name: agg.ad_name,
+                ad_effective_status: agg.ad_effective_status,
+                creative_id: agg.creative_id,
+                creative_thumbnail_url: agg.creative_thumbnail_url,
+                campaign_id: agg.campaign_id,
+                campaign_name: agg.campaign_name,
+                adset_id: agg.adset_id,
+                adset_name: agg.adset_name,
+                spend: agg.spend,
+                impressions: agg.impressions,
+                reach: agg.reach,
+                frequency,
+                clicks: agg.clicks,
+                link_clicks: agg.link_clicks,
+                ctr_link,
+                cpc_link,
+                cpm,
+                wa_conversations_started_7d: agg.wa_conversations_started_7d,
+                wa_total_messaging_connection: agg.wa_total_messaging_connection,
+                wa_messaging_first_reply: agg.wa_messaging_first_reply,
+                cost_per_conversation,
+                cost_per_total_contact,
+                cost_per_first_reply,
+                imported_at_utc: now
             };
 
-            // ✅ UPSERT por (run_id + ad_id + date)
+            // UPSERT por (run_id + ad_id + date + unit_id)
             const existing = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                run_id,
-                ad_id,
-                date,
-                unit_id
+                run_id, ad_id: agg.ad_id, date: agg.date, unit_id
             });
 
             if (existing.length > 0) {
