@@ -808,7 +808,7 @@ export default function DataManagement() {
             </div>
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg">
-                {detailedSubTab === 'insights' ? 'Insights' : detailedSubTab === 'platform' ? 'Por Plataforma' : detailedSubTab === 'device' ? 'Por Device' : 'Por Demográfico'} — {detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : demographicData.length} registros
+                {detailedSubTab === 'insights' ? 'Insights' : detailedSubTab === 'platform' ? 'Por Plataforma' : detailedSubTab === 'device' ? 'Por Device' : detailedSubTab === 'creatives_basic' ? 'Creatives Basic' : 'Por Demográfico'} — {detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : detailedSubTab === 'creatives_basic' ? creativesBasicData.length : demographicData.length} registros
               </CardTitle>
               <div className="flex gap-2 items-center">
                 {finalData.length > 0 && (
