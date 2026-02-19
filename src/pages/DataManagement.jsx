@@ -841,22 +841,17 @@ export default function DataManagement() {
                 <Database className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-medium">Selecione uma unidade para visualizar</p>
               </div>
-            ) : finalData.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
-                <p className="text-lg font-medium">Nenhum dado encontrado</p>
-                <p className="text-sm mt-2">Sem registros em MetaAdDaily para esta unidade e período</p>
-                <div className="mt-4 text-xs text-left max-w-md mx-auto bg-gray-50 p-3 rounded">
-                  <p className="font-semibold mb-2">Verifique:</p>
-                  <ul className="space-y-1 text-gray-600">
-                    <li>• A unidade selecionada está correta?</li>
-                    <li>• O período abrange as datas dos anúncios?</li>
-                    <li>• O N8N retornou dados via saveMetaJobResult?</li>
-                    <li>• Deixe Data Início e Fim em branco para ver tudo</li>
-                  </ul>
+            ) : (() => {
+              const activeData = detailedSubTab === 'insights' ? insightsData : detailedSubTab === 'platform' ? platformData : detailedSubTab === 'device' ? deviceData : demographicData;
+              if (activeData.length === 0) return (
+                <div className="text-center py-12 text-gray-500">
+                  <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
+                  <p className="text-lg font-medium">Nenhum dado encontrado</p>
+                  <p className="text-sm mt-2">Sem registros para esta aba, unidade e período</p>
                 </div>
-              </div>
-            ) : (
+              );
+              return null;
+            })() || (
               <div className="space-y-4">
                 <div className="text-sm text-gray-600">
                   Exibindo {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedConsolidatedData.length)} de {sortedConsolidatedData.length} registros
