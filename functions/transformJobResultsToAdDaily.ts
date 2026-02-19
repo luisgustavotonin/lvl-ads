@@ -271,6 +271,38 @@ Deno.serve(async (req) => {
             }
         }
 
+        // ═════════════════════════════════════════════════════════════════════
+        // CREATIVES BASIC — 1 linha por ad (upsert por unit_id + ad_id)
+        // ═════════════════════════════════════════════════════════════════════
+        else if (isCreativesBasic) {
+            for (const row of data) {
+                const ad_id = row.id || row.ad_id;
+                if (!ad_id) { skipped++; continue; }
+
+                const record = {
+                    unit_id,
+                    account_id,
+                    ad_id,
+                    ad_name: row.name || row.ad_name || ad_id,
+                    ad_status: row.effective_status || row.ad_status || '',
+                    campaign_id: row.campaign?.id || row.campaign_id || '',
+                    campaign_name: row.campaign?.name || row.campaign_name || '',
+                    adset_id: row.adset?.id || row.adset_id || '',
+                    adset_name: row.adset?.name || row.adset_name || '',
+                    creative_id: row.creative?.id || row.creative_id || '',
+                    last_updated: now
+                };
+
+                const existing = await base44.asServiceRole.entities.MetaAdsDim.filter({ unit_id, ad_id });
+                if (existing.length > 0) {
+                    await base44.asServiceRole.entities.MetaAdsDim.update(existing[0].id, record);
+                } else {
+                    await base44.asServiceRole.entities.MetaAdsDim.create(record);
+                }
+                upserted++;
+            }
+        }
+
         else {
             console.warn(`⚠️ Tipo de job não reconhecido: job_type=${jobType} breakdown=${breakdown}`);
         }
