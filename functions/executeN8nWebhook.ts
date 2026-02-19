@@ -96,7 +96,12 @@ Deno.serve(async (req) => {
                 started_at_utc: now,
                 metadata: { execution_type, date_mode, since, until, run_type }
             });
-            runsCreated.push({ run_id, unit_id: unit.id, account_id: unit.account_id || integration.account_reference || '' });
+            runsCreated.push({
+                run_id,
+                unit_id: unit.id,
+                account_id: unit.account_id || integration.account_reference || '',
+                access_token: unit.secret_token || integration.settings?.access_token || ''
+            });
             console.log(`✅ Run criado: ${run_id} para unit ${unit.id} (${unit.name || unit.id})`);
         }
 
