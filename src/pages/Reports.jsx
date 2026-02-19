@@ -93,39 +93,19 @@ export default function Reports() {
   const { data: currentMetrics = [], isLoading } = useQuery({
     queryKey: ['currentMetrics', selectedUnit, period.start, period.end, selectedPlatforms],
     queryFn: async () => {
-      try {
-        if (!selectedUnit) return [];
-        if (!selectedPlatforms.includes('META')) return [];
-        
-        const startDate = format(period.start, 'yyyy-MM-dd');
-        const endDate = format(period.end, 'yyyy-MM-dd');
-        
-        // Buscar runs ativos da unidade
-        const runs = await base44.entities.Run.filter({
-          unit_id: selectedUnit,
-          status: { $in: ['success', 'partial'] }
-        });
-        
-        if (runs.length === 0) return [];
-        
-        const runIds = runs.map(r => r.run_id);
-        
-        const data = await base44.entities.MetaAdDaily.filter({
-          unit_id: selectedUnit,
-          run_id: { $in: runIds },
-          date: { 
-            $gte: startDate, 
-            $lte: endDate
-          }
-        }, '-date', 10000);
-        return data || [];
-      } catch (error) {
-        console.error('Erro ao buscar métricas atuais:', error);
-        return [];
-      }
+      if (!selectedUnit) return [];
+      if (!selectedPlatforms.includes('META')) return [];
+      
+      const startDate = format(period.start, 'yyyy-MM-dd');
+      const endDate = format(period.end, 'yyyy-MM-dd');
+      
+      const data = await base44.entities.MetaAdDaily.filter({
+        unit_id: selectedUnit,
+        date: { $gte: startDate, $lte: endDate }
+      }, '-date', 10000);
+      return data || [];
     },
     enabled: !!selectedUnit,
-    retry: 1,
   });
 
   // Calcular período anterior
