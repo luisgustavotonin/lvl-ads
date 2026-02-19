@@ -10,9 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import ColumnConfigSheet from '../components/datamanagement/ColumnConfigSheet';
 import toast, { Toaster } from 'react-hot-toast';
 import ExecutionLogViewer from '../components/ExecutionLogViewer';
 
