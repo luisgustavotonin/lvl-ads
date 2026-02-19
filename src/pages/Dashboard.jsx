@@ -75,8 +75,7 @@ export default function Dashboard() {
         
         const runIds = runs.map(r => r.run_id);
         
-        const data = await base44.entities.MetaAdDaily.filter({
-          run_id: { $in: runIds },
+        const data = await base44.entities.MetaAdInsights.filter({
           date: { 
             $gte: startDate, 
             $lte: endDate
