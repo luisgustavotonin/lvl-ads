@@ -313,21 +313,37 @@ export default function DataManagement() {
   }, [finalData]);
 
   const deleteDetailedMutation = useMutation({
-    mutationFn: async ({ unitId, dateFrom, dateTo }) => {
+    mutationFn: async ({ unitId, dateFrom, dateTo, subTab }) => {
       const filters = { unit_id: unitId };
       if (dateFrom) filters.date = { $gte: dateFrom };
       if (dateTo) filters.date = { ...filters.date, $lte: dateTo };
-      if (selectedPlatform !== 'all') filters.platform = selectedPlatform;
 
-      const records = await base44.entities.MetaAdDaily.filter(filters, '-date', 10000);
+      // Selecionar entidade correta conforme a sub-tab
+      const entityMap = {
+        insights: base44.entities.MetaAdInsights,
+        platform: base44.entities.MetaAdByPlatform,
+        device: base44.entities.MetaAdByDevice,
+        demographic: base44.entities.MetaAdByDemographic,
+        creatives_basic: base44.entities.MetaAdsDim,
+      };
+      const entity = entityMap[subTab] || base44.entities.MetaAdInsights;
+
+      // MetaAdsDim não tem campo date, filtrar só por unit_id
+      const finalFilters = subTab === 'creatives_basic' ? { unit_id: unitId } : filters;
+
+      const records = await entity.filter(finalFilters, '-created_date', 10000);
       for (const r of records) {
-        await base44.entities.MetaAdDaily.delete(r.id);
+        await entity.delete(r.id);
       }
       return records.length;
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['consolidatedData'] });
-      toast.success(`✅ ${count} registros excluídos de MetaAdDaily!`, { duration: 4000 });
+      queryClient.invalidateQueries({ queryKey: ['metaAdInsights'] });
+      queryClient.invalidateQueries({ queryKey: ['metaAdByPlatform'] });
+      queryClient.invalidateQueries({ queryKey: ['metaAdByDevice'] });
+      queryClient.invalidateQueries({ queryKey: ['metaAdByDemographic'] });
+      queryClient.invalidateQueries({ queryKey: ['metaAdsDim'] });
+      toast.success(`✅ ${count} registros excluídos!`, { duration: 4000 });
       setConfirmDeleteDetailed(false);
     },
     onError: (error) => {
