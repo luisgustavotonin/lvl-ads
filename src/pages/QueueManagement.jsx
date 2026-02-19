@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Clock, Database, CheckCircle, XCircle, Loader2, RotateCcw, Trash2, Ban, AlertTriangle } from 'lucide-react';
+import { Clock, Database, CheckCircle, XCircle, Loader2, RotateCcw, Trash2, Ban, AlertTriangle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 
 // Função para formatar data no fuso horário de São Paulo
