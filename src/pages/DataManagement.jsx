@@ -774,9 +774,33 @@ export default function DataManagement() {
       {activeTab === 'detailed' && (
         <Card>
           <CardHeader>
+            {/* Sub-tabs por tipo de job */}
+            <div className="flex gap-1 border-b border-gray-200 mb-2">
+              {[
+                { id: 'insights', label: 'Insights', count: insightsData.length },
+                { id: 'platform', label: 'Por Plataforma', count: platformData.length },
+                { id: 'device', label: 'Por Device', count: deviceData.length },
+                { id: 'demographic', label: 'Por Demográfico', count: demographicData.length },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setDetailedSubTab(tab.id); setCurrentPage(1); }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                    detailedSubTab === tab.id
+                      ? 'text-blue-600 border-blue-600'
+                      : 'text-gray-500 border-transparent hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${detailedSubTab === tab.id ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg">
-                Dados Detalhados — {finalData.length} registros
+                {detailedSubTab === 'insights' ? 'Insights' : detailedSubTab === 'platform' ? 'Por Plataforma' : detailedSubTab === 'device' ? 'Por Device' : 'Por Demográfico'} — {detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : demographicData.length} registros
               </CardTitle>
               <div className="flex gap-2 items-center">
                 {finalData.length > 0 && (
