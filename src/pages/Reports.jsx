@@ -140,7 +140,7 @@ export default function Reports() {
     const checkPlatformsWithData = async () => {
       if (!selectedUnit) return;
       
-      const hasMetaData = await base44.entities.MetaAdDaily.filter({
+      const hasMetaData = await base44.entities.MetaAdInsights.filter({
         unit_id: selectedUnit,
         date: { 
           $gte: format(period.start, 'yyyy-MM-dd'), 
