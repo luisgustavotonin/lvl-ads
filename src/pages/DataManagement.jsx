@@ -605,16 +605,7 @@ export default function DataManagement() {
         >
           Execuções (RUNs)
         </button>
-        <button
-          onClick={() => setActiveTab('jobs')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'jobs'
-              ? 'text-blue-600 border-b-blue-600'
-              : 'text-gray-600 border-b-transparent hover:text-gray-900'
-          }`}
-        >
-          Jobs
-        </button>
+
         <button
           onClick={() => setActiveTab('detailed')}
           className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
