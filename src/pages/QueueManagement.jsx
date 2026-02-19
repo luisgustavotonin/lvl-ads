@@ -237,9 +237,19 @@ export default function QueueManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Gestão de Fila – Meta Jobs</h1>
-        <p className="text-gray-500 mt-1">Gerenciamento completo da fila de integração com Meta</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Gestão de Fila – Meta Jobs</h1>
+          <p className="text-gray-500 mt-1">Gerenciamento completo da fila de integração com Meta</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => queryClient.invalidateQueries(['metaJobsQueue'])}
+          className="gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Atualizar
+        </Button>
       </div>
 
       {/* Summary Cards */}
