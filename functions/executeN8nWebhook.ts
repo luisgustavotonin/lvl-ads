@@ -57,15 +57,28 @@ Deno.serve(async (req) => {
             }
         }
 
-        // ✅ CORREÇÃO 1: Gerar run_id aqui (fonte única de verdade)
+        // ✅ Resolver unit_id e account_id corretos baseado nas unidades selecionadas
+        // Se unit_ids foi passado (single/selected), buscar os dados reais de cada unidade
+        let resolvedUnits = [];
+        if (unit_ids && unit_ids.length > 0) {
+            // Buscar dados reais das unidades selecionadas
+            const allUnits = await base44.asServiceRole.entities.Unit.list();
+            resolvedUnits = allUnits.filter(u => unit_ids.includes(u.id));
+        }
+
+        // Para run_type single/selected: usar a primeira unidade selecionada como referência do Run
+        const primaryUnitId = resolvedUnits.length > 0 ? resolvedUnits[0].id : integration.unit_id;
+        const primaryAccountId = resolvedUnits.length > 0 
+            ? (resolvedUnits[0].account_id || integration.account_reference)
+            : integration.account_reference;
+
         const run_id = crypto.randomUUID();
         const now = new Date().toISOString();
 
-        // ✅ CORREÇÃO 2: Criar Run com status "sent" (não "completed")
         const resolvedDateEnd = date_mode === 'CUSTOM' ? until : until || since || new Date().toISOString().split('T')[0];
         await base44.asServiceRole.entities.Run.create({
             run_id,
-            unit_id: integration.unit_id,
+            unit_id: primaryUnitId,
             platform: integration.platform_id || 'META',
             date_start: date_mode === 'CUSTOM' ? since : date_mode,
             date_end: resolvedDateEnd,
@@ -75,13 +88,12 @@ Deno.serve(async (req) => {
             metadata: { execution_type, date_mode, since, until, run_type }
         });
 
-        // ✅ CORREÇÃO 2: ExecutionLog com status "sent"
         const logMessage = execution_type === 'creatives'
             ? `Criativos disparados: run_type=${run_type}${run_type !== 'all' && unit_ids ? ` (${Array.isArray(unit_ids) ? unit_ids.length : 1} unidade(s))` : ''}`
             : `Insights disparados: ${date_mode}${date_mode === 'CUSTOM' ? ` (${since} a ${until})` : ''}`;
 
         await base44.asServiceRole.entities.ExecutionLog.create({
-            unit_id: integration.unit_id,
+            unit_id: primaryUnitId,
             log_type: 'integration_execution',
             execution_type: 'manual',
             execution_status: 'completed',
@@ -103,14 +115,20 @@ Deno.serve(async (req) => {
                 callback_url: `https://api.base44.com/api/apps/${Deno.env.get('BASE44_APP_ID')}/functions/receiveN8nData`
             };
             if (run_type !== 'all') {
-                payload.account_id = integration.account_reference || '';
+                payload.account_id = primaryAccountId;
                 payload.unit_ids = unit_ids;
             }
         } else {
+            // Montar array de unidades com seus account_ids corretos para o N8N
+            const unitsPayload = resolvedUnits.length > 0
+                ? resolvedUnits.map(u => ({ unit_id: u.id, account_id: u.account_id || '' }))
+                : [{ unit_id: primaryUnitId, account_id: primaryAccountId }];
+
             payload = {
-                run_id,                                          // ✅ sempre presente
-                unit_id: integration.unit_id || '',             // ✅ sempre presente
-                account_id: integration.account_reference || '',
+                run_id,
+                unit_id: primaryUnitId,
+                account_id: primaryAccountId,
+                units: unitsPayload,           // ✅ array com unit_id+account_id corretos de cada unidade
                 mode: mode || 'manual',
                 run_type: run_type || 'single',
                 date_mode,
@@ -119,6 +137,8 @@ Deno.serve(async (req) => {
                 unit_ids: unit_ids || null,
                 callback_url: `https://api.base44.com/api/apps/${Deno.env.get('BASE44_APP_ID')}/functions/receiveN8nData`
             };
+
+            console.log('🔵 Units resolvidas:', JSON.stringify(unitsPayload));
         }
 
         console.log('🔵 ========== ENVIANDO PARA N8N ==========');
