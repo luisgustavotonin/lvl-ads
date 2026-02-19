@@ -322,9 +322,15 @@ Deno.serve(async (req) => {
                     last_updated: now
                 };
 
-                const existing = await base44.asServiceRole.entities.MetaAdsDim.filter({ unit_id, ad_id });
-                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdsDim.update(existing[0].id, record);
-                else await base44.asServiceRole.entities.MetaAdsDim.create(record);
+                // Para creatives, usar unit_id + ad_id como chave única
+                const existing = await base44.asServiceRole.entities.MetaAdsDim.filter({ 
+                    unit_id, account_id, ad_id
+                });
+                if (existing.length > 0) {
+                    await base44.asServiceRole.entities.MetaAdsDim.update(existing[0].id, record);
+                } else {
+                    await base44.asServiceRole.entities.MetaAdsDim.create(record);
+                }
                 upsertCount++;
             }
         }
