@@ -871,7 +871,7 @@ export default function DataManagement() {
                       {/* Linha de totais */}
                       <tr className="bg-blue-50 font-semibold border-t-2 border-blue-200">
                         <td className="px-2 py-2 text-gray-700" colSpan={3}>TOTAL</td>
-                        {availableColumns.filter(col => visibleColumns[col] !== false).map(col => {
+                        {columnOrder.filter(col => visibleColumns[col] !== false).map(col => {
                           const colDef = CAMPAIGN_COLUMNS.find(c => c.key === col);
                           const isNumeric = colDef && ['number', 'currency', 'decimal'].includes(colDef.type);
                           
