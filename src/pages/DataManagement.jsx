@@ -855,7 +855,7 @@ export default function DataManagement() {
                               minute: '2-digit'
                             })}
                           </td>
-                          {availableColumns.filter(col => visibleColumns[col] !== false).map(col => {
+                          {columnOrder.filter(col => visibleColumns[col] !== false).map(col => {
                             const value = row[col];
                             const colDef = CAMPAIGN_COLUMNS.find(c => c.key === col);
                             const isNumeric = colDef && ['number', 'currency', 'decimal', 'percent'].includes(colDef.type);
