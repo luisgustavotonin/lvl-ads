@@ -57,89 +57,98 @@ Deno.serve(async (req) => {
             }
         }
 
-        // ✅ Resolver unit_id e account_id corretos baseado nas unidades selecionadas
-        // Se unit_ids foi passado (single/selected), buscar os dados reais de cada unidade
+        // ✅ Resolver unidades: buscar dados reais (unit_id + account_id) de cada unidade selecionada
         let resolvedUnits = [];
+        const allUnits = await base44.asServiceRole.entities.Unit.list();
+
         if (unit_ids && unit_ids.length > 0) {
-            // Buscar dados reais das unidades selecionadas
-            const allUnits = await base44.asServiceRole.entities.Unit.list();
             resolvedUnits = allUnits.filter(u => unit_ids.includes(u.id));
         }
 
-        // Para run_type single/selected: usar a primeira unidade selecionada como referência do Run
-        const primaryUnitId = resolvedUnits.length > 0 ? resolvedUnits[0].id : integration.unit_id;
-        const primaryAccountId = resolvedUnits.length > 0 
-            ? (resolvedUnits[0].account_id || integration.account_reference)
-            : integration.account_reference;
+        // Se nenhuma unidade foi explicitamente selecionada, usar a da integração
+        if (resolvedUnits.length === 0) {
+            const integrationUnit = allUnits.find(u => u.id === integration.unit_id);
+            if (integrationUnit) {
+                resolvedUnits = [integrationUnit];
+            } else {
+                // fallback mínimo
+                resolvedUnits = [{ id: integration.unit_id, account_id: integration.account_reference }];
+            }
+        }
 
-        const run_id = crypto.randomUUID();
         const now = new Date().toISOString();
-
         const resolvedDateEnd = date_mode === 'CUSTOM' ? until : until || since || new Date().toISOString().split('T')[0];
-        await base44.asServiceRole.entities.Run.create({
-            run_id,
-            unit_id: primaryUnitId,
-            platform: integration.platform_id || 'META',
-            date_start: date_mode === 'CUSTOM' ? since : date_mode,
-            date_end: resolvedDateEnd,
-            trigger_type: 'manual',
-            status: 'queued',
-            started_at_utc: now,
-            metadata: { execution_type, date_mode, since, until, run_type }
-        });
+        const callbackUrl = `https://api.base44.com/api/apps/${Deno.env.get('BASE44_APP_ID')}/functions/receiveN8nData`;
+        const accessToken = integration.settings?.access_token || '';
+
+        // ✅ Criar 1 Run por unidade selecionada (cada uma tem seu próprio run_id)
+        const runsCreated = [];
+        for (const unit of resolvedUnits) {
+            const run_id = crypto.randomUUID();
+            await base44.asServiceRole.entities.Run.create({
+                run_id,
+                unit_id: unit.id,
+                platform: integration.platform_id || 'META',
+                date_start: date_mode === 'CUSTOM' ? since : date_mode,
+                date_end: resolvedDateEnd,
+                trigger_type: 'manual',
+                status: 'queued',
+                started_at_utc: now,
+                metadata: { execution_type, date_mode, since, until, run_type }
+            });
+            runsCreated.push({ run_id, unit_id: unit.id, account_id: unit.account_id || integration.account_reference || '' });
+            console.log(`✅ Run criado: ${run_id} para unit ${unit.id} (${unit.name || unit.id})`);
+        }
 
         const logMessage = execution_type === 'creatives'
-            ? `Criativos disparados: run_type=${run_type}${run_type !== 'all' && unit_ids ? ` (${Array.isArray(unit_ids) ? unit_ids.length : 1} unidade(s))` : ''}`
-            : `Insights disparados: ${date_mode}${date_mode === 'CUSTOM' ? ` (${since} a ${until})` : ''}`;
+            ? `Criativos disparados: run_type=${run_type} (${resolvedUnits.length} unidade(s))`
+            : `Insights disparados: ${date_mode}${date_mode === 'CUSTOM' ? ` (${since} a ${until})` : ''} — ${resolvedUnits.length} unidade(s)`;
 
+        // Log de execução (1 log para o conjunto)
         await base44.asServiceRole.entities.ExecutionLog.create({
-            unit_id: primaryUnitId,
+            unit_id: resolvedUnits[0].id,
             log_type: 'integration_execution',
             execution_type: 'manual',
             execution_status: 'completed',
             execution_time: now,
             integration_id: integration_id,
             platform: integration.platform_id,
-            message: `[SENT] ${logMessage} | run_id: ${run_id.substring(0, 8)}`
+            message: `[SENT] ${logMessage} | run_ids: ${runsCreated.map(r => r.run_id.substring(0, 8)).join(', ')}`
         });
 
-        // Preparar payload com run_id e callback_url
-        const accessToken = integration.settings?.access_token || '';
+        // ✅ Preparar payload para o N8N com TODAS as unidades e seus run_ids individuais
         let payload;
 
         if (execution_type === 'creatives') {
             payload = {
-                run_id,
+                runs: runsCreated,   // array [{run_id, unit_id, account_id}]
+                // compatibilidade retroativa (primeira unidade)
+                run_id: runsCreated[0].run_id,
                 mode: mode || 'manual',
                 run_type,
-                callback_url: `https://api.base44.com/api/apps/${Deno.env.get('BASE44_APP_ID')}/functions/receiveN8nData`
+                callback_url: callbackUrl
             };
             if (run_type !== 'all') {
-                payload.account_id = primaryAccountId;
+                payload.account_id = runsCreated[0].account_id;
                 payload.unit_ids = unit_ids;
             }
         } else {
-            // Montar array de unidades com seus account_ids corretos para o N8N
-            const unitsPayload = resolvedUnits.length > 0
-                ? resolvedUnits.map(u => ({ unit_id: u.id, account_id: u.account_id || '' }))
-                : [{ unit_id: primaryUnitId, account_id: primaryAccountId }];
-
             payload = {
-                run_id,
-                unit_id: primaryUnitId,
-                account_id: primaryAccountId,
-                units: unitsPayload,           // ✅ array com unit_id+account_id corretos de cada unidade
+                runs: runsCreated,   // ✅ array [{run_id, unit_id, account_id}] — N8N itera sobre isso
+                // compatibilidade retroativa (primeira unidade, caso N8N use campos top-level)
+                run_id: runsCreated[0].run_id,
+                unit_id: runsCreated[0].unit_id,
+                account_id: runsCreated[0].account_id,
                 mode: mode || 'manual',
                 run_type: run_type || 'single',
                 date_mode,
                 since: date_mode === 'CUSTOM' ? since : null,
                 until: date_mode === 'CUSTOM' ? until : null,
-                unit_ids: unit_ids || null,
-                callback_url: `https://api.base44.com/api/apps/${Deno.env.get('BASE44_APP_ID')}/functions/receiveN8nData`
+                callback_url: callbackUrl
             };
-
-            console.log('🔵 Units resolvidas:', JSON.stringify(unitsPayload));
         }
+
+        console.log(`🔵 Payload enviado ao N8N: ${resolvedUnits.length} unidade(s), runs: ${JSON.stringify(runsCreated)}`);
 
         console.log('🔵 ========== ENVIANDO PARA N8N ==========');
         console.log('🔵 Tipo:', execution_type);
