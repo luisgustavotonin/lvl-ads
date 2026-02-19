@@ -252,9 +252,15 @@ Deno.serve(async (req) => {
                     imported_at_utc: now
                 };
 
-                const existing = await base44.asServiceRole.entities.MetaAdByDevice.filter({ run_id, unit_id, ad_id, date, impression_device });
-                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdByDevice.update(existing[0].id, record);
-                else await base44.asServiceRole.entities.MetaAdByDevice.create(record);
+                const existing = await base44.asServiceRole.entities.MetaAdByDevice.filter({ 
+                    unit_id, account_id, ad_id, date, impression_device,
+                    job_id: job_id || run_id
+                });
+                if (existing.length > 0) {
+                    await base44.asServiceRole.entities.MetaAdByDevice.update(existing[0].id, record);
+                } else {
+                    await base44.asServiceRole.entities.MetaAdByDevice.create(record);
+                }
                 upsertCount++;
             }
         }
