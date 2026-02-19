@@ -94,11 +94,23 @@ Deno.serve(async (req) => {
 
         console.log(`✅ Result ${isUpdate ? 'updated' : 'saved'} for job: ${job_id}, run_id: ${run_id}, rows: ${normalizedRowCount}`);
 
-        // Transformar para MetaAdDaily (passando run_id explicitamente)
+        // Transformar para tabelas destino
         try {
             await base44.functions.invoke('transformJobResultsToAdDaily', { job_id, run_id, unit_id, account_id });
         } catch (transformError) {
-            console.warn(`⚠️ Falha ao transformar para MetaAdDaily:`, transformError.message);
+            console.warn(`⚠️ Falha ao transformar:`, transformError.message);
+        }
+
+        // Fallback: se for fluxo legado (sem job_type na fila), salvar direto em MetaAdInsights
+        try {
+            const queueJobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+            const queueJob = queueJobs?.[0];
+            const hasJobType = queueJob?.job_type && queueJob.job_type !== '';
+            if (!hasJobType) {
+                await base44.functions.invoke('migrateAdDailyToInsights', { run_id, unit_id, account_id });
+            }
+        } catch (migrateError) {
+            console.warn(`⚠️ Fallback migrate error:`, migrateError.message);
         }
 
         return Response.json({
