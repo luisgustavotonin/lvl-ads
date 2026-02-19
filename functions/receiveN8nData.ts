@@ -1,44 +1,25 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-/**
- * ENDPOINT ÚNICO para receber dados do N8N
- * POST /functions/receiveN8nData
- * 
- * Recebe: run_id, unit_id, account_id, result_json.data[], row_count
- * Faz: Agrega por ad_id+date → salva em MetaAdDaily → atualiza Run para success
- */
-
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         let rawPayload = await req.json();
 
-        // Se chegou como string (N8N dupla-serializou), parsear novamente
         if (typeof rawPayload === 'string') {
             try { rawPayload = JSON.parse(rawPayload); } catch(e) {}
         }
-
-        // N8N pode enviar array ou objeto
         if (Array.isArray(rawPayload)) {
-            if (rawPayload.length === 0) {
-                return Response.json({ ok: false, error: 'Payload array vazio' }, { status: 400 });
-            }
+            if (rawPayload.length === 0) return Response.json({ ok: false, error: 'Payload array vazio' }, { status: 400 });
             rawPayload = rawPayload[0];
         }
-
-        // Se o item do array também for string, parsear de novo
         if (typeof rawPayload === 'string') {
             try { rawPayload = JSON.parse(rawPayload); } catch(e) {}
         }
-
-        // Algumas versões do N8N encapsulam em { body: {...} } ou { json: {...} }
-        if (rawPayload.body && typeof rawPayload.body === 'object') {
-            rawPayload = rawPayload.body;
-        } else if (rawPayload.json && typeof rawPayload.json === 'object') {
-            rawPayload = rawPayload.json;
-        }
+        if (rawPayload.body && typeof rawPayload.body === 'object') rawPayload = rawPayload.body;
+        else if (rawPayload.json && typeof rawPayload.json === 'object') rawPayload = rawPayload.json;
 
         const { run_id, unit_id, account_id, result_json, row_count } = rawPayload;
+        const job_id = rawPayload.job_id || null;
 
         if (!run_id || !unit_id || !account_id || !result_json) {
             return Response.json({
@@ -49,7 +30,6 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
-        // Normalizar result_json
         let normalizedResultJson;
         if (typeof result_json === 'string') {
             try { normalizedResultJson = JSON.parse(result_json); }
@@ -60,169 +40,253 @@ Deno.serve(async (req) => {
 
         const data = normalizedResultJson.data || [];
         if (!Array.isArray(data) || data.length === 0) {
-            return Response.json({ ok: false, error: 'result_json.data deve ser um array não vazio' }, { status: 400 });
+            // Dados vazios — só atualiza o Run para success e retorna ok
+            const runs = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
+            if (runs.length > 0) {
+                await base44.asServiceRole.entities.Run.update(runs[0].id, {
+                    status: 'success',
+                    total_records: 0,
+                    finished_at_utc: new Date().toISOString()
+                });
+            }
+            return Response.json({ ok: true, run_id, records_processed: 0, message: 'Sem dados para processar' });
         }
 
-        console.log(`🔵 receiveN8nData | run_id: ${run_id} | unit_id: ${unit_id} | rows: ${data.length}`);
+        // ─── Detectar tipo de job pelo job_id ou pelo campo job_type ──────────
+        const jobType = rawPayload.job_type || '';
+        const breakdown = rawPayload.breakdown || '';
+        const jobIdStr = String(job_id || '').toLowerCase();
 
-        // ─── Helpers para extrair do array actions ────────────────────────────
+        const isPlatform     = jobType === 'insights_platform' || breakdown === 'publisher_platform' || jobIdStr.includes('insights_platform');
+        const isDevice       = jobType === 'insights_device'   || breakdown === 'impression_device'  || jobIdStr.includes('insights_device');
+        const isDemographics = jobType === 'insights_demographics' || breakdown === 'age,gender'     || jobIdStr.includes('insights_demographics');
+        const isCreativesBasic = jobType === 'creatives_basic' || jobIdStr.includes('creatives_basic');
+        const isInsights     = !isPlatform && !isDevice && !isDemographics && !isCreativesBasic;
+
+        console.log(`🔵 receiveN8nData | run_id=${run_id} | job_id=${job_id} | jobType=${jobType} | rows=${data.length} | route: isPlatform=${isPlatform} isDevice=${isDevice} isDemographics=${isDemographics} isCreativesBasic=${isCreativesBasic} isInsights=${isInsights}`);
+
+        const now = new Date().toISOString();
+        let upsertCount = 0;
+
+        // ─── Helpers ──────────────────────────────────────────────────────────
+        const normDate = (raw) => {
+            const m = String(raw || '').match(/^(\d{4}-\d{2}-\d{2})/);
+            return m ? m[1] : null;
+        };
         const getAction = (actions, type) => {
             if (!Array.isArray(actions)) return 0;
             const a = actions.find(a => a.action_type === type);
             return a ? parseFloat(a.value) || 0 : 0;
         };
 
-        const getCost = (costPerAction, type) => {
-            if (!Array.isArray(costPerAction)) return 0;
-            const c = costPerAction.find(c => c.action_type === type);
-            return c ? parseFloat(c.value) || 0 : 0;
-        };
+        // ═════════════════════════════════════════════════════════════════════
+        // INSIGHTS BASIC → MetaAdInsights
+        // ═════════════════════════════════════════════════════════════════════
+        if (isInsights) {
+            const agg = {};
+            for (const row of data) {
+                const date = normDate(row.date || row.date_start || row.day);
+                const ad_id = row.ad_id;
+                if (!date || !ad_id) continue;
+                const key = `${ad_id}::${date}`;
+                if (!agg[key]) {
+                    agg[key] = {
+                        ad_id, date,
+                        ad_name: row.ad_name || ad_id,
+                        ad_effective_status: row.ad_effective_status || 'UNKNOWN',
+                        creative_id: row.creative_id || '',
+                        creative_thumbnail_url: row.thumbnail_url || row.creative_thumbnail_url || '',
+                        campaign_id: row.campaign_id || '', campaign_name: row.campaign_name || '',
+                        adset_id: row.adset_id || '', adset_name: row.adset_name || '',
+                        spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0,
+                        wa_conversations_started_7d: 0, wa_total_messaging_connection: 0, wa_messaging_first_reply: 0,
+                    };
+                }
+                const a = agg[key];
+                a.spend       += parseFloat(row.spend) || 0;
+                a.impressions += parseInt(row.impressions) || 0;
+                a.reach       += parseInt(row.reach) || 0;
+                a.clicks      += parseInt(row.clicks) || 0;
+                a.link_clicks += parseInt(row.inline_link_clicks || row.link_clicks) || 0;
+                a.wa_conversations_started_7d   += getAction(row.actions, 'onsite_conversion.messaging_conversation_started_7d');
+                a.wa_total_messaging_connection += getAction(row.actions, 'onsite_conversion.total_messaging_connection');
+                a.wa_messaging_first_reply      += getAction(row.actions, 'onsite_conversion.messaging_first_reply');
+            }
 
-        // ─── PASSO 1: Agregar linhas por ad_id + date ─────────────────────────
-        // Meta retorna breakdown por impression_device (android, iphone, etc.)
-        // Precisamos somar métricas de cada device para obter o total por ad+dia
-        const aggregated = {};
+            for (const key of Object.keys(agg)) {
+                const a = agg[key];
+                const frequency    = a.reach > 0 ? a.impressions / a.reach : 0;
+                const ctr_link     = a.impressions > 0 ? a.link_clicks / a.impressions : 0;
+                const cpc_link     = a.link_clicks > 0 ? a.spend / a.link_clicks : 0;
+                const cpm          = a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0;
+                const cost_per_conversation  = a.wa_conversations_started_7d > 0 ? a.spend / a.wa_conversations_started_7d : 0;
+                const cost_per_total_contact = a.wa_total_messaging_connection > 0 ? a.spend / a.wa_total_messaging_connection : 0;
+                const cost_per_first_reply   = a.wa_messaging_first_reply > 0 ? a.spend / a.wa_messaging_first_reply : 0;
 
-        for (const row of data) {
-            const rawDate = row.date || row.date_start || row.day;
-            const ad_id = row.ad_id;
-
-            if (!rawDate || !ad_id) continue;
-
-            const dateMatch = String(rawDate).match(/^(\d{4}-\d{2}-\d{2})/);
-            if (!dateMatch) { console.warn(`⚠️ Data inválida: ${rawDate}`); continue; }
-            const date = dateMatch[1];
-
-            const key = `${ad_id}::${date}`;
-
-            if (!aggregated[key]) {
-                aggregated[key] = {
-                    // Campos de identificação (do primeiro row)
-                    ad_id,
-                    ad_name: row.ad_name || ad_id,
-                    ad_effective_status: row.ad_effective_status || 'UNKNOWN',
-                    creative_id: row.creative_id || '',
-                    creative_thumbnail_url: row.thumbnail_url || row.creative_thumbnail_url || '',
-                    campaign_id: row.campaign_id || '',
-                    campaign_name: row.campaign_name || '',
-                    adset_id: row.adset_id || '',
-                    adset_name: row.adset_name || '',
-                    date,
-                    // Métricas somáveis (iniciam em 0)
-                    spend: 0,
-                    impressions: 0,
-                    reach: 0,
-                    clicks: 0,
-                    link_clicks: 0,
-                    wa_conversations_started_7d: 0,
-                    wa_total_messaging_connection: 0,
-                    wa_messaging_first_reply: 0,
+                const record = {
+                    run_id, job_id: job_id || run_id, unit_id, account_id,
+                    date: a.date, ad_id: a.ad_id, ad_name: a.ad_name,
+                    ad_effective_status: a.ad_effective_status,
+                    creative_id: a.creative_id, creative_thumbnail_url: a.creative_thumbnail_url,
+                    campaign_id: a.campaign_id, campaign_name: a.campaign_name,
+                    adset_id: a.adset_id, adset_name: a.adset_name,
+                    spend: a.spend, impressions: a.impressions, reach: a.reach, frequency,
+                    clicks: a.clicks, link_clicks: a.link_clicks, ctr_link, cpc_link, cpm,
+                    wa_conversations_started_7d: a.wa_conversations_started_7d,
+                    wa_total_messaging_connection: a.wa_total_messaging_connection,
+                    wa_messaging_first_reply: a.wa_messaging_first_reply,
+                    cost_per_conversation, cost_per_total_contact, cost_per_first_reply,
+                    imported_at_utc: now
                 };
+
+                const existing = await base44.asServiceRole.entities.MetaAdInsights.filter({ run_id, unit_id, ad_id: a.ad_id, date: a.date });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdInsights.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdInsights.create(record);
+                upsertCount++;
             }
-
-            const agg = aggregated[key];
-            agg.spend       += parseFloat(row.spend) || 0;
-            agg.impressions += parseInt(row.impressions) || 0;
-            agg.reach       += parseInt(row.reach) || 0;
-            agg.clicks      += parseInt(row.clicks) || 0;
-            agg.link_clicks += parseInt(row.inline_link_clicks || row.link_clicks) || 0;
-
-            // WA metrics: extrair dos arrays actions / cost_per_action_type
-            agg.wa_conversations_started_7d  += getAction(row.actions, 'onsite_conversion.messaging_conversation_started_7d');
-            agg.wa_total_messaging_connection += getAction(row.actions, 'onsite_conversion.total_messaging_connection');
-            agg.wa_messaging_first_reply      += getAction(row.actions, 'onsite_conversion.messaging_first_reply');
         }
 
-        console.log(`📊 Agregado: ${Object.keys(aggregated).length} registros únicos (ad+date)`);
+        // ═════════════════════════════════════════════════════════════════════
+        // PLATFORM → MetaAdByPlatform
+        // ═════════════════════════════════════════════════════════════════════
+        else if (isPlatform) {
+            for (const row of data) {
+                const date = normDate(row.date || row.date_start || row.day);
+                const ad_id = row.ad_id;
+                const publisher_platform = (row.publisher_platform || '').toLowerCase();
+                if (!date || !ad_id || !publisher_platform) continue;
 
-        // ─── PASSO 2: Calcular métricas derivadas e salvar em MetaAdDaily ─────
-        const now = new Date().toISOString();
-        let upsertCount = 0;
-        let skipCount = 0;
+                const impressions = parseInt(row.impressions) || 0;
+                const reach       = parseInt(row.reach) || 0;
+                const clicks      = parseInt(row.clicks) || 0;
+                const link_clicks = parseInt(row.inline_link_clicks || row.link_clicks) || 0;
+                const spend       = parseFloat(row.spend) || 0;
 
-        for (const key of Object.keys(aggregated)) {
-            const agg = aggregated[key];
+                const record = {
+                    run_id, job_id: job_id || run_id, unit_id, account_id,
+                    date, ad_id, ad_name: row.ad_name || ad_id,
+                    adset_id: row.adset_id || '', adset_name: row.adset_name || '',
+                    campaign_id: row.campaign_id || '', campaign_name: row.campaign_name || '',
+                    publisher_platform, spend, impressions, reach, clicks, link_clicks,
+                    ctr_link: impressions > 0 ? link_clicks / impressions : 0,
+                    cpc_link: link_clicks > 0 ? spend / link_clicks : 0,
+                    cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+                    imported_at_utc: now
+                };
 
-            // Calcular métricas derivadas após agregação
-            const frequency         = agg.reach > 0 ? agg.impressions / agg.reach : 0;
-            const ctr_link          = agg.impressions > 0 ? agg.link_clicks / agg.impressions : 0;
-            const cpc_link          = agg.link_clicks > 0 ? agg.spend / agg.link_clicks : 0;
-            const cpm               = agg.impressions > 0 ? (agg.spend / agg.impressions) * 1000 : 0;
-            const cost_per_conversation  = agg.wa_conversations_started_7d > 0 ? agg.spend / agg.wa_conversations_started_7d : 0;
-            const cost_per_total_contact = agg.wa_total_messaging_connection > 0 ? agg.spend / agg.wa_total_messaging_connection : 0;
-            const cost_per_first_reply   = agg.wa_messaging_first_reply > 0 ? agg.spend / agg.wa_messaging_first_reply : 0;
-
-            const record = {
-                run_id,
-                job_id: run_id,   // ✅ sem MetaJobsQueue, usa run_id como job_id
-                unit_id,
-                account_id,
-                platform: 'META',
-                date: agg.date,
-                ad_id: agg.ad_id,
-                ad_name: agg.ad_name,
-                ad_effective_status: agg.ad_effective_status,
-                creative_id: agg.creative_id,
-                creative_thumbnail_url: agg.creative_thumbnail_url,
-                campaign_id: agg.campaign_id,
-                campaign_name: agg.campaign_name,
-                adset_id: agg.adset_id,
-                adset_name: agg.adset_name,
-                spend: agg.spend,
-                impressions: agg.impressions,
-                reach: agg.reach,
-                frequency,
-                clicks: agg.clicks,
-                link_clicks: agg.link_clicks,
-                ctr_link,
-                cpc_link,
-                cpm,
-                wa_conversations_started_7d: agg.wa_conversations_started_7d,
-                wa_total_messaging_connection: agg.wa_total_messaging_connection,
-                wa_messaging_first_reply: agg.wa_messaging_first_reply,
-                cost_per_conversation,
-                cost_per_total_contact,
-                cost_per_first_reply,
-                imported_at_utc: now
-            };
-
-            // UPSERT por run_id + ad_id + date + unit_id
-            const existing = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                run_id, ad_id: agg.ad_id, date: agg.date, unit_id
-            });
-
-            if (existing.length > 0) {
-                await base44.asServiceRole.entities.MetaAdDaily.update(existing[0].id, record);
-            } else {
-                await base44.asServiceRole.entities.MetaAdDaily.create(record);
+                const existing = await base44.asServiceRole.entities.MetaAdByPlatform.filter({ run_id, unit_id, ad_id, date, publisher_platform });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdByPlatform.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdByPlatform.create(record);
+                upsertCount++;
             }
-
-            upsertCount++;
         }
 
-        console.log(`✅ MetaAdDaily: ${upsertCount} upserted, ${skipCount} skipped`);
+        // ═════════════════════════════════════════════════════════════════════
+        // DEVICE → MetaAdByDevice
+        // ═════════════════════════════════════════════════════════════════════
+        else if (isDevice) {
+            for (const row of data) {
+                const date = normDate(row.date || row.date_start || row.day);
+                const ad_id = row.ad_id;
+                const impression_device = (row.impression_device || '').toLowerCase();
+                if (!date || !ad_id || !impression_device) continue;
 
-        // ─── PASSO 3: Atualizar Run para success ──────────────────────────────
+                const impressions = parseInt(row.impressions) || 0;
+                const reach       = parseInt(row.reach) || 0;
+                const clicks      = parseInt(row.clicks) || 0;
+                const link_clicks = parseInt(row.inline_link_clicks || row.link_clicks) || 0;
+                const spend       = parseFloat(row.spend) || 0;
+
+                const record = {
+                    run_id, job_id: job_id || run_id, unit_id, account_id,
+                    date, ad_id, ad_name: row.ad_name || ad_id,
+                    adset_id: row.adset_id || '', adset_name: row.adset_name || '',
+                    campaign_id: row.campaign_id || '', campaign_name: row.campaign_name || '',
+                    impression_device, spend, impressions, reach, clicks, link_clicks,
+                    ctr_link: impressions > 0 ? link_clicks / impressions : 0,
+                    cpc_link: link_clicks > 0 ? spend / link_clicks : 0,
+                    cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+                    imported_at_utc: now
+                };
+
+                const existing = await base44.asServiceRole.entities.MetaAdByDevice.filter({ run_id, unit_id, ad_id, date, impression_device });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdByDevice.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdByDevice.create(record);
+                upsertCount++;
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // DEMOGRAPHICS → MetaAdByDemographic
+        // ═════════════════════════════════════════════════════════════════════
+        else if (isDemographics) {
+            for (const row of data) {
+                const date = normDate(row.date || row.date_start || row.day);
+                const ad_id = row.ad_id;
+                const age    = row.age    || 'unknown';
+                const gender = (row.gender || 'unknown').toLowerCase();
+                if (!date || !ad_id) continue;
+
+                const record = {
+                    run_id, job_id: job_id || run_id, unit_id, account_id,
+                    date, ad_id, ad_name: row.ad_name || ad_id,
+                    adset_id: row.adset_id || '', adset_name: row.adset_name || '',
+                    campaign_id: row.campaign_id || '', campaign_name: row.campaign_name || '',
+                    age, gender,
+                    spend: parseFloat(row.spend) || 0,
+                    impressions: parseInt(row.impressions) || 0,
+                    reach: parseInt(row.reach) || 0,
+                    clicks: parseInt(row.clicks) || 0,
+                    imported_at_utc: now
+                };
+
+                const existing = await base44.asServiceRole.entities.MetaAdByDemographic.filter({ run_id, unit_id, ad_id, date, age, gender });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdByDemographic.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdByDemographic.create(record);
+                upsertCount++;
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // CREATIVES BASIC → MetaAdsDim
+        // ═════════════════════════════════════════════════════════════════════
+        else if (isCreativesBasic) {
+            for (const row of data) {
+                const ad_id = row.id || row.ad_id;
+                if (!ad_id) continue;
+
+                const record = {
+                    unit_id, account_id, ad_id,
+                    ad_name: row.name || row.ad_name || ad_id,
+                    ad_status: row.effective_status || row.ad_status || '',
+                    campaign_id: row.campaign?.id || row.campaign_id || '',
+                    campaign_name: row.campaign?.name || row.campaign_name || '',
+                    adset_id: row.adset?.id || row.adset_id || '',
+                    adset_name: row.adset?.name || row.adset_name || '',
+                    creative_id: row.creative?.id || row.creative_id || '',
+                    last_updated: now
+                };
+
+                const existing = await base44.asServiceRole.entities.MetaAdsDim.filter({ unit_id, ad_id });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdsDim.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdsDim.create(record);
+                upsertCount++;
+            }
+        }
+
+        console.log(`✅ Salvos: ${upsertCount} registros | route: ${isPlatform ? 'platform' : isDevice ? 'device' : isDemographics ? 'demographics' : isCreativesBasic ? 'creatives_basic' : 'insights'}`);
+
+        // ─── Atualizar Run ────────────────────────────────────────────────────
         const runs = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
         if (runs.length > 0) {
             await base44.asServiceRole.entities.Run.update(runs[0].id, {
                 status: 'success',
-                total_records: upsertCount,
+                total_records: (runs[0].total_records || 0) + upsertCount,
                 finished_at_utc: now
             });
-            console.log(`✅ Run atualizado: status=success, records=${upsertCount}`);
-        } else {
-            console.warn(`⚠️ Run não encontrado para run_id: ${run_id}`);
         }
 
-        return Response.json({
-            ok: true,
-            run_id,
-            unit_id,
-            records_raw: data.length,
-            records_processed: upsertCount,
-            stored_at: now
-        });
+        return Response.json({ ok: true, run_id, job_id, records_processed: upsertCount, stored_at: now });
 
     } catch (error) {
         console.error('❌ Erro em receiveN8nData:', error);
