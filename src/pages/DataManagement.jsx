@@ -227,21 +227,42 @@ export default function DataManagement() {
   const filtered = getFilteredResults();
   const sorted = getSortedResults();
 
-  // ✅ Buscar MetaAdDaily diretamente por unit_id + date range (não depende de Run)
-  const { data: consolidatedData = [] } = useQuery({
-    queryKey: ['consolidatedData', selectedUnit, dateFrom, dateTo, selectedPlatform],
-    queryFn: async () => {
-      if (selectedUnit === 'all') return [];
+  const [detailedSubTab, setDetailedSubTab] = useState('insights');
 
-      const filters = { unit_id: selectedUnit };
-      if (dateFrom) filters.date = { $gte: dateFrom };
-      if (dateTo) filters.date = { ...filters.date, $lte: dateTo };
-      if (selectedPlatform !== 'all') filters.platform = selectedPlatform;
+  const buildDateFilters = () => {
+    const filters = { unit_id: selectedUnit };
+    if (dateFrom) filters.date = { $gte: dateFrom };
+    if (dateTo) filters.date = { ...(filters.date || {}), $lte: dateTo };
+    return filters;
+  };
 
-      return base44.entities.MetaAdDaily.filter(filters, '-date', 10000);
-    },
+  const { data: insightsData = [] } = useQuery({
+    queryKey: ['metaAdInsights', selectedUnit, dateFrom, dateTo],
+    queryFn: () => base44.entities.MetaAdInsights.filter(buildDateFilters(), '-date', 10000),
     enabled: selectedUnit !== 'all',
   });
+
+  const { data: platformData = [] } = useQuery({
+    queryKey: ['metaAdByPlatform', selectedUnit, dateFrom, dateTo],
+    queryFn: () => base44.entities.MetaAdByPlatform.filter(buildDateFilters(), '-date', 10000),
+    enabled: selectedUnit !== 'all',
+  });
+
+  const { data: deviceData = [] } = useQuery({
+    queryKey: ['metaAdByDevice', selectedUnit, dateFrom, dateTo],
+    queryFn: () => base44.entities.MetaAdByDevice.filter(buildDateFilters(), '-date', 10000),
+    enabled: selectedUnit !== 'all',
+  });
+
+  const { data: demographicData = [] } = useQuery({
+    queryKey: ['metaAdByDemographic', selectedUnit, dateFrom, dateTo],
+    queryFn: () => base44.entities.MetaAdByDemographic.filter(buildDateFilters(), '-date', 10000),
+    enabled: selectedUnit !== 'all',
+  });
+
+  // Mantém compatibilidade com código existente
+  const consolidatedData = insightsData;
+
 
   const finalData = useMemo(() => {
     if (!consolidatedData || consolidatedData.length === 0) return [];
