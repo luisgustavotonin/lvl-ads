@@ -261,6 +261,12 @@ export default function DataManagement() {
     enabled: selectedUnit !== 'all',
   });
 
+  const { data: creativesBasicData = [] } = useQuery({
+    queryKey: ['metaAdsDim', selectedUnit],
+    queryFn: () => base44.entities.MetaAdsDim.filter({ unit_id: selectedUnit }, '-last_updated', 10000),
+    enabled: selectedUnit !== 'all',
+  });
+
   // Mantém compatibilidade com código existente
   const consolidatedData = insightsData;
 
