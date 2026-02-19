@@ -52,10 +52,30 @@ Deno.serve(async (req) => {
             return Response.json({ ok: true, run_id, records_processed: 0, message: 'Sem dados para processar' });
         }
 
-        // ─── Detectar tipo de job pelo job_id ou pelo campo job_type ──────────
-        const jobType = rawPayload.job_type || '';
-        const breakdown = rawPayload.breakdown || '';
+        // ─── Detectar tipo de job ─────────────────────────────────────────────
+        // 1) Tenta pelo job_type vindo no payload
+        // 2) Se não, busca na MetaJobsQueue pelo job_id
+        // 3) Se não, tenta inferir pelo job_id string
+        let jobType = rawPayload.job_type || '';
+        let breakdown = rawPayload.breakdown || '';
         const jobIdStr = String(job_id || '').toLowerCase();
+
+        if (!jobType && job_id) {
+            const queueJobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id });
+            if (queueJobs.length > 0) {
+                jobType = queueJobs[0].job_type || '';
+                breakdown = queueJobs[0].breakdown || breakdown;
+            }
+        }
+
+        // Fallback: inferir pelo nome do job_id
+        if (!jobType && jobIdStr) {
+            if (jobIdStr.includes('insights_platform')) jobType = 'insights_platform';
+            else if (jobIdStr.includes('insights_device')) jobType = 'insights_device';
+            else if (jobIdStr.includes('insights_demographics')) jobType = 'insights_demographics';
+            else if (jobIdStr.includes('creatives_basic')) jobType = 'creatives_basic';
+            else if (jobIdStr.includes('insights_basic') || jobIdStr.includes('insights')) jobType = 'insights_basic';
+        }
 
         const isPlatform     = jobType === 'insights_platform' || breakdown === 'publisher_platform' || jobIdStr.includes('insights_platform');
         const isDevice       = jobType === 'insights_device'   || breakdown === 'impression_device'  || jobIdStr.includes('insights_device');
