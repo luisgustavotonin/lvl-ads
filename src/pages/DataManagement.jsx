@@ -850,7 +850,7 @@ export default function DataManagement() {
                 <p className="text-lg font-medium">Selecione uma unidade para visualizar</p>
               </div>
             ) : (() => {
-              const activeData = detailedSubTab === 'insights' ? insightsData : detailedSubTab === 'platform' ? platformData : detailedSubTab === 'device' ? deviceData : demographicData;
+              const activeData = detailedSubTab === 'insights' ? insightsData : detailedSubTab === 'platform' ? platformData : detailedSubTab === 'device' ? deviceData : detailedSubTab === 'creatives_basic' ? creativesBasicData : demographicData;
               if (activeData.length === 0) return (
                 <div className="text-center py-12 text-gray-500">
                   <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
