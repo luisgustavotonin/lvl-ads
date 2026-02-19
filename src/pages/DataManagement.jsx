@@ -770,39 +770,13 @@ export default function DataManagement() {
                     Excluir {finalData.length} registros
                   </Button>
                 )}
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Settings2 className="w-4 h-4" />
-                      Selecionar Colunas
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Configurar Colunas</SheetTitle>
-                      <SheetDescription>Selecione quais colunas deseja visualizar</SheetDescription>
-                    </SheetHeader>
-                    <div className="mt-6 space-y-2">
-                      <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
-                        <Checkbox checked={true} disabled />
-                        <label className="text-sm font-medium">Job ID (fixo)</label>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
-                        <Checkbox checked={true} disabled />
-                        <label className="text-sm font-medium">Created At (fixo)</label>
-                      </div>
-                      {availableColumns.map(col => (
-                        <div key={col} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
-                          <Checkbox 
-                            checked={visibleColumns[col] !== false}
-                            onCheckedChange={() => toggleColumnVisibility(col)}
-                          />
-                          <label className="text-sm">{col}</label>
-                        </div>
-                      ))}
-                    </div>
-                  </SheetContent>
-                </Sheet>
+                <ColumnConfigSheet
+                  columnOrder={columnOrder}
+                  visibleColumns={visibleColumns}
+                  campaignColumns={CAMPAIGN_COLUMNS}
+                  onDragEnd={handleDragEnd}
+                  onToggle={toggleColumnVisibility}
+                />
                 <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
