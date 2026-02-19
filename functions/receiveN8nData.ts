@@ -95,6 +95,9 @@ Deno.serve(async (req) => {
 
         const now = new Date().toISOString();
         let upsertCount = 0;
+        
+        // Gerar hash do payload completo para idempotência
+        const payloadHash = await generatePayloadHash(normalizedResultJson);
 
         // ─── Helpers ──────────────────────────────────────────────────────────
         const normDate = (raw) => {
