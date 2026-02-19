@@ -788,6 +788,7 @@ export default function DataManagement() {
                 { id: 'platform', label: 'Por Plataforma', count: platformData.length },
                 { id: 'device', label: 'Por Device', count: deviceData.length },
                 { id: 'demographic', label: 'Por Demográfico', count: demographicData.length },
+                { id: 'creatives_basic', label: 'Creatives Basic', count: creativesBasicData.length },
               ].map(tab => (
                 <button
                   key={tab.id}
