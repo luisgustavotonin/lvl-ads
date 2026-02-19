@@ -37,15 +37,14 @@ Deno.serve(async (req) => {
             rawPayload = rawPayload[0];
         }
 
-        console.log(`📦 Payload após desempacotamento: run_id=${rawPayload.run_id}, unit_id=${rawPayload.unit_id}, account_id=${rawPayload.account_id}, has_result_json=${!!rawPayload.result_json}`);
-
         const { run_id, unit_id, account_id, result_json, row_count } = rawPayload;
 
         if (!run_id || !unit_id || !account_id || !result_json) {
             return Response.json({
                 ok: false,
                 error: 'run_id, unit_id, account_id e result_json são obrigatórios',
-                debug: { run_id: !!run_id, unit_id: !!unit_id, account_id: !!account_id, result_json: !!result_json }
+                debug_keys: Object.keys(rawPayload),
+                debug_sample: JSON.stringify(rawPayload).substring(0, 300)
             }, { status: 400 });
         }
 
