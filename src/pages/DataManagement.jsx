@@ -911,7 +911,7 @@ export default function DataManagement() {
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               disabled={deleteDetailedMutation.isPending}
-              onClick={() => deleteDetailedMutation.mutate({ unitId: selectedUnit, dateFrom, dateTo })}
+              onClick={() => deleteDetailedMutation.mutate({ unitId: selectedUnit, dateFrom, dateTo, subTab: detailedSubTab })}
             >
               {deleteDetailedMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Excluindo...</> : 'Confirmar Exclusão'}
             </AlertDialogAction>
