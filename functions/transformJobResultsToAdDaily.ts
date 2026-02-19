@@ -64,10 +64,13 @@ Deno.serve(async (req) => {
         let skipped = 0;
 
         // ─── Detectar tipo de job ─────────────────────────────────────────────
-        const isInsights     = jobType === 'insights' && !breakdown;
-        const isPlatform     = jobType === 'platform' || breakdown === 'publisher_platform';
-        const isDevice       = jobType === 'device'   || breakdown === 'impression_device';
-        const isDemographics = jobType === 'demographics' || breakdown === 'age,gender' || breakdown === 'age' || breakdown === 'gender';
+        // job_type pode vir como: insights/insights_basic, platform/insights_platform,
+        // device/insights_device, demographics/insights_demographics, creatives_basic
+        const isInsights     = jobType === 'insights' || jobType === 'insights_basic';
+        const isPlatform     = jobType === 'platform' || jobType === 'insights_platform' || breakdown === 'publisher_platform';
+        const isDevice       = jobType === 'device'   || jobType === 'insights_device'   || breakdown === 'impression_device';
+        const isDemographics = jobType === 'demographics' || jobType === 'insights_demographics' || breakdown === 'age,gender' || breakdown === 'age' || breakdown === 'gender';
+        const isCreativesBasic = jobType === 'creatives_basic';
 
         // ═════════════════════════════════════════════════════════════════════
         // INSIGHTS — 1 linha por ad+dia (agregar pois pode vir com breakdown)
