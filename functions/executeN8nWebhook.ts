@@ -172,12 +172,13 @@ Deno.serve(async (req) => {
             const errorText = await response.text();
             console.error('❌ Webhook erro:', response.status, errorText);
 
-            // Marcar Run como failed se N8N rejeitar imediatamente
-            await base44.asServiceRole.entities.Run.filter({ run_id, unit_id: integration.unit_id })
-                .then(runs => runs.length > 0
-                    ? base44.asServiceRole.entities.Run.update(runs[0].id, { status: 'failed', error_message: `N8N retornou ${response.status}` })
-                    : null
-                ).catch(() => {});
+            // Marcar todos os Runs como failed se N8N rejeitar imediatamente
+            for (const r of runsCreated) {
+                const foundRuns = await base44.asServiceRole.entities.Run.filter({ run_id: r.run_id });
+                if (foundRuns.length > 0) {
+                    await base44.asServiceRole.entities.Run.update(foundRuns[0].id, { status: 'failed', error_message: `N8N retornou ${response.status}` });
+                }
+            }
 
             return Response.json({
                 success: false,
