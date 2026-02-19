@@ -191,8 +191,9 @@ Deno.serve(async (req) => {
 
         return Response.json({
             success: true,
-            run_id,
-            message: 'Webhook enviado. Aguardando callback com dados do N8N.'
+            runs: runsCreated,
+            run_id: runsCreated[0].run_id,
+            message: `Webhook enviado para ${runsCreated.length} unidade(s). Aguardando callback do N8N.`
         });
 
     } catch (error) {
