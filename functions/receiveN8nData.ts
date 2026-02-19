@@ -13,11 +13,12 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         let rawPayload = await req.json();
 
-        // Log do payload bruto para debug
-        console.log(`📦 Payload tipo: ${Array.isArray(rawPayload) ? 'array' : typeof rawPayload}`);
-        console.log(`📦 Payload bruto: ${JSON.stringify(rawPayload).substring(0, 500)}`);
+        // Se chegou como string (N8N dupla-serializou), parsear novamente
+        if (typeof rawPayload === 'string') {
+            try { rawPayload = JSON.parse(rawPayload); } catch(e) {}
+        }
 
-        // N8N pode enviar array ou objeto, ou objeto com chave "body" / "json"
+        // N8N pode enviar array ou objeto
         if (Array.isArray(rawPayload)) {
             if (rawPayload.length === 0) {
                 return Response.json({ ok: false, error: 'Payload array vazio' }, { status: 400 });
@@ -25,16 +26,16 @@ Deno.serve(async (req) => {
             rawPayload = rawPayload[0];
         }
 
+        // Se o item do array também for string, parsear de novo
+        if (typeof rawPayload === 'string') {
+            try { rawPayload = JSON.parse(rawPayload); } catch(e) {}
+        }
+
         // Algumas versões do N8N encapsulam em { body: {...} } ou { json: {...} }
         if (rawPayload.body && typeof rawPayload.body === 'object') {
             rawPayload = rawPayload.body;
         } else if (rawPayload.json && typeof rawPayload.json === 'object') {
             rawPayload = rawPayload.json;
-        }
-
-        // Se ainda veio como array após desempacotar
-        if (Array.isArray(rawPayload)) {
-            rawPayload = rawPayload[0];
         }
 
         const { run_id, unit_id, account_id, result_json, row_count } = rawPayload;
