@@ -99,8 +99,7 @@ Deno.serve(async (req) => {
             runsCreated.push({
                 run_id,
                 unit_id: unit.id,
-                account_id: unit.account_id || integration.account_reference || '',
-                access_token: unit.secret_token || integration.settings?.access_token || ''
+                account_id: unit.account_id || integration.account_reference || ''
             });
             console.log(`✅ Run criado: ${run_id} para unit ${unit.id} (${unit.name || unit.id})`);
         }
