@@ -58,18 +58,15 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
     try {
       // Determinar run_type baseado na seleção
       let run_type;
-      let unit_ids_to_send;
-      
       if (selectedUnits.length === units.length) {
         run_type = 'all';
-        unit_ids_to_send = undefined;
       } else if (selectedUnits.length === 1) {
         run_type = 'single';
-        unit_ids_to_send = selectedUnits;
       } else {
         run_type = 'selected';
-        unit_ids_to_send = selectedUnits;
       }
+      // SEMPRE enviar os unit_ids explicitamente para garantir as unidades corretas
+      const unit_ids_to_send = selectedUnits;
 
       await onExecute({
         integration_id: integration.id,
