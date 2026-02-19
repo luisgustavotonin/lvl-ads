@@ -868,32 +868,6 @@ export default function DataManagement() {
                 formatCurrency={formatCurrency}
               />
 
-                {/* Paginação */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      Página {currentPage} de {totalPages}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(p => p - 1)}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(p => p + 1)}
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </CardContent>
