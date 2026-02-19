@@ -852,88 +852,21 @@ export default function DataManagement() {
               );
               return null;
             })() || (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-600">
-                  Exibindo {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedConsolidatedData.length)} de {sortedConsolidatedData.length} registros
-                </div>
-                
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-50 border-b sticky top-0">
-                      <tr>
-                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('id')}>
-                          Record ID <DetailedSortIcon field="id" />
-                        </th>
-                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_job_id')}>
-                          Job ID <DetailedSortIcon field="_job_id" />
-                        </th>
-                        <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_created_at')}>
-                          Timestamp <DetailedSortIcon field="_created_at" />
-                        </th>
-                        {columnOrder.filter(col => visibleColumns[col] !== false).map(col => (
-                          <th key={col} className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort(col)}>
-                            {col} <DetailedSortIcon field={col} />
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {paginatedData.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-2 py-2 text-gray-600 font-mono text-[10px]">
-                            {(row.id || idx)?.toString().substring(0, 12)}...
-                          </td>
-                          <td className="px-2 py-2 text-gray-600 font-mono text-[10px]">
-                            {row._job_id?.substring(0, 12)}...
-                          </td>
-                          <td className="px-2 py-2 text-gray-600 text-[10px]">
-                            {new Date(row._created_at).toLocaleString('pt-BR', { 
-                              day: '2-digit', 
-                              month: '2-digit', 
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </td>
-                          {columnOrder.filter(col => visibleColumns[col] !== false).map(col => {
-                            const value = row[col];
-                            const colDef = CAMPAIGN_COLUMNS.find(c => c.key === col);
-                            const isNumeric = colDef && ['number', 'currency', 'decimal', 'percent'].includes(colDef.type);
-                            
-                            return (
-                              <td key={col} className={`px-2 py-2 ${isNumeric ? 'text-right' : 'text-left'}`}>
-                                {colDef ? formatValue(value, colDef.type) : (typeof value === 'object' ? JSON.stringify(value).substring(0, 30) : value)}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                      {/* Linha de totais */}
-                      <tr className="bg-blue-50 font-semibold border-t-2 border-blue-200">
-                        <td className="px-2 py-2 text-gray-700" colSpan={3}>TOTAL</td>
-                        {columnOrder.filter(col => visibleColumns[col] !== false).map(col => {
-                          const colDef = CAMPAIGN_COLUMNS.find(c => c.key === col);
-                          const isNumeric = colDef && ['number', 'currency', 'decimal'].includes(colDef.type);
-                          
-                          if (!isNumeric) {
-                            return <td key={col} className="px-2 py-2 text-center">-</td>;
-                          }
-                          
-                          const sum = paginatedData.reduce((acc, row) => {
-                            const val = parseFloat(row[col]);
-                            return !isNaN(val) ? acc + val : acc;
-                          }, 0);
-                          
-                          return (
-                            <td key={col} className="px-2 py-2 text-right">
-                              {formatValue(sum, colDef.type)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+              <SubTabTable
+                data={
+                  detailedSubTab === 'insights' ? insightsData :
+                  detailedSubTab === 'platform' ? platformData :
+                  detailedSubTab === 'device' ? deviceData :
+                  demographicData
+                }
+                subTab={detailedSubTab}
+                pageSize={pageSize}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                formatValue={formatValue}
+                formatDateString={formatDateString}
+                formatCurrency={formatCurrency}
+              />
 
                 {/* Paginação */}
                 {totalPages > 1 && (
