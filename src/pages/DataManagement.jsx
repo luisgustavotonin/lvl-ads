@@ -851,26 +851,19 @@ export default function DataManagement() {
                   <p className="text-sm mt-2">Sem registros para esta aba, unidade e período</p>
                 </div>
               );
-              return null;
-            })() || (
-              <SubTabTable
-                data={
-                  detailedSubTab === 'insights' ? insightsData :
-                  detailedSubTab === 'platform' ? platformData :
-                  detailedSubTab === 'device' ? deviceData :
-                  demographicData
-                }
-                subTab={detailedSubTab}
-                pageSize={pageSize}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
-                formatValue={formatValue}
-                formatDateString={formatDateString}
-                formatCurrency={formatCurrency}
-              />
-
-              </div>
-            )}
+              return (
+                <SubTabTable
+                  data={activeData}
+                  subTab={detailedSubTab}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  setCurrentPage={setCurrentPage}
+                  formatValue={formatValue}
+                  formatDateString={formatDateString}
+                  formatCurrency={formatCurrency}
+                />
+              );
+            })()}
           </CardContent>
         </Card>
       )}
