@@ -170,9 +170,15 @@ Deno.serve(async (req) => {
                     imported_at_utc: now
                 };
 
-                const existing = await base44.asServiceRole.entities.MetaAdInsights.filter({ run_id, unit_id, ad_id: a.ad_id, date: a.date });
-                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdInsights.update(existing[0].id, record);
-                else await base44.asServiceRole.entities.MetaAdInsights.create(record);
+                const existing = await base44.asServiceRole.entities.MetaAdInsights.filter({ 
+                    unit_id, account_id, ad_id: a.ad_id, date: a.date,
+                    job_id: job_id || run_id
+                });
+                if (existing.length > 0) {
+                    await base44.asServiceRole.entities.MetaAdInsights.update(existing[0].id, record);
+                } else {
+                    await base44.asServiceRole.entities.MetaAdInsights.create(record);
+                }
                 upsertCount++;
             }
         }
