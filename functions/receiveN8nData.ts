@@ -13,7 +13,11 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         let rawPayload = await req.json();
 
-        // N8N pode enviar array ou objeto
+        // Log do payload bruto para debug
+        console.log(`📦 Payload tipo: ${Array.isArray(rawPayload) ? 'array' : typeof rawPayload}`);
+        console.log(`📦 Payload bruto: ${JSON.stringify(rawPayload).substring(0, 500)}`);
+
+        // N8N pode enviar array ou objeto, ou objeto com chave "body" / "json"
         if (Array.isArray(rawPayload)) {
             if (rawPayload.length === 0) {
                 return Response.json({ ok: false, error: 'Payload array vazio' }, { status: 400 });
@@ -21,12 +25,27 @@ Deno.serve(async (req) => {
             rawPayload = rawPayload[0];
         }
 
+        // Algumas versões do N8N encapsulam em { body: {...} } ou { json: {...} }
+        if (rawPayload.body && typeof rawPayload.body === 'object') {
+            rawPayload = rawPayload.body;
+        } else if (rawPayload.json && typeof rawPayload.json === 'object') {
+            rawPayload = rawPayload.json;
+        }
+
+        // Se ainda veio como array após desempacotar
+        if (Array.isArray(rawPayload)) {
+            rawPayload = rawPayload[0];
+        }
+
+        console.log(`📦 Payload após desempacotamento: run_id=${rawPayload.run_id}, unit_id=${rawPayload.unit_id}, account_id=${rawPayload.account_id}, has_result_json=${!!rawPayload.result_json}`);
+
         const { run_id, unit_id, account_id, result_json, row_count } = rawPayload;
 
         if (!run_id || !unit_id || !account_id || !result_json) {
             return Response.json({
                 ok: false,
-                error: 'run_id, unit_id, account_id e result_json são obrigatórios'
+                error: 'run_id, unit_id, account_id e result_json são obrigatórios',
+                debug: { run_id: !!run_id, unit_id: !!unit_id, account_id: !!account_id, result_json: !!result_json }
             }, { status: 400 });
         }
 
