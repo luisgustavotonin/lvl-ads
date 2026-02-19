@@ -818,18 +818,21 @@ export default function DataManagement() {
                 {detailedSubTab === 'insights' ? 'Insights' : detailedSubTab === 'platform' ? 'Por Plataforma' : detailedSubTab === 'device' ? 'Por Device' : detailedSubTab === 'creatives_basic' ? 'Creatives Basic' : 'Por Demográfico'} — {detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : detailedSubTab === 'creatives_basic' ? creativesBasicData.length : demographicData.length} registros
               </CardTitle>
               <div className="flex gap-2 items-center">
-                {finalData.length > 0 && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => setConfirmDeleteDetailed(true)}
-                    disabled={deleteDetailedMutation.isPending}
-                  >
-                    {deleteDetailedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                    Excluir {finalData.length} registros
-                  </Button>
-                )}
+                {(() => {
+                  const activeCount = detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : detailedSubTab === 'creatives_basic' ? creativesBasicData.length : demographicData.length;
+                  return activeCount > 0 ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => setConfirmDeleteDetailed(true)}
+                      disabled={deleteDetailedMutation.isPending}
+                    >
+                      {deleteDetailedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      Excluir {activeCount} registros
+                    </Button>
+                  ) : null;
+                })()}
                 <ColumnConfigSheet
                   columnOrder={columnOrder}
                   visibleColumns={visibleColumns}
