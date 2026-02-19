@@ -830,7 +830,7 @@ export default function DataManagement() {
                         <th className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort('_created_at')}>
                           Timestamp <DetailedSortIcon field="_created_at" />
                         </th>
-                        {availableColumns.filter(col => visibleColumns[col] !== false).map(col => (
+                        {columnOrder.filter(col => visibleColumns[col] !== false).map(col => (
                           <th key={col} className="px-2 py-2 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100" onClick={() => handleDetailedSort(col)}>
                             {col} <DetailedSortIcon field={col} />
                           </th>
