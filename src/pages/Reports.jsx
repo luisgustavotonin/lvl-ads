@@ -126,7 +126,7 @@ export default function Reports() {
       const startDate = format(previousPeriod.start, 'yyyy-MM-dd');
       const endDate = format(previousPeriod.end, 'yyyy-MM-dd');
       
-      const data = await base44.entities.MetaAdDaily.filter({
+      const data = await base44.entities.MetaAdInsights.filter({
         unit_id: selectedUnit,
         date: { $gte: startDate, $lte: endDate }
       }, '-date', 10000);
