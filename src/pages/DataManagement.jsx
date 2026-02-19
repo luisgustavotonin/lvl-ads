@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import ColumnConfigSheet from '../components/datamanagement/ColumnConfigSheet';
+import SubTabTable from '../components/datamanagement/SubTabTable';
 import toast, { Toaster } from 'react-hot-toast';
 import ExecutionLogViewer from '../components/ExecutionLogViewer';
 
