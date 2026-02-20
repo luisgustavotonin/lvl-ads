@@ -1,13 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// Gerar hash do payload para idempotência
-const generatePayloadHash = async (data) => {
-    const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(JSON.stringify(data)));
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-};
-
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -95,9 +87,6 @@ Deno.serve(async (req) => {
 
         const now = new Date().toISOString();
         let upsertCount = 0;
-        
-        // Gerar hash do payload completo para idempotência
-        const payloadHash = await generatePayloadHash(normalizedResultJson);
 
         // ─── Helpers ──────────────────────────────────────────────────────────
         const normDate = (raw) => {
@@ -170,14 +159,9 @@ Deno.serve(async (req) => {
                     imported_at_utc: now
                 };
 
-                const existing = await base44.asServiceRole.entities.MetaAdInsights.filter({ 
-                    unit_id, account_id, ad_id: a.ad_id, date: a.date
-                });
-                if (existing.length > 0) {
-                    await base44.asServiceRole.entities.MetaAdInsights.update(existing[0].id, record);
-                } else {
-                    await base44.asServiceRole.entities.MetaAdInsights.create(record);
-                }
+                const existing = await base44.asServiceRole.entities.MetaAdInsights.filter({ run_id, unit_id, ad_id: a.ad_id, date: a.date });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdInsights.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdInsights.create(record);
                 upsertCount++;
             }
         }
@@ -210,14 +194,9 @@ Deno.serve(async (req) => {
                     imported_at_utc: now
                 };
 
-                const existing = await base44.asServiceRole.entities.MetaAdByPlatform.filter({ 
-                    unit_id, account_id, ad_id, date, publisher_platform
-                });
-                if (existing.length > 0) {
-                    await base44.asServiceRole.entities.MetaAdByPlatform.update(existing[0].id, record);
-                } else {
-                    await base44.asServiceRole.entities.MetaAdByPlatform.create(record);
-                }
+                const existing = await base44.asServiceRole.entities.MetaAdByPlatform.filter({ run_id, unit_id, ad_id, date, publisher_platform });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdByPlatform.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdByPlatform.create(record);
                 upsertCount++;
             }
         }
@@ -250,14 +229,9 @@ Deno.serve(async (req) => {
                     imported_at_utc: now
                 };
 
-                const existing = await base44.asServiceRole.entities.MetaAdByDevice.filter({ 
-                    unit_id, account_id, ad_id, date, impression_device
-                });
-                if (existing.length > 0) {
-                    await base44.asServiceRole.entities.MetaAdByDevice.update(existing[0].id, record);
-                } else {
-                    await base44.asServiceRole.entities.MetaAdByDevice.create(record);
-                }
+                const existing = await base44.asServiceRole.entities.MetaAdByDevice.filter({ run_id, unit_id, ad_id, date, impression_device });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdByDevice.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdByDevice.create(record);
                 upsertCount++;
             }
         }
@@ -286,14 +260,9 @@ Deno.serve(async (req) => {
                     imported_at_utc: now
                 };
 
-                const existing = await base44.asServiceRole.entities.MetaAdByDemographic.filter({ 
-                    unit_id, account_id, ad_id, date, age, gender
-                });
-                if (existing.length > 0) {
-                    await base44.asServiceRole.entities.MetaAdByDemographic.update(existing[0].id, record);
-                } else {
-                    await base44.asServiceRole.entities.MetaAdByDemographic.create(record);
-                }
+                const existing = await base44.asServiceRole.entities.MetaAdByDemographic.filter({ run_id, unit_id, ad_id, date, age, gender });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdByDemographic.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdByDemographic.create(record);
                 upsertCount++;
             }
         }
@@ -318,15 +287,9 @@ Deno.serve(async (req) => {
                     last_updated: now
                 };
 
-                // Para creatives, usar unit_id + ad_id como chave única
-                const existing = await base44.asServiceRole.entities.MetaAdsDim.filter({ 
-                    unit_id, account_id, ad_id
-                });
-                if (existing.length > 0) {
-                    await base44.asServiceRole.entities.MetaAdsDim.update(existing[0].id, record);
-                } else {
-                    await base44.asServiceRole.entities.MetaAdsDim.create(record);
-                }
+                const existing = await base44.asServiceRole.entities.MetaAdsDim.filter({ unit_id, ad_id });
+                if (existing.length > 0) await base44.asServiceRole.entities.MetaAdsDim.update(existing[0].id, record);
+                else await base44.asServiceRole.entities.MetaAdsDim.create(record);
                 upsertCount++;
             }
         }
