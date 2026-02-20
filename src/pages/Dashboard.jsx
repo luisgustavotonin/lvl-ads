@@ -114,10 +114,7 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(-14);
 
-  const connectedIntegrations = integrations.filter(i => i.connection_status === 'connected').length;
-  const errorIntegrations = integrations.filter(i => i.connection_status === 'error').length;
-
-  if (unitsLoading || integrationsLoading) {
+  if (unitsLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
