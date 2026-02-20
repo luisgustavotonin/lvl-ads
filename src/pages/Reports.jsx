@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Download, TrendingUp, TrendingDown, Minus, Settings2, GitCompare, X, Calendar } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Minus, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,14 +12,14 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import PeriodFilter from '@/components/report/PeriodFilter';
+import MetaExportPDF from '@/components/meta/MetaExportPDF';
+import MetaExportCSV from '@/components/meta/MetaExportCSV';
 import KPICardWithComparison from '@/components/report/KPICardWithComparison';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
 import RankingTable from '@/components/report/RankingTable';
 import FunnelEditor from '@/components/report/FunnelEditor';
-import PDFPreviewModal from '@/components/report/PDFPreviewModal';
 
 const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
 
@@ -48,9 +48,6 @@ export default function Reports() {
     end: new Date(),
   });
   const [showComparison, setShowComparison] = useState(true);
-  const [showPDFModal, setShowPDFModal] = useState(false);
-  const [comparativeMode, setComparativeMode] = useState(false);
-  const [compPeriod, setCompPeriod] = useState({ start: null, end: null });
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
   const [funnelStages, setFunnelStages] = useState([
@@ -111,17 +108,14 @@ export default function Reports() {
     enabled: !!selectedUnit,
   });
 
-  // Calcular período anterior (automático ou manual)
+  // Calcular período anterior
   const previousPeriod = useMemo(() => {
-    if (comparativeMode && compPeriod.start && compPeriod.end) {
-      return { start: compPeriod.start, end: compPeriod.end };
-    }
     const days = differenceInDays(period.end, period.start) + 1;
     return {
       start: subDays(period.start, days),
       end: subDays(period.start, 1)
     };
-  }, [period, comparativeMode, compPeriod]);
+  }, [period]);
 
   const { data: previousMetrics = [] } = useQuery({
     queryKey: ['previousMetrics', selectedUnit, previousPeriod.start, previousPeriod.end, selectedPlatforms],
@@ -301,13 +295,6 @@ export default function Reports() {
   }
 
   return (
-    <>
-    <PDFPreviewModal
-      isOpen={showPDFModal}
-      onClose={() => setShowPDFModal(false)}
-      unitName={selectedUnitData?.name || 'Unidade'}
-      period={period}
-    />
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         {/* Header */}
@@ -327,10 +314,16 @@ export default function Reports() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" className="gap-2" onClick={() => setShowPDFModal(true)}>
-                <Download className="w-4 h-4" />
-                Exportar PDF
-              </Button>
+              <MetaExportCSV 
+                metricsDaily={[]} 
+                metaAdDaily={currentMetrics}
+                unitName={selectedUnitData?.name || 'Unidade'}
+                period={period}
+              />
+              <MetaExportPDF 
+                unitName={selectedUnitData?.name || 'Unidade'}
+                period={period}
+              />
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2">
@@ -388,54 +381,35 @@ export default function Reports() {
               </Select>
               
               <PeriodFilter value={period} onChange={setPeriod} />
-
-              {/* Botão Comparativo */}
-              <Button
-                variant={comparativeMode ? 'default' : 'outline'}
-                size="sm"
-                className="gap-2"
-                onClick={() => setComparativeMode(v => !v)}
-              >
-                <GitCompare className="w-4 h-4" />
-                Comparativo
-              </Button>
             </div>
 
-            {/* Comparative period picker */}
-            {comparativeMode && (
-              <div className="flex flex-wrap items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <span className="text-sm font-medium text-blue-700">Período de comparação:</span>
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">Plataformas</Label>
+              <div className="flex flex-wrap gap-3">
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs text-gray-500 whitespace-nowrap">De:</Label>
-                  <Input
-                    type="date"
-                    className="h-7 text-xs w-36"
-                    value={compPeriod.start ? format(compPeriod.start, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const [y, m, d] = e.target.value.split('-').map(Number);
-                      setCompPeriod(prev => ({ ...prev, start: new Date(y, m - 1, d) }));
+                  <Checkbox 
+                    id="platform-meta"
+                    checked={selectedPlatforms.includes('META')}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedPlatforms([...selectedPlatforms, 'META']);
+                      } else {
+                        setSelectedPlatforms(selectedPlatforms.filter(p => p !== 'META'));
+                      }
                     }}
                   />
+                  <label htmlFor="platform-meta" className="text-sm cursor-pointer">Meta Ads</label>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-gray-500 whitespace-nowrap">Até:</Label>
-                  <Input
-                    type="date"
-                    className="h-7 text-xs w-36"
-                    value={compPeriod.end ? format(compPeriod.end, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const [y, m, d] = e.target.value.split('-').map(Number);
-                      setCompPeriod(prev => ({ ...prev, end: new Date(y, m - 1, d) }));
-                    }}
-                  />
+                <div className="flex items-center gap-2 opacity-50">
+                  <Checkbox id="platform-google" disabled />
+                  <label htmlFor="platform-google" className="text-sm">Google Ads (em breve)</label>
                 </div>
-                <button onClick={() => setComparativeMode(false)} className="text-blue-400 hover:text-blue-600">
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2 opacity-50">
+                  <Checkbox id="platform-tiktok" disabled />
+                  <label htmlFor="platform-tiktok" className="text-sm">TikTok Ads (em breve)</label>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </Card>
 
@@ -601,6 +575,5 @@ export default function Reports() {
         )}
       </div>
     </div>
-    </>
   );
 }
