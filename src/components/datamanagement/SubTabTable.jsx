@@ -14,14 +14,23 @@ const NUM_KEYS = new Set([
 const CURRENCY_KEYS = new Set(['spend','cpc_link','cpm','cost_per_conversation','cost_per_total_contact','cost_per_first_reply','facebook_spend','instagram_spend','audience_network_spend','messenger_spend','android_spend','iphone_spend','ipad_spend','desktop_spend','male_spend','female_spend']);
 const PERCENT_KEYS  = new Set(['ctr_link']);
 
-export default function SubTabTable({ data, subTab, pageSize = 25, currentPage, setCurrentPage, formatValue, formatDateString, formatCurrency }) {
+export default function SubTabTable({ data, subTab, pageSize = 25, currentPage, setCurrentPage, formatValue, formatDateString, formatCurrency, columnOrder, visibleColumns }) {
   const [sortField, setSortField] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
 
   const cols = useMemo(() => {
     if (!data.length) return [];
-    return Object.keys(data[0]).filter(k => !EXCLUDED_KEYS.includes(k) && !k.startsWith('_'));
-  }, [data]);
+    const allKeys = Object.keys(data[0]).filter(k => !EXCLUDED_KEYS.includes(k) && !k.startsWith('_'));
+    // Se temos configuração de colunas, aplicar ordem e visibilidade
+    if (columnOrder && columnOrder.length > 0) {
+      // Primeiro as colunas ordenadas e visíveis
+      const ordered = columnOrder.filter(k => allKeys.includes(k) && visibleColumns?.[k] !== false);
+      // Depois as que estão nos dados mas não estão no columnOrder (sempre mostrar)
+      const extra = allKeys.filter(k => !columnOrder.includes(k));
+      return [...ordered, ...extra];
+    }
+    return allKeys;
+  }, [data, columnOrder, visibleColumns]);
 
   const sorted = useMemo(() => {
     return [...data].sort((a, b) => {
