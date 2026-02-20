@@ -381,35 +381,54 @@ export default function Reports() {
               </Select>
               
               <PeriodFilter value={period} onChange={setPeriod} />
+
+              {/* Botão Comparativo */}
+              <Button
+                variant={comparativeMode ? 'default' : 'outline'}
+                size="sm"
+                className="gap-2"
+                onClick={() => setComparativeMode(v => !v)}
+              >
+                <GitCompare className="w-4 h-4" />
+                Comparativo
+              </Button>
             </div>
 
-            <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">Plataformas</Label>
-              <div className="flex flex-wrap gap-3">
+            {/* Comparative period picker */}
+            {comparativeMode && (
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <span className="text-sm font-medium text-blue-700">Período de comparação:</span>
                 <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="platform-meta"
-                    checked={selectedPlatforms.includes('META')}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedPlatforms([...selectedPlatforms, 'META']);
-                      } else {
-                        setSelectedPlatforms(selectedPlatforms.filter(p => p !== 'META'));
-                      }
+                  <Label className="text-xs text-gray-500 whitespace-nowrap">De:</Label>
+                  <Input
+                    type="date"
+                    className="h-7 text-xs w-36"
+                    value={compPeriod.start ? format(compPeriod.start, 'yyyy-MM-dd') : ''}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const [y, m, d] = e.target.value.split('-').map(Number);
+                      setCompPeriod(prev => ({ ...prev, start: new Date(y, m - 1, d) }));
                     }}
                   />
-                  <label htmlFor="platform-meta" className="text-sm cursor-pointer">Meta Ads</label>
                 </div>
-                <div className="flex items-center gap-2 opacity-50">
-                  <Checkbox id="platform-google" disabled />
-                  <label htmlFor="platform-google" className="text-sm">Google Ads (em breve)</label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-gray-500 whitespace-nowrap">Até:</Label>
+                  <Input
+                    type="date"
+                    className="h-7 text-xs w-36"
+                    value={compPeriod.end ? format(compPeriod.end, 'yyyy-MM-dd') : ''}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const [y, m, d] = e.target.value.split('-').map(Number);
+                      setCompPeriod(prev => ({ ...prev, end: new Date(y, m - 1, d) }));
+                    }}
+                  />
                 </div>
-                <div className="flex items-center gap-2 opacity-50">
-                  <Checkbox id="platform-tiktok" disabled />
-                  <label htmlFor="platform-tiktok" className="text-sm">TikTok Ads (em breve)</label>
-                </div>
+                <button onClick={() => setComparativeMode(false)} className="text-blue-400 hover:text-blue-600">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-            </div>
+            )}
           </div>
         </Card>
 
