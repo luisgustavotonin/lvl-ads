@@ -296,24 +296,24 @@ export default function Reports() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-[1600px] mx-auto p-8 space-y-6">
+      <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         {/* Header */}
-        <Card className="p-8 bg-white border border-gray-200 shadow-sm">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-center gap-6">
+        <Card className="p-4 sm:p-6 lg:p-8 bg-white border border-gray-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 sm:gap-6">
               {selectedUnitData?.logo_url && (
                 <img 
                   src={selectedUnitData.logo_url} 
                   alt={selectedUnitData.name}
-                  className="w-32 h-32 object-contain rounded-lg"
+                  className="w-14 h-14 sm:w-24 sm:h-24 lg:w-32 lg:h-32 object-contain rounded-lg"
                 />
               )}
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">Relatório - {selectedUnitData?.name || 'Cliente'}</h1>
-                <p className="text-lg text-gray-600 mt-2">Análise completa de performance</p>
+                <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900">Relatório - {selectedUnitData?.name || 'Cliente'}</h1>
+                <p className="text-sm sm:text-base lg:text-lg text-gray-600 mt-1">Análise completa de performance</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <MetaExportCSV 
                 metricsDaily={[]} 
                 metaAdDaily={currentMetrics}
