@@ -370,7 +370,7 @@ export default function QueueManagement() {
       </Card>
 
       {/* Bulk Actions */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {selectedJobs.length > 0 && (
           <>
             <Button
