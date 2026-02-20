@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import ColumnConfigSheet from '../components/datamanagement/ColumnConfigSheet';
 import SubTabTable from '../components/datamanagement/SubTabTable';
+import BulkDeleteModal from '../components/datamanagement/BulkDeleteModal';
 import toast, { Toaster } from 'react-hot-toast';
 import ExecutionLogViewer from '../components/ExecutionLogViewer';
 
