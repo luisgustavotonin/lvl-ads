@@ -458,18 +458,12 @@ export default function Reports() {
                 <CardTitle className="text-lg mb-4">Investimento por Dia</CardTitle>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
+                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
+                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="spend" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 3 }}>
-                        {dailyCharts.map((entry, index) => (
-                          <text key={index} x={0} y={0} dy={-10} fontSize={10} fill="#3B82F6" textAnchor="middle">
-                            {formatCurrency(entry.spend)}
-                          </text>
-                        ))}
-                      </Line>
+                      <Line type="monotone" dataKey="spend" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#3B82F6', formatter: (v) => `R$${(v/1000).toFixed(1)}k` }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
