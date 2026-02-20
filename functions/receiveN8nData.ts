@@ -287,8 +287,7 @@ Deno.serve(async (req) => {
                 };
 
                 const existing = await base44.asServiceRole.entities.MetaAdByDemographic.filter({ 
-                    unit_id, account_id, ad_id, date, age, gender,
-                    job_id: job_id || run_id
+                    unit_id, account_id, ad_id, date, age, gender
                 });
                 if (existing.length > 0) {
                     await base44.asServiceRole.entities.MetaAdByDemographic.update(existing[0].id, record);
