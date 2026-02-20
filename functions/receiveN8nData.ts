@@ -251,8 +251,7 @@ Deno.serve(async (req) => {
                 };
 
                 const existing = await base44.asServiceRole.entities.MetaAdByDevice.filter({ 
-                    unit_id, account_id, ad_id, date, impression_device,
-                    job_id: job_id || run_id
+                    unit_id, account_id, ad_id, date, impression_device
                 });
                 if (existing.length > 0) {
                     await base44.asServiceRole.entities.MetaAdByDevice.update(existing[0].id, record);
