@@ -33,9 +33,15 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
     queryFn: () => base44.entities.Unit.list(),
   });
 
-  // Só mostrar unidades associadas ao webhook
-  const webhookUnitIds = integration?.unit_ids || (integration?.unit_id ? [integration.unit_id] : []);
-  const units = allUnits.filter(u => webhookUnitIds.includes(u.id));
+  // Mostrar unidades associadas ao webhook; se não houver nenhuma vinculada, mostrar todas
+  const webhookUnitIds = integration?.unit_ids?.length > 0
+    ? integration.unit_ids
+    : integration?.unit_id
+      ? [integration.unit_id]
+      : [];
+  const units = webhookUnitIds.length > 0
+    ? allUnits.filter(u => webhookUnitIds.includes(u.id))
+    : allUnits;
 
   const handleToggleUnit = (unitId) => {
     setSelectedUnits(prev =>
