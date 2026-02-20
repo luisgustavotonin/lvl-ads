@@ -78,7 +78,7 @@ export default function Layout({ children, currentPageName }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900 text-white' : 'bg-gray-50'}`}>
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
