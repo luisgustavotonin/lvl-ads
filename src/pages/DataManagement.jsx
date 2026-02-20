@@ -80,6 +80,8 @@ export default function DataManagement() {
    const [detailedSortDirection, setDetailedSortDirection] = useState('desc');
    const [deletingItemId, setDeletingItemId] = useState(null);
   const [confirmDeleteDetailed, setConfirmDeleteDetailed] = useState(false);
+  const [selectedSubTabsToDelete, setSelectedSubTabsToDelete] = useState([]);
+  const [confirmDeleteMultiSubTabs, setConfirmDeleteMultiSubTabs] = useState(false);
   
   // Carregar ordem e visibilidade das colunas do localStorage
   const [columnOrder, setColumnOrder] = useState(() => {
