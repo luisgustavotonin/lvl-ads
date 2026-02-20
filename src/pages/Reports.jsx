@@ -535,10 +535,10 @@ export default function Reports() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={dailyCharts}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
+                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `R$${v.toFixed(0)}`} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="cost_per_conversation" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#EF4444', formatter: (v) => 'R$' + v.toFixed(2) }} />
+                      <Line type="monotone" dataKey="cost_per_conversation" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#EF4444', formatter: (v) => 'R$' + v.toFixed(0) }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
