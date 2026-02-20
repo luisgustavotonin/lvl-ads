@@ -13,8 +13,8 @@ import {
   CheckCircle2,
   Calendar,
   DollarSign,
-  Eye,
-  MousePointer
+  MessageCircle,
+  TrendingDown
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
