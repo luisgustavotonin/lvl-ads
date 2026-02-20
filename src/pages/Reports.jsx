@@ -520,10 +520,10 @@ export default function Reports() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={dailyCharts}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
+                      <YAxis tick={{ fontSize: 13 }} />
                       <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="conversations" stroke="#EC4899" strokeWidth={2} dot={{ fill: '#EC4899', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#EC4899' }} />
+                      <Line type="monotone" dataKey="conversations" stroke="#EC4899" strokeWidth={2} dot={{ fill: '#EC4899', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#EC4899' }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
