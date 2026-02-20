@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Edit2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Edit2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -49,27 +49,33 @@ export default function KPICardWithComparison({
   const isNegative = variation < 0;
 
   // Determinar se maior é melhor ou menor é melhor
-  const volumeMetrics = ['spend', 'impressions', 'reach', 'clicks', 'linkClicks', 'conversations', 'totalContact', 'firstReply'];
   const costMetrics = ['cpcLink', 'cpm', 'costPerConversation', 'costPerTotalContact', 'costPerFirstReply', 'frequency'];
-  
-  const isBetterHigher = volumeMetrics.includes(kpiKey) || kpiKey === 'ctrLink';
   const isBetterLower = costMetrics.includes(kpiKey);
 
-  // Badge color: green = good, red = bad
-  let badgeBg = 'bg-gray-100 text-gray-500';
+  // Cor da variação: verde = bom, vermelho = ruim
+  let varColor = 'text-gray-400';
   if (hasPrevious && variation !== 0) {
-    const isGood = (isPositive && isBetterHigher) || (isNegative && isBetterLower);
-    const isBad = (isNegative && isBetterHigher) || (isPositive && isBetterLower);
-    if (isGood) badgeBg = 'bg-green-100 text-green-700';
-    else if (isBad) badgeBg = 'bg-red-100 text-red-700';
+    const isGood = (isPositive && !isBetterLower) || (isNegative && isBetterLower);
+    varColor = isGood ? 'text-green-500' : 'text-red-500';
   }
 
+  // Borda do card baseada em threshold
+  const borderClass = thresholdStatus === 'green'
+    ? 'border-l-4 border-l-green-400'
+    : thresholdStatus === 'yellow'
+    ? 'border-l-4 border-l-yellow-400'
+    : thresholdStatus === 'red'
+    ? 'border-l-4 border-l-red-400'
+    : '';
+
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+    <Card className={`bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow ${borderClass}`}>
       <CardContent className="p-3 sm:p-4">
-        {/* Label */}
-        <div className="flex items-start justify-between mb-2">
-          <div className="text-xs sm:text-sm text-gray-500 font-medium leading-tight pr-1">{customLabel}</div>
+        {/* Label row */}
+        <div className="flex items-start justify-between mb-1">
+          <div className="text-xs text-gray-400 font-medium leading-tight pr-1 uppercase tracking-wide">
+            {customLabel}
+          </div>
           {isAdmin && (
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
               <DialogTrigger asChild>
@@ -97,23 +103,28 @@ export default function KPICardWithComparison({
           )}
         </div>
 
-        {/* Current value + variation badge inline */}
-        <div className="flex items-baseline gap-2 flex-wrap mb-1">
-          <div className="text-xl sm:text-2xl font-bold text-gray-900">
-            {formatValue(currentValue)}
-          </div>
-          {hasPrevious && (
-            <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded ${badgeBg}`}>
-              {isPositive ? <TrendingUp className="w-3 h-3" /> : isNegative ? <TrendingDown className="w-3 h-3" /> : null}
-              {isPositive ? '+' : ''}{variation.toFixed(2)}%
-            </span>
-          )}
+        {/* Current value */}
+        <div className="text-xl sm:text-2xl font-bold text-gray-900 leading-none mb-1">
+          {formatValue(currentValue)}
         </div>
 
-        {/* Previous value */}
+        {/* Variation row — idêntico ao Reportei */}
         {hasPrevious && (
-          <div className="text-xs text-gray-400">
-            {formatValue(previousValue)} no período anterior
+          <div className={`flex items-center gap-1 text-xs font-semibold ${varColor}`}>
+            {isPositive
+              ? <ArrowUpRight className="w-3.5 h-3.5" />
+              : isNegative
+              ? <ArrowDownRight className="w-3.5 h-3.5" />
+              : null
+            }
+            <span>{isPositive ? '+' : ''}{variation.toFixed(2)}%</span>
+          </div>
+        )}
+
+        {/* Previous period value */}
+        {hasPrevious && (
+          <div className="text-xs text-gray-400 mt-0.5">
+            {formatValue(previousValue)}
           </div>
         )}
       </CardContent>
