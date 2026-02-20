@@ -153,16 +153,16 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0">
+        <Card className="border-gray-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">Investimento Total</p>
-                <p className="text-3xl font-bold mt-1">{formatCurrency(totalSpend)}</p>
-                <p className="text-blue-200 text-sm mt-2">Últimos 30 dias</p>
+                <p className="text-gray-500 text-sm font-medium">Investimento Total</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(totalSpend)}</p>
+                <p className="text-gray-400 text-sm mt-2">Período selecionado</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <DollarSign className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -172,12 +172,12 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">Impressões</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatNumber(totalImpressions)}</p>
-                <p className="text-gray-400 text-sm mt-2">Últimos 30 dias</p>
+                <p className="text-gray-500 text-sm font-medium">Total Conversas Iniciadas</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{formatNumber(totalConversations)}</p>
+                <p className="text-gray-400 text-sm mt-2">Período selecionado</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
-                <Eye className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
+                <MessageCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -187,12 +187,12 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">Cliques</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatNumber(totalClicks)}</p>
-                <p className="text-gray-400 text-sm mt-2">Últimos 30 dias</p>
+                <p className="text-gray-500 text-sm font-medium">Custo por Conversa</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(totalCostPerConversation)}</p>
+                <p className="text-gray-400 text-sm mt-2">Período selecionado</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
-                <MousePointer className="w-6 h-6 text-orange-600" />
+                <TrendingDown className="w-6 h-6 text-orange-600" />
               </div>
             </div>
           </CardContent>
@@ -203,11 +203,11 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Unidades Ativas</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{units.length}</p>
-                <p className="text-gray-400 text-sm mt-2">{connectedIntegrations} integrações</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{activeUnits}</p>
+                <p className="text-gray-400 text-sm mt-2">Total cadastradas: {units.length}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
