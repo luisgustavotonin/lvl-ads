@@ -301,6 +301,13 @@ export default function Reports() {
   }
 
   return (
+    <>
+    <PDFPreviewModal
+      isOpen={showPDFModal}
+      onClose={() => setShowPDFModal(false)}
+      unitName={selectedUnitData?.name || 'Unidade'}
+      period={period}
+    />
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         {/* Header */}
