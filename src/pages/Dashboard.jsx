@@ -287,41 +287,6 @@ export default function Dashboard() {
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Link2 className="w-5 h-5 text-gray-400" />
-                Integrações
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Conectadas</span>
-                  <Badge className="bg-green-50 text-green-700 border-green-200">
-                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                    {connectedIntegrations}
-                  </Badge>
-                </div>
-                {errorIntegrations > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Com erro</span>
-                    <Badge className="bg-red-50 text-red-700 border-red-200">
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      {errorIntegrations}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-              <Link to={createPageUrl('Integrations')}>
-                <Button variant="outline" className="w-full mt-4 gap-2">
-                  Gerenciar
-                  <ArrowUpRight className="w-4 h-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-gray-400" />
                 Unidades Recentes
               </CardTitle>
