@@ -43,36 +43,37 @@ export default function KPICardWithComparison({
     }
   });
 
-  const variation = previousValue > 0 ? ((currentValue - previousValue) / previousValue) * 100 : 0;
+  const hasPrevious = previousValue !== null && previousValue !== undefined && previousValue > 0;
+  const variation = hasPrevious ? ((currentValue - previousValue) / previousValue) * 100 : 0;
   const isPositive = variation > 0;
   const isNegative = variation < 0;
 
   // Determinar se maior é melhor ou menor é melhor
-  const volumeMetrics = ['spend', 'impressions', 'reach', 'clicks', 'linkClicks', 'conversations'];
-  const costMetrics = ['cpcLink', 'cpm', 'costPerConversation', 'costPerTotalContact', 'costPerFirstReply'];
+  const volumeMetrics = ['spend', 'impressions', 'reach', 'clicks', 'linkClicks', 'conversations', 'totalContact', 'firstReply'];
+  const costMetrics = ['cpcLink', 'cpm', 'costPerConversation', 'costPerTotalContact', 'costPerFirstReply', 'frequency'];
   
-  const isBetterHigher = volumeMetrics.includes(kpiKey) || kpiKey.includes('ctr') || kpiKey.includes('link');
-  const isBetterLower = costMetrics.includes(kpiKey) || kpiKey.includes('cost') || kpiKey.includes('cpc') || kpiKey.includes('cpm');
+  const isBetterHigher = volumeMetrics.includes(kpiKey) || kpiKey === 'ctrLink';
+  const isBetterLower = costMetrics.includes(kpiKey);
 
-  let indicatorColor = 'text-gray-400';
-  if (isPositive && isBetterHigher) indicatorColor = 'text-green-600';
-  if (isPositive && isBetterLower) indicatorColor = 'text-red-600';
-  if (isNegative && isBetterHigher) indicatorColor = 'text-red-600';
-  if (isNegative && isBetterLower) indicatorColor = 'text-green-600';
-
-  let valueColor = 'text-gray-900';
-  let bgColor = 'bg-white';
-  let borderColor = 'border-gray-200';
+  // Badge color: green = good, red = bad
+  let badgeBg = 'bg-gray-100 text-gray-500';
+  if (hasPrevious && variation !== 0) {
+    const isGood = (isPositive && isBetterHigher) || (isNegative && isBetterLower);
+    const isBad = (isNegative && isBetterHigher) || (isPositive && isBetterLower);
+    if (isGood) badgeBg = 'bg-green-100 text-green-700';
+    else if (isBad) badgeBg = 'bg-red-100 text-red-700';
+  }
 
   return (
     <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-3 sm:p-5">
-        <div className="flex items-start justify-between mb-1 sm:mb-2">
-          <div className="text-xs sm:text-sm text-gray-600 font-medium leading-tight">{customLabel}</div>
+      <CardContent className="p-3 sm:p-4">
+        {/* Label */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="text-xs sm:text-sm text-gray-500 font-medium leading-tight pr-1">{customLabel}</div>
           {isAdmin && (
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
               <DialogTrigger asChild>
-                <button className="text-gray-400 hover:text-gray-600 ml-1 flex-shrink-0">
+                <button className="text-gray-300 hover:text-gray-500 flex-shrink-0">
                   <Edit2 className="w-3 h-3" />
                 </button>
               </DialogTrigger>
@@ -87,38 +88,31 @@ export default function KPICardWithComparison({
                     placeholder="Nome do indicador"
                   />
                   <div className="flex gap-2">
-                    <Button onClick={() => updateLabelMutation.mutate(customLabel)}>
-                      Salvar
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>
-                      Cancelar
-                    </Button>
+                    <Button onClick={() => updateLabelMutation.mutate(customLabel)}>Salvar</Button>
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>Cancelar</Button>
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
           )}
         </div>
-        
-        <div className={`text-xl sm:text-3xl font-bold mb-1 sm:mb-2 ${valueColor}`}>
-          {formatValue(currentValue)}
-        </div>
-        
-        {previousValue > 0 && (
-          <div className={`flex items-center gap-1 text-xs sm:text-sm font-medium ${indicatorColor}`}>
-            {isPositive ? (
-              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
-            ) : isNegative ? (
-              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />
-            ) : null}
-            <span>
+
+        {/* Current value + variation badge inline */}
+        <div className="flex items-baseline gap-2 flex-wrap mb-1">
+          <div className="text-xl sm:text-2xl font-bold text-gray-900">
+            {formatValue(currentValue)}
+          </div>
+          {hasPrevious && (
+            <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded ${badgeBg}`}>
+              {isPositive ? <TrendingUp className="w-3 h-3" /> : isNegative ? <TrendingDown className="w-3 h-3" /> : null}
               {isPositive ? '+' : ''}{variation.toFixed(2)}%
             </span>
-          </div>
-        )}
-        
-        {previousValue > 0 && (
-          <div className="text-xs text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">
+          )}
+        </div>
+
+        {/* Previous value */}
+        {hasPrevious && (
+          <div className="text-xs text-gray-400">
             {formatValue(previousValue)} no período anterior
           </div>
         )}
