@@ -818,25 +818,35 @@ export default function DataManagement() {
               ))}
             </div>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">
-                {detailedSubTab === 'insights' ? 'Insights' : detailedSubTab === 'platform' ? 'Por Plataforma' : detailedSubTab === 'device' ? 'Por Device' : detailedSubTab === 'creatives_basic' ? 'Creatives Basic' : 'Por Demográfico'} — {detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : detailedSubTab === 'creatives_basic' ? creativesBasicData.length : demographicData.length} registros
-              </CardTitle>
-              <div className="flex gap-2 items-center">
-                {(() => {
-                  const activeCount = detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : detailedSubTab === 'creatives_basic' ? creativesBasicData.length : demographicData.length;
-                  return activeCount > 0 ? (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => setConfirmDeleteDetailed(true)}
-                      disabled={deleteDetailedMutation.isPending}
-                    >
-                      {deleteDetailedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                      Excluir {activeCount} registros
-                    </Button>
-                  ) : null;
-                })()}
+            <CardTitle className="text-lg">
+              {detailedSubTab === 'insights' ? 'Insights' : detailedSubTab === 'platform' ? 'Por Plataforma' : detailedSubTab === 'device' ? 'Por Device' : detailedSubTab === 'creatives_basic' ? 'Creatives Basic' : 'Por Demográfico'} — {detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : detailedSubTab === 'creatives_basic' ? creativesBasicData.length : demographicData.length} registros
+            </CardTitle>
+            <div className="flex gap-2 items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => setConfirmDeleteMultiSubTabs(true)}
+                disabled={deleteDetailedMutation.isPending || selectedUnit === 'all'}
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir por Abas
+              </Button>
+              {(() => {
+                const activeCount = detailedSubTab === 'insights' ? insightsData.length : detailedSubTab === 'platform' ? platformData.length : detailedSubTab === 'device' ? deviceData.length : detailedSubTab === 'creatives_basic' ? creativesBasicData.length : demographicData.length;
+                return activeCount > 0 ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setConfirmDeleteDetailed(true)}
+                    disabled={deleteDetailedMutation.isPending}
+                  >
+                    {deleteDetailedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    Excluir {activeCount} registros
+                  </Button>
+                ) : null;
+              })()}
                 <ColumnConfigSheet
                   columnOrder={columnOrder}
                   visibleColumns={visibleColumns}
