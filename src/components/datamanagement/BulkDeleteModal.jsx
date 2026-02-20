@@ -39,20 +39,22 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
     else setSelected(SUB_TABS.map(t => t.id));
   };
 
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
   const deleteTabRecords = async (tab) => {
     const filters = { unit_id: unitId };
     if (tab.hasDate && dateFrom) filters.date = { $gte: dateFrom };
     if (tab.hasDate && dateTo) filters.date = { ...(filters.date || {}), $lte: dateTo };
 
-    // Buscar IDs em lotes e deletar em paralelo
     const records = await base44.entities[tab.entity].filter(filters, '-created_date', 10000);
     if (records.length === 0) return 0;
 
-    // Deletar em lotes paralelos de 20
-    const BATCH = 20;
+    // Deletar sequencialmente em lotes pequenos com pausa para evitar rate limit
+    const BATCH = 5;
     for (let i = 0; i < records.length; i += BATCH) {
       const batch = records.slice(i, i + BATCH);
       await Promise.all(batch.map(r => base44.entities[tab.entity].delete(r.id)));
+      if (i + BATCH < records.length) await sleep(300);
     }
     return records.length;
   };
@@ -62,14 +64,15 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
     setLoading(true);
 
     try {
-      // Deletar todas as tabelas selecionadas em paralelo
-      const results = await Promise.all(
-        selected.map(tabId => {
-          const tab = SUB_TABS.find(t => t.id === tabId);
-          return tab ? deleteTabRecords(tab) : Promise.resolve(0);
-        })
-      );
-      const totalDeleted = results.reduce((s, n) => s + n, 0);
+      // Deletar tabelas selecionadas uma por vez para evitar rate limit
+      let totalDeleted = 0;
+      for (const tabId of selected) {
+        const tab = SUB_TABS.find(t => t.id === tabId);
+        if (tab) {
+          const count = await deleteTabRecords(tab);
+          totalDeleted += count;
+        }
+      }
 
       toast.success(`✅ ${totalDeleted} registros excluídos!`, { duration: 4000 });
       setOpen(false);
