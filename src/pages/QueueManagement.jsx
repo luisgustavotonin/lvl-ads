@@ -237,10 +237,10 @@ export default function QueueManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestão de Fila – Meta Jobs</h1>
-          <p className="text-gray-500 mt-1">Gerenciamento completo da fila de integração com Meta</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Gestão de Fila – Meta Jobs</h1>
+          <p className="text-gray-500 mt-1 text-sm">Gerenciamento completo da fila de integração com Meta</p>
         </div>
         <Button
           variant="outline"
@@ -253,7 +253,7 @@ export default function QueueManagement() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Na Fila</CardTitle>
