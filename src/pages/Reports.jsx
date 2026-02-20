@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Download, TrendingUp, TrendingDown, Minus, Settings2 } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Minus, Settings2, GitCompare, X, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,14 +12,14 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import PeriodFilter from '@/components/report/PeriodFilter';
-import MetaExportPDF from '@/components/meta/MetaExportPDF';
-import MetaExportCSV from '@/components/meta/MetaExportCSV';
 import KPICardWithComparison from '@/components/report/KPICardWithComparison';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
 import RankingTable from '@/components/report/RankingTable';
 import FunnelEditor from '@/components/report/FunnelEditor';
+import PDFPreviewModal from '@/components/report/PDFPreviewModal';
 
 const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
 
