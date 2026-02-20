@@ -614,7 +614,7 @@ export default function DataManagement() {
       )}
 
       {/* Abas: Histórico de Execuções vs RUNs vs Jobs vs Dados */}
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-1 sm:gap-2 border-b border-gray-200 overflow-x-auto">
         <button
           onClick={() => setActiveTab('executions')}
           className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
