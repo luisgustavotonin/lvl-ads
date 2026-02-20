@@ -347,6 +347,8 @@ export default function DataManagement() {
       queryClient.invalidateQueries({ queryKey: ['metaAdsDim'] });
       toast.success(`✅ ${count} registros excluídos!`, { duration: 4000 });
       setConfirmDeleteDetailed(false);
+      setConfirmDeleteMultiSubTabs(false);
+      setSelectedSubTabsToDelete([]);
     },
     onError: (error) => {
       toast.error(`Erro: ${error.message}`);
