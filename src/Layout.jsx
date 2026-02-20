@@ -54,6 +54,19 @@ export default function Layout({ children, currentPageName }) {
     queryFn: () => base44.auth.me(),
   });
 
+  // Aplicar modo escuro e sidebar compacta com base nas settings salvas
+  const userSettings = user?.settings || {};
+  const darkMode = userSettings.darkMode || false;
+  const compactSidebar = userSettings.compactSidebar || false;
+
+  React.useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
