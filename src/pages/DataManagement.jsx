@@ -554,8 +554,8 @@ export default function DataManagement() {
       {selectedUnit !== 'all' && filtered.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <CardTitle className="text-base sm:text-lg">
                 Resultado: {filtered.length} execuções de {getUnitName(selectedUnit)}
               </CardTitle>
               <Button 
