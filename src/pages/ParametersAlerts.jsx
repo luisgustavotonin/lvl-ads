@@ -339,12 +339,12 @@ export default function ParametersAlerts() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Parâmetros & Alertas</h1>
-          <p className="text-gray-600 mt-1">Configure thresholds de KPIs, regras de diagnóstico e alertas por WhatsApp</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Parâmetros & Alertas</h1>
+          <p className="text-gray-600 mt-1 text-sm">Configure thresholds de KPIs, regras de diagnóstico e alertas por WhatsApp</p>
         </div>
-        <Settings className="w-8 h-8 text-blue-600" />
+        <Settings className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 mt-1" />
       </div>
 
       <Card>
