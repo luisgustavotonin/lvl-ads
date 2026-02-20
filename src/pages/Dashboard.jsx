@@ -52,13 +52,6 @@ export default function Dashboard() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: integrations = [], isLoading: integrationsLoading } = useQuery({
-    queryKey: ['integrations'],
-    queryFn: () => base44.entities.Integration.list(),
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    refetchOnWindowFocus: false,
-  });
-
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', period.start, period.end],
     queryFn: async () => {
