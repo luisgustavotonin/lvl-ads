@@ -551,21 +551,7 @@ export default function DataManagement() {
                 Buscar
               </Button>
             </div>
-            <div className="space-y-2">
-              <Label>&nbsp;</Label>
-              <BulkDeleteModal
-                unitId={selectedUnit !== 'all' ? selectedUnit : null}
-                dateFrom={dateFrom}
-                dateTo={dateTo}
-                onSuccess={() => {
-                  queryClient.invalidateQueries({ queryKey: ['metaAdInsights'] });
-                  queryClient.invalidateQueries({ queryKey: ['metaAdByPlatform'] });
-                  queryClient.invalidateQueries({ queryKey: ['metaAdByDevice'] });
-                  queryClient.invalidateQueries({ queryKey: ['metaAdByDemographic'] });
-                  queryClient.invalidateQueries({ queryKey: ['metaAdsDim'] });
-                }}
-              />
-            </div>
+
           </div>
         </CardContent>
       </Card>
