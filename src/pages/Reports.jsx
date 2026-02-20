@@ -111,14 +111,17 @@ export default function Reports() {
     enabled: !!selectedUnit,
   });
 
-  // Calcular período anterior
+  // Calcular período anterior (automático ou manual)
   const previousPeriod = useMemo(() => {
+    if (comparativeMode && compPeriod.start && compPeriod.end) {
+      return { start: compPeriod.start, end: compPeriod.end };
+    }
     const days = differenceInDays(period.end, period.start) + 1;
     return {
       start: subDays(period.start, days),
       end: subDays(period.start, 1)
     };
-  }, [period]);
+  }, [period, comparativeMode, compPeriod]);
 
   const { data: previousMetrics = [] } = useQuery({
     queryKey: ['previousMetrics', selectedUnit, previousPeriod.start, previousPeriod.end, selectedPlatforms],
