@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
     const base44 = createClientFromRequest(req);
 
-    // Buscar todas as unidades via service role (sem autenticação de usuário necessária)
+    // Buscar todas as unidades via service role
     const units = await base44.asServiceRole.entities.Unit.list('-created_date', 100);
 
     // Formatar no formato esperado pelo n8n
