@@ -211,7 +211,7 @@ export default function Dashboard() {
       {/* Chart and Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
-        <Card className="lg:col-span-2 border-gray-100">
+        <Card className="lg:col-span-2 border-gray-100" style={{ minHeight: 300 }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-semibold">Investimento Recente</CardTitle>
           </CardHeader>
