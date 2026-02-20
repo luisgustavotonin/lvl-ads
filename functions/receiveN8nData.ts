@@ -171,8 +171,7 @@ Deno.serve(async (req) => {
                 };
 
                 const existing = await base44.asServiceRole.entities.MetaAdInsights.filter({ 
-                    unit_id, account_id, ad_id: a.ad_id, date: a.date,
-                    job_id: job_id || run_id
+                    unit_id, account_id, ad_id: a.ad_id, date: a.date
                 });
                 if (existing.length > 0) {
                     await base44.asServiceRole.entities.MetaAdInsights.update(existing[0].id, record);
