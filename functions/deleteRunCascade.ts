@@ -57,30 +57,45 @@ Deno.serve(async (req) => {
 
         console.log(`✅ Validado: ${runs.length} RUNs da unidade ${unit_id}`);
 
-        // 2️⃣ EXCLUIR MetaAdDaily (dados detalhados)
-        try {
-            const adDaily = await base44.asServiceRole.entities.MetaAdDaily.filter({
-                run_id: { $in: resolvedRunIds },
-                unit_id: unit_id
-            }, null, 50000);
-
-            console.log(`📊 ${adDaily.length} registros MetaAdDaily para excluir`);
-
-            if (adDaily.length > 0) {
-                const batchSize = 100;
-                for (let i = 0; i < adDaily.length; i += batchSize) {
-                    const batch = adDaily.slice(i, i + batchSize);
-                    const results = await Promise.allSettled(
-                        batch.map(r => base44.asServiceRole.entities.MetaAdDaily.delete(r.id))
-                    );
-                    deleted.ad_daily += results.filter(r => r.status === 'fulfilled').length;
-                }
-                console.log(`✅ ${deleted.ad_daily} MetaAdDaily excluídos`);
+        // Helper para deletar registros em paralelo por lotes
+        const deleteBatch = async (entityName, records) => {
+            if (records.length === 0) return 0;
+            const BATCH = 50;
+            let count = 0;
+            for (let i = 0; i < records.length; i += BATCH) {
+                const batch = records.slice(i, i + BATCH);
+                const results = await Promise.allSettled(
+                    batch.map(r => base44.asServiceRole.entities[entityName].delete(r.id))
+                );
+                count += results.filter(r => r.status === 'fulfilled').length;
             }
-        } catch (error) {
-            console.error('⚠️ Erro ao excluir MetaAdDaily:', error.message);
-            errors.push(`MetaAdDaily: ${error.message}`);
-        }
+            return count;
+        };
+
+        // 2️⃣ EXCLUIR dados detalhados em todas as tabelas novas + legado
+        const detailEntities = [
+            'MetaAdDaily',
+            'MetaAdInsights',
+            'MetaAdByPlatform',
+            'MetaAdByDevice',
+            'MetaAdByDemographic',
+        ];
+
+        await Promise.all(detailEntities.map(async (entityName) => {
+            try {
+                const records = await base44.asServiceRole.entities[entityName].filter({
+                    run_id: { $in: resolvedRunIds },
+                    unit_id: unit_id
+                }, null, 50000);
+                console.log(`📊 ${records.length} registros ${entityName} para excluir`);
+                const count = await deleteBatch(entityName, records);
+                deleted.ad_daily += count;
+                console.log(`✅ ${count} ${entityName} excluídos`);
+            } catch (error) {
+                console.error(`⚠️ Erro ao excluir ${entityName}:`, error.message);
+                errors.push(`${entityName}: ${error.message}`);
+            }
+        }));
 
         // 3️⃣ EXCLUIR JOBS
         try {
