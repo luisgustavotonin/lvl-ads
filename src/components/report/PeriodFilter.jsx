@@ -86,10 +86,11 @@ export default function PeriodFilter({ value, onChange }) {
                 mode="range"
                 selected={{ from: value.start, to: value.end }}
                 onSelect={(range) => {
-                  if (range?.from && range?.to) {
-                    onChange({ start: range.from, end: range.to });
+                  if (range?.from) {
+                    const end = range.to || range.from;
+                    onChange({ start: range.from, end });
                     setActivePreset('custom');
-                    setCustomOpen(false);
+                    if (range.to) setCustomOpen(false);
                   }
                 }}
                 numberOfMonths={2}
