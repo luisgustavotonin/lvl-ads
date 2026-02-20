@@ -503,7 +503,7 @@ export default function Reports() {
                 <CardTitle className="text-lg mb-4">CTR Link por Dia (%)</CardTitle>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts}>
+                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
                       <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => v.toFixed(1) + '%'} />
