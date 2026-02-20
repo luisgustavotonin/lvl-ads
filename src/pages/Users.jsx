@@ -218,9 +218,45 @@ export default function Users() {
         </CardContent>
       </Card>
 
-      {/* Users Table */}
+      {/* Users List - Card on mobile, Table on desktop */}
       <Card className="border-gray-100">
-        <CardContent className="p-0">
+        {/* Mobile view */}
+        <CardContent className="p-4 sm:hidden space-y-3">
+          {users.map((user) => {
+            const profile = getUserProfile(user.id);
+            const userUnits = getUserUnits(user.id);
+            return (
+              <div key={user.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar className="flex-shrink-0">
+                    <AvatarFallback className="bg-blue-100 text-blue-600 text-sm">
+                      {getInitials(user.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 text-sm truncate">{user.full_name || 'Sem nome'}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <Badge variant="outline" className={`text-xs ${user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                        {user.role === 'admin' ? 'Admin' : 'Usuário'}
+                      </Badge>
+                      {profile && (
+                        <Badge variant="outline" style={{ backgroundColor: `${profile.color}15`, color: profile.color, borderColor: `${profile.color}40` }} className="text-xs">
+                          {profile.name}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(user)} className="flex-shrink-0">
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </div>
+            );
+          })}
+        </CardContent>
+        {/* Desktop view */}
+        <CardContent className="p-0 hidden sm:block">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
@@ -235,7 +271,6 @@ export default function Users() {
               {users.map((user) => {
                 const profile = getUserProfile(user.id);
                 const userUnits = getUserUnits(user.id);
-                
                 return (
                   <TableRow key={user.id}>
                     <TableCell>
@@ -253,14 +288,7 @@ export default function Users() {
                     </TableCell>
                     <TableCell>
                       {profile ? (
-                        <Badge 
-                          variant="outline"
-                          style={{ 
-                            backgroundColor: `${profile.color}15`,
-                            color: profile.color,
-                            borderColor: `${profile.color}40`
-                          }}
-                        >
+                        <Badge variant="outline" style={{ backgroundColor: `${profile.color}15`, color: profile.color, borderColor: `${profile.color}40` }}>
                           <Shield className="w-3 h-3 mr-1" />
                           {profile.name}
                         </Badge>
@@ -273,9 +301,7 @@ export default function Users() {
                         <div className="flex items-center gap-1">
                           <Building2 className="w-4 h-4 text-gray-400" />
                           <span className="text-sm text-gray-600">
-                            {userUnits.length === 1 
-                              ? userUnits[0].name 
-                              : `${userUnits.length} unidades`}
+                            {userUnits.length === 1 ? userUnits[0].name : `${userUnits.length} unidades`}
                           </span>
                         </div>
                       ) : (
@@ -283,21 +309,12 @@ export default function Users() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline"
-                        className={user.role === 'admin' 
-                          ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                          : 'bg-gray-50 text-gray-600 border-gray-200'}
-                      >
+                      <Badge variant="outline" className={user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-gray-50 text-gray-600 border-gray-200'}>
                         {user.role === 'admin' ? 'Admin' : 'Usuário'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleOpenEditDialog(user)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(user)}>
                         <Pencil className="w-4 h-4" />
                       </Button>
                     </TableCell>
