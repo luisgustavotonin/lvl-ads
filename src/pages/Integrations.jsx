@@ -308,8 +308,8 @@ export default function Integrations() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Integrações</h1>
-        <p className="text-gray-500 mt-1">Conecte suas contas de anúncios por plataforma</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Integrações</h1>
+        <p className="text-gray-500 mt-1 text-sm">Conecte suas contas de anúncios por plataforma</p>
       </div>
 
       {/* Platform Cards */}
