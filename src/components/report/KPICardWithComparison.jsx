@@ -66,13 +66,13 @@ export default function KPICardWithComparison({
 
   return (
     <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between mb-2">
-          <div className="text-sm text-gray-600 font-medium">{customLabel}</div>
+      <CardContent className="p-3 sm:p-5">
+        <div className="flex items-start justify-between mb-1 sm:mb-2">
+          <div className="text-xs sm:text-sm text-gray-600 font-medium leading-tight">{customLabel}</div>
           {isAdmin && (
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
               <DialogTrigger asChild>
-                <button className="text-gray-400 hover:text-gray-600">
+                <button className="text-gray-400 hover:text-gray-600 ml-1 flex-shrink-0">
                   <Edit2 className="w-3 h-3" />
                 </button>
               </DialogTrigger>
@@ -100,16 +100,16 @@ export default function KPICardWithComparison({
           )}
         </div>
         
-        <div className={`text-3xl font-bold mb-2 ${valueColor}`}>
+        <div className={`text-xl sm:text-3xl font-bold mb-1 sm:mb-2 ${valueColor}`}>
           {formatValue(currentValue)}
         </div>
         
         {previousValue > 0 && (
-          <div className={`flex items-center gap-1 text-sm font-medium ${indicatorColor}`}>
+          <div className={`flex items-center gap-1 text-xs sm:text-sm font-medium ${indicatorColor}`}>
             {isPositive ? (
-              <TrendingUp className="w-4 h-4" />
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
             ) : isNegative ? (
-              <TrendingDown className="w-4 h-4" />
+              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />
             ) : null}
             <span>
               {isPositive ? '+' : ''}{variation.toFixed(2)}%
@@ -118,7 +118,7 @@ export default function KPICardWithComparison({
         )}
         
         {previousValue > 0 && (
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">
             {formatValue(previousValue)} no período anterior
           </div>
         )}
