@@ -367,7 +367,7 @@ export default function ParametersAlerts() {
 
       {selectedUnit && (
         <Tabs defaultValue="thresholds" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1">
             <TabsTrigger value="thresholds">Parâmetros de KPIs</TabsTrigger>
             <TabsTrigger value="rules">Regras de Diagnóstico</TabsTrigger>
             <TabsTrigger value="alerts">Alertas WhatsApp</TabsTrigger>
