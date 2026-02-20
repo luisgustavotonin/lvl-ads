@@ -186,9 +186,9 @@ export default function Users() {
 
       {/* Invite User Card */}
       <Card className="border-gray-100">
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Convidar Usuário</h3>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <Input
                 type="email"
@@ -198,7 +198,7 @@ export default function Users() {
               />
             </div>
             <Select value={inviteRole} onValueChange={setInviteRole}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -207,7 +207,7 @@ export default function Users() {
               </SelectContent>
             </Select>
             <Button 
-              className="gap-2 bg-blue-600 hover:bg-blue-700"
+              className="gap-2 bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
               onClick={handleInviteUser}
               disabled={!inviteEmail}
             >
