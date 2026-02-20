@@ -453,7 +453,7 @@ export default function Reports() {
             </Card>
 
             {/* Gráficos por Dia */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
                 <CardTitle className="text-lg mb-4">Investimento por Dia</CardTitle>
                 <div className="h-80">
