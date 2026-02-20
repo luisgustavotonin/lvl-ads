@@ -14,7 +14,6 @@ Deno.serve(async (req) => {
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
-        // Permite qualquer usuário autenticado executar exclusão (não só admin)
 
 
         const { run_ids, unit_id } = await req.json();
