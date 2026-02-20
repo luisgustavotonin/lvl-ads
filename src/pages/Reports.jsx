@@ -48,6 +48,9 @@ export default function Reports() {
     end: new Date(),
   });
   const [showComparison, setShowComparison] = useState(true);
+  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [comparativeMode, setComparativeMode] = useState(false);
+  const [compPeriod, setCompPeriod] = useState({ start: null, end: null });
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
   const [funnelStages, setFunnelStages] = useState([
