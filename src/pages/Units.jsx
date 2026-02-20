@@ -167,10 +167,10 @@ export default function Units() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Unidades</h1>
-          <p className="text-gray-500 mt-1">Gerencie seus clientes e filiais</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Unidades</h1>
+          <p className="text-gray-500 mt-1 text-sm">Gerencie seus clientes e filiais</p>
         </div>
         <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => handleOpenDialog()}>
           <Plus className="w-4 h-4" />
