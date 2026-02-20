@@ -899,6 +899,99 @@ export default function DataManagement() {
         </Card>
       )}
 
+      {/* Dialog exclusão múltiplas sub-abas */}
+      <AlertDialog open={confirmDeleteMultiSubTabs} onOpenChange={setConfirmDeleteMultiSubTabs}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Excluir Dados por Abas
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 mt-2">
+                <p className="text-sm text-gray-600">Selecione as abas que deseja excluir:</p>
+                {[
+                  { id: 'insights', label: 'Insights', count: insightsData.length },
+                  { id: 'platform', label: 'Por Plataforma', count: platformData.length },
+                  { id: 'device', label: 'Por Device', count: deviceData.length },
+                  { id: 'demographic', label: 'Por Demográfico', count: demographicData.length },
+                  { id: 'creatives_basic', label: 'Creatives Basic', count: creativesBasicData.length },
+                ].map(tab => (
+                  <div key={tab.id} className="flex items-center gap-3 p-2 rounded border border-gray-100 hover:bg-gray-50">
+                    <Checkbox
+                      id={`del-tab-${tab.id}`}
+                      checked={selectedSubTabsToDelete.includes(tab.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedSubTabsToDelete(prev =>
+                          checked ? [...prev, tab.id] : prev.filter(t => t !== tab.id)
+                        );
+                      }}
+                    />
+                    <label htmlFor={`del-tab-${tab.id}`} className="flex-1 flex justify-between cursor-pointer text-sm">
+                      <span className="font-medium">{tab.label}</span>
+                      <span className="text-gray-500">{tab.count} registros</span>
+                    </label>
+                  </div>
+                ))}
+                <div className="flex gap-2 mt-1">
+                  <button
+                    className="text-xs text-blue-600 underline"
+                    onClick={() => setSelectedSubTabsToDelete(['insights','platform','device','demographic','creatives_basic'])}
+                  >Selecionar todas</button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    className="text-xs text-gray-500 underline"
+                    onClick={() => setSelectedSubTabsToDelete([])}
+                  >Limpar</button>
+                </div>
+                {selectedSubTabsToDelete.length > 0 && (
+                  <p className="text-red-600 font-semibold text-sm mt-2">⚠️ Esta ação não pode ser desfeita!</p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteDetailedMutation.isPending} onClick={() => setSelectedSubTabsToDelete([])}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteDetailedMutation.isPending || selectedSubTabsToDelete.length === 0}
+              onClick={async () => {
+                let totalDeleted = 0;
+                for (const subTab of selectedSubTabsToDelete) {
+                  const filters = subTab === 'creatives_basic' ? { unit_id: selectedUnit } : (() => {
+                    const f = { unit_id: selectedUnit };
+                    if (dateFrom) f.date = { $gte: dateFrom };
+                    if (dateTo) f.date = { ...(f.date || {}), $lte: dateTo };
+                    return f;
+                  })();
+                  const entityMap = {
+                    insights: base44.entities.MetaAdInsights,
+                    platform: base44.entities.MetaAdByPlatform,
+                    device: base44.entities.MetaAdByDevice,
+                    demographic: base44.entities.MetaAdByDemographic,
+                    creatives_basic: base44.entities.MetaAdsDim,
+                  };
+                  const entity = entityMap[subTab];
+                  const records = await entity.filter(filters, '-created_date', 10000);
+                  for (const r of records) await entity.delete(r.id);
+                  totalDeleted += records.length;
+                }
+                queryClient.invalidateQueries({ queryKey: ['metaAdInsights'] });
+                queryClient.invalidateQueries({ queryKey: ['metaAdByPlatform'] });
+                queryClient.invalidateQueries({ queryKey: ['metaAdByDevice'] });
+                queryClient.invalidateQueries({ queryKey: ['metaAdByDemographic'] });
+                queryClient.invalidateQueries({ queryKey: ['metaAdsDim'] });
+                toast.success(`✅ ${totalDeleted} registros excluídos em ${selectedSubTabsToDelete.length} aba(s)!`, { duration: 5000 });
+                setConfirmDeleteMultiSubTabs(false);
+                setSelectedSubTabsToDelete([]);
+              }}
+            >
+              {deleteDetailedMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Excluindo...</> : `Excluir ${selectedSubTabsToDelete.length} aba(s)`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Dialog exclusão Dados Detalhados */}
       <AlertDialog open={confirmDeleteDetailed} onOpenChange={setConfirmDeleteDetailed}>
         <AlertDialogContent>
