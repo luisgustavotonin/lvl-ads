@@ -7,11 +7,8 @@ import {
   Building2, 
   Link2, 
   FileText, 
-  TrendingUp, 
   ArrowUpRight,
-  AlertCircle,
-  CheckCircle2,
-  Calendar,
+  Building2,
   DollarSign,
   MessageCircle,
   TrendingDown
