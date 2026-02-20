@@ -353,38 +353,37 @@ export default function DataManagement() {
     },
   });
 
+  const invalidateAllDataQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['runs'] });
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['metaAdInsights'] });
+    queryClient.invalidateQueries({ queryKey: ['metaAdByPlatform'] });
+    queryClient.invalidateQueries({ queryKey: ['metaAdByDevice'] });
+    queryClient.invalidateQueries({ queryKey: ['metaAdByDemographic'] });
+    queryClient.invalidateQueries({ queryKey: ['metaAdsDim'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
+    queryClient.invalidateQueries({ queryKey: ['executionLogs'] });
+  };
+
   const deleteMetricsMutation = useMutation({
     mutationFn: async ({ runIds, unitId }) => {
       const response = await base44.functions.invoke('deleteRunCascade', {
         run_ids: runIds,
         unit_id: unitId
       });
-      
-      if (!response.data.success && response.data.errors) {
-        throw new Error(`Exclusão parcial: ${response.data.errors.join(', ')}`);
-      }
-      
-      return response.data.deleted;
+      return response.data;
     },
-    onSuccess: (deleted) => {
-      // Invalidar TODAS as queries
-      queryClient.invalidateQueries({ queryKey: ['runs'] });
-      queryClient.invalidateQueries({ queryKey: ['currentMetrics'] });
-      queryClient.invalidateQueries({ queryKey: ['previousMetrics'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
-      queryClient.invalidateQueries({ queryKey: ['executionLogs'] });
-      
+    onSuccess: (data) => {
+      invalidateAllDataQueries();
       setSelectedMetrics([]);
       setDeletingItemId(null);
-      
-      toast.success(`✅ Exclusão completa: ${deleted.runs} runs, ${deleted.jobs} jobs, ${deleted.ad_daily} registros excluídos!`, {
-        duration: 5000
-      });
+      setConfirmDelete(false);
+      const deleted = data.deleted || {};
+      toast.success(`✅ ${deleted.runs || 0} runs e ${deleted.ad_daily || 0} registros excluídos!`, { duration: 5000 });
     },
     onError: (error) => {
       setDeletingItemId(null);
       toast.error(`Erro ao excluir: ${error.message}`);
-      console.error('Erro na exclusão:', error);
     },
   });
 
