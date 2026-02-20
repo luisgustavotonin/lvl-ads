@@ -7,6 +7,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validar x-internal-secret para chamadas externas (N8N)
+    const internalSecret = Deno.env.get('INTERNAL_SECRET');
+    const headerSecret = req.headers.get('x-internal-secret');
+    if (internalSecret && headerSecret !== internalSecret) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const base44 = createClientFromRequest(req);
 
     // Buscar todas as unidades via service role (sem autenticação de usuário necessária)
