@@ -475,10 +475,10 @@ export default function Reports() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={dailyCharts}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
+                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} />
                       <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="impressions" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 3 }} label={{ position: 'top', fontSize: 10, fill: '#10B981' }} />
+                      <Line type="monotone" dataKey="impressions" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#10B981', formatter: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v) }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
