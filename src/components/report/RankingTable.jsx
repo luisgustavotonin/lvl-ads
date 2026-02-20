@@ -125,14 +125,17 @@ export default function RankingTable({
 
   const uniqueStatuses = [...new Set(data.map(d => d.ad_effective_status).filter(Boolean))];
 
+  // Colunas de métricas para exibir nos cards mobile (excluindo name e status)
+  const metricColumns = orderedColumns.filter(c => c.key !== 'name' && c.key !== 'status');
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>{title}</CardTitle>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+          <div className="flex flex-wrap gap-2">
             <Select value={limit} onValueChange={setLimit}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-24 sm:w-32 h-8 text-xs sm:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -145,11 +148,11 @@ export default function RankingTable({
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Todos os status" />
+              <SelectTrigger className="w-28 sm:w-40 h-8 text-xs sm:text-sm">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {uniqueStatuses.map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
@@ -158,9 +161,9 @@ export default function RankingTable({
 
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Settings2 className="w-4 h-4 mr-2" />
-                  Colunas
+                <Button variant="outline" size="sm" className="h-8 text-xs sm:text-sm">
+                  <Settings2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Colunas</span>
                 </Button>
               </SheetTrigger>
               <SheetContent>
@@ -215,8 +218,45 @@ export default function RankingTable({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
+      <CardContent className="p-0 sm:p-6 sm:pt-0">
+        {/* Mobile: card list */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {aggregated.map((item, idx) => (
+            <div key={item.id} className="p-4">
+              <div className="flex items-start gap-3 mb-3">
+                {showThumbnail && (
+                  item.thumbnail ? (
+                    <img src={item.thumbnail} alt="Criativo" className="w-12 h-12 object-cover rounded flex-shrink-0" />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs flex-shrink-0">N/D</div>
+                  )
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">{item.name}</p>
+                    <Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100'} flex-shrink-0 text-xs`}>
+                      {item.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {metricColumns.slice(0, 6).map(col => (
+                  <div key={col.key} className="bg-gray-50 rounded p-2">
+                    <p className="text-xs text-gray-500 mb-0.5">{col.label}</p>
+                    <p className="text-sm font-semibold text-gray-800">{col.format(item[col.key])}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {aggregated.length === 0 && (
+            <p className="text-center text-gray-500 text-sm py-8">Nenhum dado disponível</p>
+          )}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
@@ -243,15 +283,9 @@ export default function RankingTable({
                   {showThumbnail && (
                     <td className="py-3 px-2">
                       {item.thumbnail ? (
-                        <img 
-                          src={item.thumbnail} 
-                          alt="Criativo"
-                          className="w-12 h-12 object-cover rounded"
-                        />
+                        <img src={item.thumbnail} alt="Criativo" className="w-12 h-12 object-cover rounded" />
                       ) : (
-                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
-                          N/D
-                        </div>
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">N/D</div>
                       )}
                     </td>
                   )}
