@@ -475,8 +475,8 @@ export default function DataManagement() {
     <div className="space-y-6">
       <Toaster position="top-right" />
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Gestão de Dados</h1>
-        <p className="text-gray-500 mt-1">Gerencie e visualize os dados do sistema</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Gestão de Dados</h1>
+        <p className="text-gray-500 mt-1 text-sm">Gerencie e visualize os dados do sistema</p>
       </div>
 
       {/* Filtros */}
