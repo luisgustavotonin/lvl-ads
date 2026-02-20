@@ -319,7 +319,6 @@ export default function DataManagement() {
       if (dateFrom) filters.date = { $gte: dateFrom };
       if (dateTo) filters.date = { ...filters.date, $lte: dateTo };
 
-      // Selecionar entidade correta conforme a sub-tab
       const entityMap = {
         insights: base44.entities.MetaAdInsights,
         platform: base44.entities.MetaAdByPlatform,
@@ -328,22 +327,18 @@ export default function DataManagement() {
         creatives_basic: base44.entities.MetaAdsDim,
       };
       const entity = entityMap[subTab] || base44.entities.MetaAdInsights;
-
-      // MetaAdsDim não tem campo date, filtrar só por unit_id
       const finalFilters = subTab === 'creatives_basic' ? { unit_id: unitId } : filters;
 
       const records = await entity.filter(finalFilters, '-created_date', 10000);
-      for (const r of records) {
-        await entity.delete(r.id);
+      // Deletar em lotes paralelos de 30
+      const BATCH = 30;
+      for (let i = 0; i < records.length; i += BATCH) {
+        await Promise.all(records.slice(i, i + BATCH).map(r => entity.delete(r.id)));
       }
       return records.length;
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['metaAdInsights'] });
-      queryClient.invalidateQueries({ queryKey: ['metaAdByPlatform'] });
-      queryClient.invalidateQueries({ queryKey: ['metaAdByDevice'] });
-      queryClient.invalidateQueries({ queryKey: ['metaAdByDemographic'] });
-      queryClient.invalidateQueries({ queryKey: ['metaAdsDim'] });
+      invalidateAllDataQueries();
       toast.success(`✅ ${count} registros excluídos!`, { duration: 4000 });
       setConfirmDeleteDetailed(false);
     },
