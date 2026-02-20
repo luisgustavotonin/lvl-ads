@@ -53,51 +53,75 @@ export default function PeriodFilter({ value, onChange }) {
   const [activePreset, setActivePreset] = React.useState('last_30_days');
   const [customOpen, setCustomOpen] = React.useState(false);
 
+  // Converter Date para string YYYY-MM-DD para o input type=date
+  const toInputValue = (date) => {
+    if (!date) return '';
+    try {
+      return format(date, 'yyyy-MM-dd');
+    } catch { return ''; }
+  };
+
   const handlePresetClick = (preset) => {
     setActivePreset(preset.id);
     if (preset.getDates) {
       const dates = preset.getDates();
       onChange({ start: dates.start, end: dates.end });
+      setCustomOpen(false);
     } else {
-      setCustomOpen(true);
+      setCustomOpen(prev => !prev);
     }
   };
 
+  const handleCustomDateChange = (field, strValue) => {
+    if (!strValue) return;
+    const [year, month, day] = strValue.split('-').map(Number);
+    const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+    const newStart = field === 'start' ? date : (value.start || date);
+    const newEnd = field === 'end' ? date : (value.end || date);
+    onChange({ start: newStart, end: newEnd });
+    setActivePreset('custom');
+  };
+
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {PRESETS.map((preset) => (
         preset.id === 'custom' ? (
-          <Popover key={preset.id} open={customOpen} onOpenChange={setCustomOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant={activePreset === preset.id ? 'default' : 'outline'}
-                size="sm"
-                className="gap-2"
-              >
-                <Calendar className="w-4 h-4" />
-                {activePreset === preset.id && value.start && value.end ? 
-                  `${format(value.start, 'dd/MM')} - ${format(value.end, 'dd/MM')}` : 
-                  preset.label
-                }
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <CalendarComponent
-                mode="range"
-                selected={{ from: value.start, to: value.end }}
-                onSelect={(range) => {
-                  if (range?.from) {
-                    const end = range.to || range.from;
-                    onChange({ start: range.from, end });
-                    setActivePreset('custom');
-                    if (range.to) setCustomOpen(false);
-                  }
-                }}
-                numberOfMonths={2}
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
+          <div key={preset.id} className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={activePreset === preset.id ? 'default' : 'outline'}
+              size="sm"
+              className="gap-2"
+              onClick={() => handlePresetClick(preset)}
+            >
+              <Calendar className="w-4 h-4" />
+              {activePreset === preset.id && value.start && value.end
+                ? `${format(value.start, 'dd/MM')} - ${format(value.end, 'dd/MM')}`
+                : preset.label}
+            </Button>
+            {customOpen && (
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs text-gray-500 whitespace-nowrap">De:</Label>
+                  <Input
+                    type="date"
+                    className="h-7 text-xs w-36"
+                    value={toInputValue(value.start)}
+                    onChange={(e) => handleCustomDateChange('start', e.target.value)}
+                  />
+                </div>
+                <span className="text-gray-400 text-xs">→</span>
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs text-gray-500 whitespace-nowrap">Até:</Label>
+                  <Input
+                    type="date"
+                    className="h-7 text-xs w-36"
+                    value={toInputValue(value.end)}
+                    onChange={(e) => handleCustomDateChange('end', e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <Button
             key={preset.id}
