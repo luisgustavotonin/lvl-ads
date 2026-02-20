@@ -601,5 +601,6 @@ export default function Reports() {
         )}
       </div>
     </div>
+    </>
   );
 }
