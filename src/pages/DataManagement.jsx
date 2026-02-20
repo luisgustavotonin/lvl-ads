@@ -601,6 +601,24 @@ export default function DataManagement() {
         </Card>
       )}
 
+      {/* Botão Excluir Dados */}
+      {selectedUnit !== 'all' && (
+        <div className="flex justify-end">
+          <BulkDeleteModal
+            unitId={selectedUnit}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['metaAdInsights'] });
+              queryClient.invalidateQueries({ queryKey: ['metaAdByPlatform'] });
+              queryClient.invalidateQueries({ queryKey: ['metaAdByDevice'] });
+              queryClient.invalidateQueries({ queryKey: ['metaAdByDemographic'] });
+              queryClient.invalidateQueries({ queryKey: ['metaAdsDim'] });
+            }}
+          />
+        </div>
+      )}
+
       {/* Abas: Histórico de Execuções vs RUNs vs Jobs vs Dados */}
       <div className="flex gap-2 border-b border-gray-200">
         <button
