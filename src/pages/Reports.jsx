@@ -320,16 +320,10 @@ export default function Reports() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <MetaExportCSV 
-                metricsDaily={[]} 
-                metaAdDaily={currentMetrics}
-                unitName={selectedUnitData?.name || 'Unidade'}
-                period={period}
-              />
-              <MetaExportPDF 
-                unitName={selectedUnitData?.name || 'Unidade'}
-                period={period}
-              />
+              <Button variant="outline" className="gap-2" onClick={() => setShowPDFModal(true)}>
+                <Download className="w-4 h-4" />
+                Exportar PDF
+              </Button>
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2">
