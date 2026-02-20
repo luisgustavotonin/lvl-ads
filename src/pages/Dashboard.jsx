@@ -216,7 +216,7 @@ export default function Dashboard() {
             <CardTitle className="text-lg font-semibold">Investimento Recente</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className="h-72">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
