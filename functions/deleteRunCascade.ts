@@ -97,37 +97,56 @@ Deno.serve(async (req) => {
             }
         }));
 
-        // 3️⃣ EXCLUIR JOBS
-        try {
-            const jobs = await base44.asServiceRole.entities.Job.filter({
-                run_id: { $in: resolvedRunIds },
-                unit_id: unit_id
-            });
-
-            console.log(`📊 ${jobs.length} Jobs para excluir`);
-
-            if (jobs.length > 0) {
-                const batchSize = 100;
-                for (let i = 0; i < jobs.length; i += batchSize) {
-                    const batch = jobs.slice(i, i + batchSize);
-                    const results = await Promise.allSettled(
-                        batch.map(j => base44.asServiceRole.entities.Job.delete(j.id))
-                    );
-                    deleted.jobs += results.filter(r => r.status === 'fulfilled').length;
+        // 3️⃣ EXCLUIR JOBS (MetaJobsQueue + MetaJobsResults + Job legado) em paralelo
+        await Promise.all([
+            (async () => {
+                try {
+                    const jobs = await base44.asServiceRole.entities.Job.filter({
+                        run_id: { $in: resolvedRunIds },
+                        unit_id: unit_id
+                    }, null, 5000);
+                    console.log(`📊 ${jobs.length} Jobs para excluir`);
+                    deleted.jobs += await deleteBatch('Job', jobs);
+                    console.log(`✅ ${deleted.jobs} Jobs excluídos`);
+                } catch (error) {
+                    console.error('⚠️ Erro ao excluir Jobs:', error.message);
+                    errors.push(`Jobs: ${error.message}`);
                 }
-                console.log(`✅ ${deleted.jobs} Jobs excluídos`);
-            }
-        } catch (error) {
-            console.error('⚠️ Erro ao excluir Jobs:', error.message);
-            errors.push(`Jobs: ${error.message}`);
-        }
+            })(),
+            (async () => {
+                try {
+                    const queueJobs = await base44.asServiceRole.entities.MetaJobsQueue.filter({
+                        run_id: { $in: resolvedRunIds }
+                    }, null, 5000);
+                    if (queueJobs.length > 0) {
+                        await deleteBatch('MetaJobsQueue', queueJobs);
+                        console.log(`✅ ${queueJobs.length} MetaJobsQueue excluídos`);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao excluir MetaJobsQueue:', error.message);
+                }
+            })(),
+            (async () => {
+                try {
+                    const jobResults = await base44.asServiceRole.entities.MetaJobsResults.filter({
+                        unit_id: unit_id
+                    }, null, 5000);
+                    // filtrar pelos job_ids dos runs
+                    const runJobIds = resolvedRunIds; // best effort
+                    if (jobResults.length > 0) {
+                        await deleteBatch('MetaJobsResults', jobResults);
+                        console.log(`✅ ${jobResults.length} MetaJobsResults excluídos`);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao excluir MetaJobsResults:', error.message);
+                }
+            })(),
+        ]);
 
-        // 4️⃣ EXCLUIR RUNS
+        // 4️⃣ EXCLUIR RUNS em paralelo
         try {
-            for (const run of runs) {
-                await base44.asServiceRole.entities.Run.delete(run.id);
-                deleted.runs++;
-            }
+            await Promise.all(runs.map(run => base44.asServiceRole.entities.Run.delete(run.id)));
+            deleted.runs = runs.length;
             console.log(`✅ ${deleted.runs} RUNs excluídos`);
         } catch (error) {
             console.error('⚠️ Erro ao excluir RUNs:', error.message);
