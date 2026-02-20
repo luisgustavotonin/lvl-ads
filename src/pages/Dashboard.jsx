@@ -258,12 +258,19 @@ export default function Dashboard() {
                       labelFormatter={(date) => format(new Date(date), "dd 'de' MMMM", { locale: ptBR })}
                     />
                     <Area 
-                      type="monotone" 
-                      dataKey="spend" 
-                      stroke="#3B82F6" 
-                      strokeWidth={2}
-                      fill="url(#colorSpendDash)" 
-                    />
+                     type="monotone" 
+                     dataKey="spend" 
+                     stroke="#3B82F6" 
+                     strokeWidth={2}
+                     fill="url(#colorSpendDash)"
+                    >
+                     <LabelList 
+                       dataKey="spend" 
+                       position="top" 
+                       formatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(1)}k` : `R$${v.toFixed(0)}`}
+                       style={{ fontSize: 11, fill: '#6B7280', fontWeight: 500 }}
+                     />
+                    </Area>
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
