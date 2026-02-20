@@ -418,7 +418,7 @@ export default function Reports() {
         ) : (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-pdf-section>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" data-pdf-section>
               {selectedKPIs.map(kpiId => {
                 const kpi = ALL_KPIS.find(k => k.id === kpiId);
                 if (!kpi) return null;
