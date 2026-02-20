@@ -131,65 +131,27 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="border-gray-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Investimento Total</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(totalSpend)}</p>
-                <p className="text-gray-400 text-sm mt-2">Período selecionado</p>
+        {[
+          { label: 'Investimento Total', value: formatCurrency(totalSpend), sub: 'Período selecionado', icon: DollarSign, bg: 'bg-blue-50', color: 'text-blue-600' },
+          { label: 'Total Conversas', value: formatNumber(totalConversations), sub: 'Período selecionado', icon: MessageCircle, bg: 'bg-green-50', color: 'text-green-600' },
+          { label: 'Custo/Conversa', value: formatCurrency(totalCostPerConversation), sub: 'Período selecionado', icon: TrendingDown, bg: 'bg-orange-50', color: 'text-orange-600' },
+          { label: 'Unidades Ativas', value: activeUnits, sub: `Total: ${units.length}`, icon: Building2, bg: 'bg-purple-50', color: 'text-purple-600' },
+        ].map(({ label, value, sub, icon: Icon, bg, color }) => (
+          <Card key={label} className="border-gray-100">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-gray-500 text-xs sm:text-sm font-medium truncate">{label}</p>
+                  <p className="text-xl sm:text-3xl font-bold text-gray-900 mt-1 truncate">{value}</p>
+                  <p className="text-gray-400 text-xs mt-1 sm:mt-2">{sub}</p>
+                </div>
+                <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl ${bg} flex items-center justify-center flex-shrink-0 ml-2`}>
+                  <Icon className={`w-4 h-4 sm:w-6 sm:h-6 ${color}`} />
+                </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Total Conversas Iniciadas</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatNumber(totalConversations)}</p>
-                <p className="text-gray-400 text-sm mt-2">Período selecionado</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Custo por Conversa</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(totalCostPerConversation)}</p>
-                <p className="text-gray-400 text-sm mt-2">Período selecionado</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
-                <TrendingDown className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm font-medium">Unidades Ativas</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{activeUnits}</p>
-                <p className="text-gray-400 text-sm mt-2">Total cadastradas: {units.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Meta Funnel Section */}
