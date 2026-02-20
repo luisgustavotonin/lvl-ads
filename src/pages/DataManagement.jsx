@@ -892,6 +892,8 @@ export default function DataManagement() {
                   formatValue={formatValue}
                   formatDateString={formatDateString}
                   formatCurrency={formatCurrency}
+                  columnOrder={columnOrder}
+                  visibleColumns={visibleColumns}
                 />
               );
             })()}

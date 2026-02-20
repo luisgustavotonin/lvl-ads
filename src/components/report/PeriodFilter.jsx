@@ -4,7 +4,7 @@ import { Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, subDays } from 'date-fns';
+import { format, subDays, parseISO } from 'date-fns';
 
 // Função para obter data atual em São Paulo (sem hora, apenas YYYY-MM-DD)
 const getBrasiliaToday = () => {
