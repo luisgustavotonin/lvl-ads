@@ -457,7 +457,7 @@ export default function ParametersAlerts() {
                               onCheckedChange={(enabled) => updateThresholdMutation.mutate({ id: threshold.id, data: { enabled } })}
                             />
                           </div>
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                             <div>
                               <Label className="text-xs text-green-600 font-medium">Verde (Bom)</Label>
                               <div className="flex gap-2 mt-1">
