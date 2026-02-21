@@ -230,9 +230,14 @@ export default function MetaIngest() {
             </label>
           </div>
 
-          <Button onClick={handleEnqueue} disabled={loading} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700">
-            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Enfileirando...</> : <><Play className="w-4 h-4 mr-2" />Enfileirar Job</>}
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={handleEnqueue} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Enfileirando...</> : <><Play className="w-4 h-4 mr-2" />Enfileirar Insights</>}
+            </Button>
+            <Button onClick={handleSyncCreatives} disabled={loadingCreatives} variant="outline">
+              {loadingCreatives ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sincronizando...</> : <><Image className="w-4 h-4 mr-2" />Sincronizar Criativos</>}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
