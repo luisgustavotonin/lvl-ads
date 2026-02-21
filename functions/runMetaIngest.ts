@@ -122,37 +122,35 @@ function demographicRow(item, accountId, unitId, jobKey) {
 
 async function upsertBatch(entity, rows) {
   if (!rows.length) return 0;
+
   let written = 0;
-  for (let i = 0; i < rows.length; i += CONCURRENCY) {
-    const chunk = rows.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      chunk.map(async (row) => {
-        try {
-          // Try create first
-          await entity.create(row);
-          return true;
-        } catch (e) {
-          const msg = (e?.message || '').toLowerCase();
-          if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) {
-            // Find and update existing
-            try {
-              const existing = await entity.filter({ unique_key: row.unique_key }, null, 1);
-              if (existing.length > 0) {
-                await entity.update(existing[0].id, row);
-                return true;
-              }
-            } catch { /* ignore */ }
-            return false;
-          }
-          throw e;
-        }
-      })
-    );
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) written++;
-      if (r.status === 'rejected') console.error('upsert failed:', r.reason?.message);
+
+  // 1️⃣ Deduplicar por unique_key (proteção extra)
+  const map = new Map();
+  for (const row of rows) {
+    if (row.unique_key) {
+      map.set(row.unique_key, row);
     }
   }
+
+  const dedupedRows = Array.from(map.values());
+
+  // 2️⃣ Processar em lotes menores (estável)
+  const BATCH_SIZE = 200;
+
+  for (let i = 0; i < dedupedRows.length; i += BATCH_SIZE) {
+    const chunk = dedupedRows.slice(i, i + BATCH_SIZE);
+
+    try {
+      // 🔥 upsert direto (Base44 suporta unique index)
+      await entity.upsert(chunk);
+      written += chunk.length;
+    } catch (error) {
+      console.error("upsertBatch error:", error.message);
+      throw error;
+    }
+  }
+
   return written;
 }
 
