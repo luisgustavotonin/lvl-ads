@@ -38,6 +38,7 @@ const navigation = [
   { name: 'Relatórios', href: 'Reports', icon: FileText },
   { name: 'Unidades', href: 'Units', icon: Building2 },
   { name: 'Integrações', href: 'Integrations', icon: Link2 },
+  { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap },
   { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell },
   { name: 'Perfis', href: 'Profiles', icon: Shield },
   { name: 'Usuários', href: 'Users', icon: Users },
