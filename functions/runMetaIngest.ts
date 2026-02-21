@@ -33,24 +33,76 @@ function fromMap(m, key) {
 
 // ─── transformers ────────────────────────────────────────────────────────────
 
+function sumActionsContaining(actionsMap, keyword) {
+  if (!actionsMap) return 0;
+
+  return Object.entries(actionsMap)
+    .filter(([key]) => key.includes(keyword))
+    .reduce((sum, [, value]) => sum + Number(value || 0), 0);
+}
+
 function metricsFromItem(item) {
-  const actionsMap = actionsToMap(item.actions);
-  const spend       = parseNum(item.spend);
+  
+  console.log("ACTIONS:", item.actions);
+  console.log("ACTION_VALUES:", item.action_values);
+  
+  const actionsMap = actionsToMap(item.actions || []);
+  const actionValuesMap = actionsToMap(item.action_values || []);
+
+  const spend = parseNum(item.spend);
   const impressions = parseNum(item.impressions);
+
   const link_clicks = fromMap(actionsMap, 'link_click');
-  const ctr_link    = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
-  const cpc_link    = link_clicks  > 0 ? (spend / link_clicks) : 0;
+  const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
+  const cpc_link = link_clicks > 0 ? (spend / link_clicks) : 0;
+
+  // 🔹 Conversas iniciadas (todas as janelas)
+  const messaging_started = sumActionsContaining(
+    actionsMap,
+    'messaging_conversation_started'
+  );
+
+  // 🔹 Primeira resposta (todas as janelas)
+  const messaging_replied = sumActionsContaining(
+    actionsMap,
+    'messaging_first_reply'
+  );
+
+  // 🔹 Leads (qualquer variação)
+  const leads = sumActionsContaining(
+    actionsMap,
+    'lead'
+  );
+
+  // 🔹 Compras (qualquer variação)
+  const purchases = sumActionsContaining(
+    actionsMap,
+    'purchase'
+  );
+
+  // 🔹 Valor de compra (action_values)
+  const purchase_value = sumActionsContaining(
+    actionValuesMap,
+    'purchase'
+  );
+
   return {
-    spend, impressions, link_clicks, ctr_link, cpc_link,
-    reach:     parseNum(item.reach),
+    spend,
+    impressions,
+    link_clicks,
+    ctr_link,
+    cpc_link,
+
+    reach: parseNum(item.reach),
     frequency: parseNum(item.frequency),
-    clicks:    parseNum(item.clicks),
-    cpm:       parseNum(item.cpm),
-    messaging_conversations_started:  fromMap(actionsMap, 'onsite_conversion.messaging_conversation_started_7d'),
-    messaging_conversations_replied:  fromMap(actionsMap, 'onsite_conversion.messaging_first_reply'),
-    leads:          fromMap(actionsMap, 'lead'),
-    purchases:      fromMap(actionsMap, 'purchase'),
-    purchase_value: fromMap(actionsToMap(item.action_values || []), 'purchase'),
+    clicks: parseNum(item.clicks),
+    cpm: parseNum(item.cpm),
+
+    messaging_conversations_started: messaging_started,
+    messaging_conversations_replied: messaging_replied,
+    leads,
+    purchases,
+    purchase_value
   };
 }
 
