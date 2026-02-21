@@ -229,17 +229,32 @@ export default function DataManagement() {
   const [detailedSubTab, setDetailedSubTab] = useState('insights');
 
   const buildDateFilters = () => {
-    const filters = { unit_id: selectedUnit };
-    if (dateFrom) filters.date = { $gte: dateFrom };
-    if (dateTo) filters.date = { ...(filters.date || {}), $lte: dateTo };
-    return filters;
-  };
+  const unit = units.find(u => u.id === selectedUnit);
+
+  const accountId =
+    unit?.account_id ||
+    unit?.meta_account_id ||
+    unit?.ad_account_id ||
+    unit?.meta_ads_account_id ||
+    '';
+
+  const filters = { account_id: accountId };
+
+  if (dateFrom) filters.date = { $gte: dateFrom };
+  if (dateTo) filters.date = { ...(filters.date || {}), $lte: dateTo };
+
+  return filters;
+};
 
   const { data: insightsData = [] } = useQuery({
-    queryKey: ['metaAdInsights', selectedUnit, dateFrom, dateTo],
-    queryFn: () => base44.entities.MetaAdInsights.filter(buildDateFilters(), '-date', 10000),
-    enabled: selectedUnit !== 'all',
-  });
+  queryKey: ['metaIngestInsight', selectedUnit, dateFrom, dateTo],
+  queryFn: () => {
+    const filters = buildDateFilters();
+    if (!filters.account_id) return Promise.resolve([]);
+    return base44.entities.MetaIngestInsight.filter(filters, '-date', 10000);
+  },
+  enabled: selectedUnit !== 'all',
+});
 
   const { data: platformData = [] } = useQuery({
     queryKey: ['metaAdByPlatform', selectedUnit, dateFrom, dateTo],
@@ -317,7 +332,7 @@ export default function DataManagement() {
       if (dateTo) filters.date = { ...filters.date, $lte: dateTo };
 
       const entityMap = {
-        insights: base44.entities.MetaAdInsights,
+        insights: base44.entities.MetaIngestInsight,
         platform: base44.entities.MetaAdByPlatform,
         device: base44.entities.MetaAdByDevice,
         demographic: base44.entities.MetaAdByDemographic,
@@ -348,7 +363,7 @@ export default function DataManagement() {
   const invalidateAllDataQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['runs'] });
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['metaAdInsights'] });
+    queryClient.invalidateQueries({ queryKey: ['metaIngestInsight'] });
     queryClient.invalidateQueries({ queryKey: ['metaAdByPlatform'] });
     queryClient.invalidateQueries({ queryKey: ['metaAdByDevice'] });
     queryClient.invalidateQueries({ queryKey: ['metaAdByDemographic'] });
