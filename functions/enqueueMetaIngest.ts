@@ -58,12 +58,8 @@ Deno.serve(async (req) => {
       jobId = created.id;
     }
 
-    // Disparar runMetaIngest de forma assíncrona (fire and forget)
-    const unitId = body.unit_id || '';
-    base44.asServiceRole.functions.invoke('runMetaIngest', { job_key, meta_token, unit_id: unitId }).catch(e => {
-      console.error('Erro ao disparar runMetaIngest:', e.message);
-    });
-
+    // NOTE: runMetaIngest is now called directly from the frontend queue (not fire-and-forget)
+    // so we just return the queued job here.
     return Response.json({ status: 'queued', job_key, job_id: jobId });
 
   } catch (error) {
