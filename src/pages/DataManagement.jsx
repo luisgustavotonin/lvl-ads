@@ -126,8 +126,12 @@ export default function DataManagement() {
   const [dateTo, setDateTo] = useState('');
   const [activeTab, setActiveTab] = useState('base');
   const [currentPage, setCurrentPage] = useState(1);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false); // 'tab' | 'multi' | false
   const [deleting, setDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [selectedTabsForBulk, setSelectedTabsForBulk] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null); // {current, total, tabLabel}
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
