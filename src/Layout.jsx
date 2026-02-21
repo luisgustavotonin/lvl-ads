@@ -20,7 +20,8 @@ import {
   LogOut,
   Bell,
   Activity,
-  Search
+  Search,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
