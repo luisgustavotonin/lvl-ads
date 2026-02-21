@@ -205,6 +205,7 @@ function demographicRow(item, accountId, unitId, jobKey) {
 async function upsertBatch(entity, rows) {
   if (!rows.length) return 0;
 
+  // Deduplicate by unique_key
   const map = new Map();
   for (const r of rows) {
     if (r?.unique_key) map.set(r.unique_key, r);
@@ -212,11 +213,40 @@ async function upsertBatch(entity, rows) {
   const deduped = Array.from(map.values());
 
   let written = 0;
+
   for (let i = 0; i < deduped.length; i += CHUNK_SIZE) {
     const chunk = deduped.slice(i, i + CHUNK_SIZE);
-    await entity.upsert(chunk);
-    written += chunk.length;
+
+    // Fetch existing records by unique_key
+    const keys = chunk.map(r => r.unique_key);
+    const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
+    const existingMap = new Map(existingList.map(r => [r.unique_key, r.id]));
+
+    const toCreate = [];
+    const toUpdate = [];
+
+    for (const row of chunk) {
+      const existingId = existingMap.get(row.unique_key);
+      if (existingId) {
+        toUpdate.push({ id: existingId, data: row });
+      } else {
+        toCreate.push(row);
+      }
+    }
+
+    if (toCreate.length > 0) {
+      await entity.bulkCreate(toCreate);
+      written += toCreate.length;
+    }
+
+    for (const { id, data } of toUpdate) {
+      await entity.update(id, data);
+      written++;
+    }
+
+    if (i + CHUNK_SIZE < deduped.length) await sleep(50);
   }
+
   return written;
 }
 
