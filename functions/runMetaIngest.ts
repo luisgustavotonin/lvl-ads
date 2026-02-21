@@ -286,11 +286,15 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { job_key, meta_token, unit_id } = await req.json();
+    const { job_key, meta_token, unit_id, mode } = await req.json();
 
     if (!job_key || !meta_token) {
       return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
     }
+
+    // mode: 'base' | 'platform' | 'device' | 'demographic' | undefined (all)
+    const validModes = ['base', 'platform', 'device', 'demographic'];
+    const effectiveMode = validModes.includes(mode) ? mode : null; // null = run all
 
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
     if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
@@ -321,32 +325,53 @@ Deno.serve(async (req) => {
 
     let totalRows = 0;
 
-    // 1) BASE
-    const baseItems = await fetchAllPagesInsights(actId, meta_token, baseParams);
-    const baseRows = baseItems.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
-    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, baseRows);
-    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 1, rows_written: totalRows }).catch(() => {});
+    // Run only the requested mode (or all if mode not specified)
+    if (!effectiveMode || effectiveMode === 'base') {
+      const baseItems = await fetchAllPagesInsights(actId, meta_token, baseParams);
+      const baseRows = baseItems.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, baseRows);
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 1, rows_written: totalRows }).catch(() => {});
+      if (effectiveMode === 'base') {
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 1, rows_written: totalRows });
+        return Response.json({ success: true, job_key, mode: 'base', rows_written: totalRows });
+      }
+    }
 
-    // 2) PLATFORM + POSITION
-    const ppItems = await fetchAllPagesInsights(actId, meta_token, {
-      ...baseParams,
-      breakdowns: 'publisher_platform,platform_position',
-    });
-    const ppRows = ppItems.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, ppRows);
-    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 2, rows_written: totalRows }).catch(() => {});
+    if (!effectiveMode || effectiveMode === 'platform') {
+      const ppItems = await fetchAllPagesInsights(actId, meta_token, {
+        ...baseParams,
+        breakdowns: 'publisher_platform,platform_position',
+      });
+      const ppRows = ppItems.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, ppRows);
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 2, rows_written: totalRows }).catch(() => {});
+      if (effectiveMode === 'platform') {
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 2, rows_written: totalRows });
+        return Response.json({ success: true, job_key, mode: 'platform', rows_written: totalRows });
+      }
+    }
 
-    // 3) DEVICE
-    const devItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'impression_device' });
-    const devRows = devItems.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
-    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, devRows);
-    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 3, rows_written: totalRows }).catch(() => {});
+    if (!effectiveMode || effectiveMode === 'device') {
+      const devItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'impression_device' });
+      const devRows = devItems.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, devRows);
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 3, rows_written: totalRows }).catch(() => {});
+      if (effectiveMode === 'device') {
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 3, rows_written: totalRows });
+        return Response.json({ success: true, job_key, mode: 'device', rows_written: totalRows });
+      }
+    }
 
-    // 4) DEMOGRAPHIC
-    const demoItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'age,gender' });
-    const demoRows = demoItems.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, demoRows);
-    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 4, rows_written: totalRows }).catch(() => {});
+    if (!effectiveMode || effectiveMode === 'demographic') {
+      const demoItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'age,gender' });
+      const demoRows = demoItems.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, demoRows);
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 4, rows_written: totalRows }).catch(() => {});
+      if (effectiveMode === 'demographic') {
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 4, rows_written: totalRows });
+        return Response.json({ success: true, job_key, mode: 'demographic', rows_written: totalRows });
+      }
+    }
 
     await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
       status: 'done',
