@@ -4,7 +4,7 @@ const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 const PAGE_LIMIT = 100;
 const BATCH_SAVE = 100;
-const DELAY_MS = 250;
+const DELAY_MS = 100;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
