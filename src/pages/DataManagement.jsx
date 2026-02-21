@@ -27,10 +27,7 @@ const formatDateString = (dateStr) => {
 
 const PLATFORMS = [
   { id: 'all', name: 'Todas as plataformas' },
-  { id: 'META', name: 'Meta Ads', icon: '📘' },
-  { id: 'GOOGLE_ADS', name: 'Google Ads', icon: '🔍' },
-  { id: 'TIKTOK_ADS', name: 'TikTok Ads', icon: '🎵' },
-  { id: 'YOUTUBE', name: 'YouTube', icon: '▶️' },
+  { id: 'META', name: 'Meta Ads' },
 ];
 
 // Colunas permitidas (apenas dados da campanha, não dados técnicos)
