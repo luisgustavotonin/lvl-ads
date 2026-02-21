@@ -305,6 +305,15 @@ export default function MetaIngest() {
                         <StopCircle className="w-4 h-4" />
                       </button>
                     )}
+                    {(job.status === 'done' || job.status === 'failed') && (
+                      <button
+                        title="Excluir registro do job"
+                        className="text-gray-300 hover:text-red-500"
+                        onClick={() => handleDelete(job)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       className="text-gray-400 hover:text-gray-600"
                       onClick={() => setExpandedJob(isExpanded ? null : job.id)}
