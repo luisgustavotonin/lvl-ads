@@ -195,12 +195,6 @@ Deno.serve(async (req) => {
       'cost_per_action_type'
     ];
 
-    if (breakdowns.includes('publisher_platform')) fields.push('publisher_platform');
-    if (breakdowns.includes('platform_position')) fields.push('platform_position');
-    if (breakdowns.includes('impression_device')) fields.push('impression_device');
-    if (breakdowns.includes('age')) fields.push('age');
-    if (breakdowns.includes('gender')) fields.push('gender');
-
     let cursor = null;
     let pageNum = 0;
     let totalRows = 0;
