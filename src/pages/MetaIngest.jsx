@@ -45,6 +45,7 @@ export default function MetaIngest() {
     force: false,
   });
   const [loading, setLoading] = useState(false);
+  const [loadingCreatives, setLoadingCreatives] = useState(false);
   const [expandedJob, setExpandedJob] = useState(null);
 
   const { data: units = [] } = useQuery({
