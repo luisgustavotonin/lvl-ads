@@ -59,6 +59,7 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
+import MetaIngest from './pages/MetaIngest';
 import __Layout from './Layout.jsx';
 
 
@@ -75,6 +76,7 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
+    "MetaIngest": MetaIngest,
 }
 
 export const pagesConfig = {
