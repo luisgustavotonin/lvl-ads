@@ -2,139 +2,155 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
-const PAGE_LIMIT = 200;
-const CONCURRENCY = 6;
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const PAGE_LIMIT = 500;
+const CHUNK_SIZE = 200;
+const DELAY_BETWEEN_PAGES = 120;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function normalizeActId(id) {
-  return String(id || '').replace(/^act_/, '');
+  if (!id) return '';
+  return String(id).replace(/^act_/, '');
 }
 
-async function fetchAllAds(actId, metaToken) {
-  const fields = [
-    'id', 'name', 'campaign_id', 'adset_id',
-    'creative{id,name,object_type,body,title,call_to_action_type,image_url,thumbnail_url,video_id}'
-  ].join(',');
+async function upsertBatch(entity, rows) {
+  if (!rows.length) return 0;
 
-  const all = [];
-  let cursor = null;
-  let hasMore = true;
+  // dedupe por unique_key
+  const map = new Map();
+  for (const r of rows) {
+    if (r?.unique_key) map.set(r.unique_key, r);
+  }
+  const deduped = Array.from(map.values());
 
-  while (hasMore) {
-    const p = new URLSearchParams({
-      access_token: metaToken,
-      fields,
-      limit: String(PAGE_LIMIT),
-    });
-    if (cursor) p.set('after', cursor);
+  let written = 0;
+  for (let i = 0; i < deduped.length; i += CHUNK_SIZE) {
+    const chunk = deduped.slice(i, i + CHUNK_SIZE);
+    await entity.upsert(chunk);
+    written += chunk.length;
+  }
+  return written;
+}
 
-    const res  = await fetch(`${META_BASE}/act_${actId}/ads?${p.toString()}`);
+async function fetchAllPages(url) {
+  const results = [];
+  let next = url;
+
+  while (next) {
+    const res = await fetch(next);
     const data = await res.json();
 
     if (!res.ok || data.error) {
       throw new Error(data.error?.message || `Meta API HTTP ${res.status}`);
     }
 
-    all.push(...(data.data || []));
+    results.push(...(data.data || []));
+    next = data.paging?.next || null;
 
-    if (data.paging?.cursors?.after && data.paging?.next) {
-      cursor = data.paging.cursors.after;
-    } else {
-      hasMore = false;
-    }
-
-    if (hasMore) await sleep(150);
+    if (next) await sleep(DELAY_BETWEEN_PAGES);
   }
 
-  return all;
+  return results;
 }
-
-function mapCreativeRow(ad, accountId, unitId) {
-  const c = ad.creative || {};
-  const adId      = ad.id || '';
-  const creativeId = c.id || '';
-  const unique_key = `${accountId}:${unitId}:${adId}:${creativeId}`;
-  return {
-    unique_key,
-    creative_id:        creativeId,
-    ad_id:              adId,
-    campaign_id:        ad.campaign_id || null,
-    account_id:         accountId,
-    unit_id:            unitId,
-    name:               c.name || ad.name || null,
-    image_url:          c.image_url || null,
-    thumbnail_url:      c.thumbnail_url || null,
-    video_id:           c.video_id || null,
-    body:               c.body || null,
-    title:              c.title || null,
-    call_to_action_type: c.call_to_action_type || null,
-    object_type:        c.object_type || null,
-    last_updated:       new Date().toISOString(),
-    raw:                { ad, creative: c },
-  };
-}
-
-async function upsertRows(entity, rows) {
-  let written = 0;
-  for (let i = 0; i < rows.length; i += CONCURRENCY) {
-    const chunk = rows.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      chunk.map(async (row) => {
-        try {
-          await entity.create(row);
-          return true;
-        } catch (e) {
-          const msg = (e?.message || '').toLowerCase();
-          if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) {
-            try {
-              const existing = await entity.filter({ unique_key: row.unique_key }, null, 1);
-              if (existing.length) { await entity.update(existing[0].id, row); return true; }
-            } catch { /* ignore */ }
-            return false;
-          }
-          throw e;
-        }
-      })
-    );
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) written++;
-      if (r.status === 'rejected') console.error('upsert creative failed:', r.reason?.message);
-    }
-  }
-  return written;
-}
-
-// ─── handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user   = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const { job_key, meta_token, unit_id } = await req.json();
 
-    const { account_id, unit_id, meta_token } = await req.json();
-
-    if (!account_id || !unit_id || !meta_token) {
-      return Response.json({ error: 'account_id, unit_id e meta_token são obrigatórios' }, { status: 400 });
+    if (!job_key || !meta_token) {
+      return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
     }
 
-    const actId = normalizeActId(account_id);
+    // pega o job para descobrir account_id e datas (se precisar)
+    const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
+    if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
+    const job = jobs[0];
 
-    console.log(`[syncMetaCreatives] account=${actId} unit=${unit_id}`);
-    const ads  = await fetchAllAds(actId, meta_token);
-    console.log(`[syncMetaCreatives] ${ads.length} ads encontrados`);
+    const accountId = job.account_id;           // ex: act_123 ou 123
+    const actId = normalizeActId(accountId);    // garante só número
+    const unitId = unit_id || job.unit_id || '';
+
+    // 🔥 fields com STATUS do anúncio + creative expandido
+    const fields =
+      [
+        'ad_id',
+        'campaign_id',
+        'name',
+        'configured_status',
+        'effective_status',
+        'status',
+        'creative{',
+          'id',
+          'name',
+          'body',
+          'title',
+          'object_type',
+          'call_to_action_type',
+          'thumbnail_url',
+          'image_url',
+          'video_id',
+        '}'
+      ].join(',');
+
+    const url =
+      `${META_BASE}/act_${actId}/ads?` +
+      `fields=${encodeURIComponent(fields)}` +
+      `&limit=${PAGE_LIMIT}` +
+      `&access_token=${encodeURIComponent(meta_token)}`;
+
+    console.log(`[syncMetaCreatives] job_key=${job_key} act_${actId} unit=${unitId} fetching ads...`);
+
+    const ads = await fetchAllPages(url);
+    console.log(`[syncMetaCreatives] ads fetched=${ads.length}`);
+
+    // Monta rows da tabela MetaAdsCreative
+    // unique_key = account_id:unit_id:ad_id:creative_id
+    const nowIso = new Date().toISOString();
 
     const rows = ads
-      .filter(ad => ad.creative?.id)
-      .map(ad => mapCreativeRow(ad, account_id, unit_id));
+      .filter((a) => a?.ad_id && a?.creative?.id)
+      .map((a) => {
+        const c = a.creative;
 
-    const written = await upsertRows(base44.asServiceRole.entities.MetaAdsCreative, rows);
+        return {
+          unique_key: `${accountId}:${unitId}:${a.ad_id}:${c.id}`,
 
-    return Response.json({ success: true, ads_found: ads.length, creatives_written: written });
+          creative_id: c.id,
+          ad_id: a.ad_id,
+          campaign_id: a.campaign_id || null,
 
+          account_id: accountId,
+          unit_id: unitId,
+
+          // status do anúncio (ativo/pausado etc.)
+          configured_status: a.configured_status || null,
+          effective_status: a.effective_status || null,
+          status: a.status || null,
+
+          // campos do creative
+          name: c.name || a.name || null,
+          image_url: c.image_url || null,
+          thumbnail_url: c.thumbnail_url || null,
+          video_id: c.video_id || null,
+          body: c.body || null,
+          title: c.title || null,
+          call_to_action_type: c.call_to_action_type || null,
+          object_type: c.object_type || null,
+
+          last_updated: nowIso,
+          raw: { ad: a, creative: c },
+        };
+      });
+
+    const written = await upsertBatch(base44.asServiceRole.entities.MetaAdsCreative, rows);
+
+    console.log(`[syncMetaCreatives] rows to upsert=${rows.length} written=${written}`);
+
+    return Response.json({ success: true, job_key, rows_written: written });
   } catch (error) {
-    console.error('syncMetaCreatives error:', error.message);
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('syncMetaCreatives error:', error?.message || error);
+    return Response.json({ error: String(error?.message || error) }, { status: 500 });
   }
 });
