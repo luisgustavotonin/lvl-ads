@@ -2,11 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
+
 const PAGE_LIMIT = 500;
-const BATCH_SIZE = 200;
+const CHUNK_SIZE = 200;
 const DELAY_BETWEEN_PAGES = 120;
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function normalizeActId(id) {
   if (!id) return '';
@@ -27,13 +28,13 @@ function actionsToMap(arr) {
 }
 
 function fromMap(m, key) {
-  return m && m[key] ? parseNum(m[key]) : 0;
+  return m && Object.prototype.hasOwnProperty.call(m, key) ? parseNum(m[key]) : 0;
 }
 
 function sumActionsContaining(actionsMap, keyword) {
   return Object.entries(actionsMap || {})
-    .filter(([key]) => key.includes(keyword))
-    .reduce((sum, [, value]) => sum + Number(value || 0), 0);
+    .filter(([k]) => k.includes(keyword))
+    .reduce((sum, [, v]) => sum + Number(v || 0), 0);
 }
 
 function metricsFromItem(item) {
@@ -42,6 +43,7 @@ function metricsFromItem(item) {
 
   const spend = parseNum(item.spend);
   const impressions = parseNum(item.impressions);
+
   const link_clicks = fromMap(actionsMap, 'link_click');
   const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
   const cpc_link = link_clicks > 0 ? (spend / link_clicks) : 0;
@@ -49,24 +51,29 @@ function metricsFromItem(item) {
   return {
     spend,
     impressions,
-    link_clicks,
-    ctr_link,
-    cpc_link,
     reach: parseNum(item.reach),
     frequency: parseNum(item.frequency),
     clicks: parseNum(item.clicks),
+    link_clicks,
+    ctr_link,
+    cpc_link,
     cpm: parseNum(item.cpm),
 
     messaging_conversations_started: sumActionsContaining(actionsMap, 'messaging_conversation_started'),
     messaging_conversations_replied: sumActionsContaining(actionsMap, 'messaging_first_reply'),
+
     leads: sumActionsContaining(actionsMap, 'lead'),
     purchases: sumActionsContaining(actionsMap, 'purchase'),
-    purchase_value: sumActionsContaining(actionValuesMap, 'purchase')
+    purchase_value: sumActionsContaining(actionValuesMap, 'purchase'),
   };
 }
 
+function getDate(item) {
+  return item.date_start || item.date_stop || '';
+}
+
 function baseRow(item, accountId, unitId, jobKey) {
-  const date = item.date_start || '';
+  const date = getDate(item);
   const adId = item.ad_id || '';
   const unique_key = `${accountId}:${unitId}:${adId}:${date}`;
 
@@ -76,14 +83,122 @@ function baseRow(item, accountId, unitId, jobKey) {
     account_id: accountId,
     unit_id: unitId,
     date,
+
     campaign_id: item.campaign_id || null,
     campaign_name: item.campaign_name || null,
     adset_id: item.adset_id || null,
     adset_name: item.adset_name || null,
     ad_id: adId,
     ad_name: item.ad_name || null,
+
     ...metricsFromItem(item),
-    raw: item
+    raw: item,
+  };
+}
+
+function platformRow(item, accountId, unitId, jobKey) {
+  const date = getDate(item);
+  const adId = item.ad_id || '';
+  const pp = item.publisher_platform || '';
+  const pos = item.platform_position || '';
+  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${pp}:${pos}`;
+  const m = metricsFromItem(item);
+
+  return {
+    unique_key,
+    job_key: jobKey,
+    account_id: accountId,
+    unit_id: unitId,
+    date,
+
+    campaign_id: item.campaign_id || null,
+    adset_id: item.adset_id || null,
+    ad_id: adId,
+
+    publisher_platform: pp,
+    platform_position: pos,
+
+    spend: m.spend,
+    impressions: m.impressions,
+    reach: m.reach,
+    frequency: m.frequency,
+    clicks: m.clicks,
+    link_clicks: m.link_clicks,
+    ctr_link: m.ctr_link,
+    cpc_link: m.cpc_link,
+    cpm: m.cpm,
+
+    raw: item,
+  };
+}
+
+function deviceRow(item, accountId, unitId, jobKey) {
+  const date = getDate(item);
+  const adId = item.ad_id || '';
+  const dev = item.impression_device || '';
+  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${dev}`;
+  const m = metricsFromItem(item);
+
+  return {
+    unique_key,
+    job_key: jobKey,
+    account_id: accountId,
+    unit_id: unitId,
+    date,
+
+    campaign_id: item.campaign_id || null,
+    adset_id: item.adset_id || null,
+    ad_id: adId,
+
+    impression_device: dev,
+
+    spend: m.spend,
+    impressions: m.impressions,
+    reach: m.reach,
+    frequency: m.frequency,
+    clicks: m.clicks,
+    link_clicks: m.link_clicks,
+    ctr_link: m.ctr_link,
+    cpc_link: m.cpc_link,
+    cpm: m.cpm,
+
+    raw: item,
+  };
+}
+
+function demographicRow(item, accountId, unitId, jobKey) {
+  const date = getDate(item);
+  const adId = item.ad_id || '';
+  const age = item.age || '';
+  const gender = item.gender || '';
+  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${age}:${gender}`;
+  const m = metricsFromItem(item);
+
+  return {
+    unique_key,
+    job_key: jobKey,
+    account_id: accountId,
+    unit_id: unitId,
+    date,
+
+    campaign_id: item.campaign_id || null,
+    adset_id: item.adset_id || null,
+    ad_id: adId,
+
+    age,
+    gender,
+
+    spend: m.spend,
+    impressions: m.impressions,
+    reach: m.reach,
+    frequency: m.frequency,
+    clicks: m.clicks,
+    link_clicks: m.link_clicks,
+    ctr_link: m.ctr_link,
+    cpc_link: m.cpc_link,
+    cpm: m.cpm,
+
+    raw: item,
   };
 }
 
@@ -91,112 +206,144 @@ async function upsertBatch(entity, rows) {
   if (!rows.length) return 0;
 
   const map = new Map();
-  for (const row of rows) {
-    if (row.unique_key) map.set(row.unique_key, row);
+  for (const r of rows) {
+    if (r?.unique_key) map.set(r.unique_key, r);
   }
-
   const deduped = Array.from(map.values());
-  let written = 0;
 
-  for (let i = 0; i < deduped.length; i += BATCH_SIZE) {
-    const chunk = deduped.slice(i, i + BATCH_SIZE);
+  let written = 0;
+  for (let i = 0; i < deduped.length; i += CHUNK_SIZE) {
+    const chunk = deduped.slice(i, i + CHUNK_SIZE);
     await entity.upsert(chunk);
     written += chunk.length;
   }
-
   return written;
 }
 
-async function fetchAllPages(url) {
+async function fetchAllPagesInsights(actId, metaToken, params) {
   const results = [];
-  let next = url;
+  let cursor = null;
 
-  while (next) {
-    const res = await fetch(next);
+  while (true) {
+    const p = new URLSearchParams({
+      ...params,
+      access_token: metaToken,
+      limit: String(PAGE_LIMIT),
+    });
+    if (cursor) p.set('after', cursor);
+
+    const url = `${META_BASE}/act_${actId}/insights?${p.toString()}`;
+    const res = await fetch(url);
     const data = await res.json();
 
     if (!res.ok || data.error) {
-      throw new Error(data.error?.message || `Meta API error`);
+      throw new Error(data.error?.message || `Meta API HTTP ${res.status}`);
     }
 
     results.push(...(data.data || []));
-    next = data.paging?.next || null;
 
-    if (next) await sleep(DELAY_BETWEEN_PAGES);
+    if (data.paging?.cursors?.after && data.paging?.next) {
+      cursor = data.paging.cursors.after;
+      await sleep(DELAY_BETWEEN_PAGES);
+      continue;
+    }
+    break;
   }
 
   return results;
 }
 
-async function syncMetaCreatives(base44, actId, token, accountId, unitId) {
-  const url =
-    `${META_BASE}/act_${actId}/ads?` +
-    `fields=ad_id,campaign_id,name,creative{id,name,body,title,object_type,call_to_action_type,thumbnail_url,image_url,video_id}` +
-    `&limit=${PAGE_LIMIT}&access_token=${token}`;
-
-  const ads = await fetchAllPages(url);
-
-  const rows = ads
-    .filter(a => a.creative?.id)
-    .map(a => {
-      const c = a.creative;
-      return {
-        unique_key: `${accountId}:${unitId}:${a.ad_id}:${c.id}`,
-        creative_id: c.id,
-        ad_id: a.ad_id,
-        campaign_id: a.campaign_id || null,
-        account_id: accountId,
-        unit_id: unitId,
-        name: c.name || null,
-        image_url: c.image_url || null,
-        thumbnail_url: c.thumbnail_url || null,
-        video_id: c.video_id || null,
-        body: c.body || null,
-        title: c.title || null,
-        call_to_action_type: c.call_to_action_type || null,
-        object_type: c.object_type || null,
-        last_updated: new Date().toISOString(),
-        raw: c
-      };
-    });
-
-  return upsertBatch(base44.asServiceRole.entities.MetaAdsCreative, rows);
-}
-
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { job_key, meta_token, unit_id, sync_creatives } = await req.json();
+    const { job_key, meta_token, unit_id } = await req.json();
 
-    const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
-    if (!jobs.length) return Response.json({ error: 'job not found' }, { status: 404 });
-
-    const job = jobs[0];
-    const actId = normalizeActId(job.account_id);
-    const accountId = job.account_id;
-    const unitId = unit_id || job.unit_id || '';
-
-    const baseUrl =
-      `${META_BASE}/act_${actId}/insights?` +
-      `fields=campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,reach,frequency,clicks,cpm,actions,action_values,date_start` +
-      `&level=ad&time_increment=1` +
-      `&time_range=${encodeURIComponent(JSON.stringify({ since: job.date_from, until: job.date_to }))}` +
-      `&limit=${PAGE_LIMIT}&access_token=${meta_token}`;
-
-    const items = await fetchAllPages(baseUrl);
-    console.log("INSIGHTS COUNT:", items.length);
-
-    const rows = items.map(i => baseRow(i, accountId, unitId, job_key));
-    const written = await upsertBatch(base.base44.asServiceRole.entities.MetaInsightBase, rows);
-
-    if (sync_creatives) {
-      await syncMetaCreatives(base44, actId, meta_token, accountId, unitId);
+    if (!job_key || !meta_token) {
+      return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
     }
 
-    return Response.json({ success: true, rows_written: written });
+    const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
+    if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
+    const job = jobs[0];
 
+    if (job.status === 'running') return Response.json({ status: 'already_running', job_key });
+
+    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
+      status: 'running',
+      progress: 0,
+      rows_written: 0,
+      error_message: null,
+    });
+
+    const { account_id, date_from, date_to } = job;
+    const actId = normalizeActId(account_id);
+    const effectiveUnitId = unit_id || job.unit_id || '';
+
+    const baseParams = {
+      time_range: JSON.stringify({ since: date_from, until: date_to }),
+      fields:
+        'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,' +
+        'spend,impressions,reach,frequency,clicks,cpm,' +
+        'actions,action_values,date_start,date_stop',
+      level: 'ad',
+      time_increment: '1',
+    };
+
+    let totalRows = 0;
+
+    // 1) BASE
+    const baseItems = await fetchAllPagesInsights(actId, meta_token, baseParams);
+    const baseRows = baseItems.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
+    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, baseRows);
+    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 1, rows_written: totalRows }).catch(() => {});
+
+    // 2) PLATFORM + POSITION
+    const ppItems = await fetchAllPagesInsights(actId, meta_token, {
+      ...baseParams,
+      breakdowns: 'publisher_platform,platform_position',
+    });
+    const ppRows = ppItems.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
+    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, ppRows);
+    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 2, rows_written: totalRows }).catch(() => {});
+
+    // 3) DEVICE
+    const devItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'impression_device' });
+    const devRows = devItems.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
+    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, devRows);
+    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 3, rows_written: totalRows }).catch(() => {});
+
+    // 4) DEMOGRAPHIC
+    const demoItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'age,gender' });
+    const demoRows = demoItems.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
+    totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, demoRows);
+    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 4, rows_written: totalRows }).catch(() => {});
+
+    await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
+      status: 'done',
+      progress: 4,
+      rows_written: totalRows,
+    });
+
+    return Response.json({ success: true, job_key, rows_written: totalRows });
   } catch (error) {
-    console.error(error);
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('runMetaIngest error:', error?.message || error);
+
+    try {
+      const base44b = createClientFromRequest(req);
+      const body = await req.clone().json().catch(() => ({}));
+      if (body.job_key) {
+        const jobs = await base44b.asServiceRole.entities.MetaIngestRun.filter({ job_key: body.job_key }, null, 1);
+        if (jobs.length) {
+          await base44b.asServiceRole.entities.MetaIngestRun.update(jobs[0].id, {
+            status: 'failed',
+            error_message: String(error?.message || error),
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return Response.json({ error: String(error?.message || error) }, { status: 500 });
   }
 });
