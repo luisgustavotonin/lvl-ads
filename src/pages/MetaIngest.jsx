@@ -21,6 +21,7 @@ const STATUS_CONFIG = {
 const BREAKDOWNS_OPTIONS = [
   { id: 'publisher_platform', label: 'Publisher Platform' },
   { id: 'platform_position',  label: 'Platform Position' },
+  { id: 'impression_device',  label: 'Device' },
   { id: 'age',                label: 'Idade' },
   { id: 'gender',             label: 'Gênero' },
 ];
