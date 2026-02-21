@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-const META_API_VERSION = 'v21.0';
+const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 const PAGE_LIMIT = 100;
 const BATCH_SAVE = 50;
@@ -22,44 +22,109 @@ function buildUniqueKey(accountId, date, level, item, breakdowns) {
   if (item.ad_id) parts.push(item.ad_id);
   else if (item.adset_id) parts.push(item.adset_id);
   else if (item.campaign_id) parts.push(item.campaign_id);
+
   breakdowns.forEach(b => {
     if (item[b]) parts.push(item[b]);
   });
+
   return parts.join(':');
 }
 
 function parseNum(v) {
-  return v !== undefined && v !== null ? parseFloat(v) || 0 : 0;
+  return v !== undefined && v !== null ? (parseFloat(v) || 0) : 0;
+}
+
+// Converte actions array -> map { action_type: value }
+function actionsToMap(actionsArr) {
+  const map = {};
+  if (!Array.isArray(actionsArr)) return map;
+  for (const a of actionsArr) {
+    if (!a || !a.action_type) continue;
+    map[a.action_type] = parseNum(a.value);
+  }
+  return map;
+}
+
+// Converte cost_per_action_type array -> map { action_type: value }
+function costPerActionToMap(arr) {
+  const map = {};
+  if (!Array.isArray(arr)) return map;
+  for (const a of arr) {
+    if (!a || !a.action_type) continue;
+    map[a.action_type] = parseNum(a.value);
+  }
+  return map;
+}
+
+// Pega valor com fallback (se não existir retorna 0)
+function getFromMap(map, key) {
+  return map && Object.prototype.hasOwnProperty.call(map, key) ? parseNum(map[key]) : 0;
 }
 
 function transformInsight(item, accountId, level, breakdowns, jobKey) {
   const date = item.date_start || item.date_stop || '';
   const unique_key = buildUniqueKey(accountId, date, level, item, breakdowns);
+
+  // ✅ actions e costs em mapas
+  const actionsMap = actionsToMap(item.actions);
+  const costMap = costPerActionToMap(item.cost_per_action_type);
+
+  // ✅ Link metrics
+  // link_click (clique no link) vem de actions["link_click"]
+  const link_clicks = getFromMap(actionsMap, 'link_click');
+
+  const impressions = parseNum(item.impressions);
+  const spend = parseNum(item.spend);
+
+  // ctr_link = link_clicks / impressions * 100
+  const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
+
+  // cpc_link = spend / link_clicks
+  const cpc_link = link_clicks > 0 ? (spend / link_clicks) : 0;
+
+  // ⚠️ Conversas/contatos etc: por enquanto só deixamos os mapas no raw_json
+  // Depois a gente mapeia quais action_type são:
+  // contacts / conversations_started / first_response etc.
+
   return {
     unique_key,
     job_key: jobKey,
     account_id: accountId,
     date,
     level,
+
     campaign_id: item.campaign_id || null,
     campaign_name: item.campaign_name || null,
     adset_id: item.adset_id || null,
     adset_name: item.adset_name || null,
     ad_id: item.ad_id || null,
     ad_name: item.ad_name || null,
-    spend: parseNum(item.spend),
-    impressions: parseNum(item.impressions),
+
+    spend,
+    impressions,
     clicks: parseNum(item.clicks),
     reach: parseNum(item.reach),
     frequency: parseNum(item.frequency),
     ctr: parseNum(item.ctr),
     cpc: parseNum(item.cpc),
     cpm: parseNum(item.cpm),
+
     publisher_platform: item.publisher_platform || null,
     platform_position: item.platform_position || null,
     age: item.age || null,
     gender: item.gender || null,
-    raw_json: item
+
+    // ✅ novos campos (você já criou no Ents)
+    link_clicks,
+    ctr_link,
+    cpc_link,
+
+    // Mantém bruto para auditoria + para mapear conversas depois
+    raw_json: {
+      ...item,
+      _actions_map: actionsMap,
+      _cost_per_action_map: costMap
+    }
   };
 }
 
@@ -130,9 +195,15 @@ Deno.serve(async (req) => {
     const { account_id, date_from, date_to, level, breakdowns = [] } = job;
 
     const fields = [
-      'campaign_id', 'campaign_name', 'adset_id', 'adset_name', 'ad_id', 'ad_name',
+      'campaign_id', 'campaign_name',
+      'adset_id', 'adset_name',
+      'ad_id', 'ad_name',
       'spend', 'impressions', 'clicks', 'reach', 'frequency', 'ctr', 'cpc', 'cpm',
-      'date_start', 'date_stop'
+      'date_start', 'date_stop',
+
+      // ✅ ITEM 2: adicionados
+      'actions',
+      'cost_per_action_type'
     ];
 
     if (breakdowns.includes('publisher_platform')) fields.push('publisher_platform');
@@ -146,7 +217,6 @@ Deno.serve(async (req) => {
     let hasMore = true;
 
     while (hasMore) {
-      // Montar URL
       const params = new URLSearchParams({
         access_token: meta_token,
         time_range: JSON.stringify({ since: date_from, until: date_to }),
@@ -176,7 +246,7 @@ Deno.serve(async (req) => {
       const items = metaData.data || [];
       const pageHash = simpleHash(JSON.stringify(items.map(i => i.ad_id || i.adset_id || i.campaign_id)));
 
-      // Salvar checkpoint de página
+      // checkpoint
       await base44.asServiceRole.entities.MetaIngestPage.create({
         job_key,
         page_num: pageNum,
@@ -186,10 +256,8 @@ Deno.serve(async (req) => {
         fetched_at: new Date().toISOString()
       }).catch(() => {});
 
-      // Transformar rows
       const rows = items.map(item => transformInsight(item, account_id, level, breakdowns, job_key));
 
-      // Salvar em batches de BATCH_SAVE
       for (let i = 0; i < rows.length; i += BATCH_SAVE) {
         const batch = rows.slice(i, i + BATCH_SAVE);
         const written = await upsertBatch(base44, batch);
@@ -199,13 +267,11 @@ Deno.serve(async (req) => {
 
       pageNum++;
 
-      // Atualizar progresso
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: pageNum,
         rows_written: totalRows
       }).catch(() => {});
 
-      // Paginação
       const paging = metaData.paging;
       if (paging?.cursors?.after && paging?.next) {
         cursor = paging.cursors.after;
@@ -213,11 +279,9 @@ Deno.serve(async (req) => {
         hasMore = false;
       }
 
-      // Delay entre páginas para evitar rate limit
       if (hasMore) await sleep(500);
     }
 
-    // Marcar como done
     await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
       status: 'done',
       progress: pageNum,
@@ -230,7 +294,6 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('❌ runMetaIngest erro:', error);
 
-    // Tentar marcar job como failed
     try {
       const base44 = createClientFromRequest(req);
       const { job_key } = await req.clone().json().catch(() => ({}));
