@@ -68,6 +68,18 @@ export default function MetaIngest() {
     }));
   };
 
+  const handleDelete = async (job) => {
+    if (!window.confirm(`Excluir o registro do job "${job.job_key}"?\n\nATENÇÃO: Isso remove apenas o registro de controle. Os dados já gravados nas tabelas de insights continuam existindo.`)) return;
+    try {
+      const res = await base44.functions.invoke('deleteMetaIngestRun', { job_id: job.id });
+      if (res.data.error) { toast.error(res.data.error); return; }
+      toast.success('Job excluído');
+      refetch();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const handleCancel = async (job) => {
     try {
       const res = await base44.functions.invoke('cancelMetaIngest', { job_key: job.job_key });
