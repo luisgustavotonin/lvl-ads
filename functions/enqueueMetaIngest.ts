@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
     }
 
     // Disparar runMetaIngest de forma assíncrona (fire and forget)
-    base44.asServiceRole.functions.invoke('runMetaIngest', { job_key, meta_token }).catch(e => {
+    const unitId = body.unit_id || '';
+    base44.asServiceRole.functions.invoke('runMetaIngest', { job_key, meta_token, unit_id: unitId }).catch(e => {
       console.error('Erro ao disparar runMetaIngest:', e.message);
     });
 
