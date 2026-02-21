@@ -283,12 +283,23 @@ export default function MetaIngest() {
                       {job.error_message && <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>}
                     </div>
                   </div>
-                  <button
-                    className="text-gray-400 hover:text-gray-600"
-                    onClick={() => setExpandedJob(isExpanded ? null : job.id)}
-                  >
-                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {(job.status === 'queued' || job.status === 'running') && (
+                      <button
+                        title="Cancelar job"
+                        className="text-red-400 hover:text-red-600"
+                        onClick={() => handleCancel(job)}
+                      >
+                        <StopCircle className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      className="text-gray-400 hover:text-gray-600"
+                      onClick={() => setExpandedJob(isExpanded ? null : job.id)}
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 {isExpanded && (
