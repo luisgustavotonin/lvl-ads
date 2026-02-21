@@ -123,35 +123,36 @@ function transformInsight(item, accountId, level, breakdowns, jobKey) {
 async function upsertBatch(base44, rows) {
   if (rows.length === 0) return 0;
 
-  const uniqueKeys = rows.map(r => r.unique_key);
-
-  // Buscar existentes por unique_key (um a um)
-  const existing = [];
-  for (const key of uniqueKeys) {
-    try {
-      const found = await base44.asServiceRole.entities.MetaIngestInsight.filter({ unique_key: key }, null, 1);
-      if (found.length > 0) existing.push(found[0]);
-    } catch { /* ignore */ }
-    await sleep(30);
-  }
-
-  const existingMap = {};
-  existing.forEach(e => { existingMap[e.unique_key] = e.id; });
-
   let written = 0;
+
   for (const row of rows) {
     try {
-      if (existingMap[row.unique_key]) {
-        await base44.asServiceRole.entities.MetaIngestInsight.update(existingMap[row.unique_key], row);
-      } else {
-        await base44.asServiceRole.entities.MetaIngestInsight.create(row);
-      }
+      await base44.asServiceRole.entities.MetaIngestInsight.create(row);
       written++;
     } catch (e) {
-      console.error(`⚠️ upsert falhou para ${row.unique_key}:`, e.message);
+      // Se falhar por unique_key, tenta atualizar
+      try {
+        const found = await base44
+          .asServiceRole
+          .entities
+          .MetaIngestInsight
+          .filter({ unique_key: row.unique_key }, null, 1);
+
+        if (found.length > 0) {
+          await base44
+            .asServiceRole
+            .entities
+            .MetaIngestInsight
+            .update(found[0].id, row);
+
+          written++;
+        }
+      } catch {
+        // ignora erro secundário
+      }
     }
-    await sleep(50);
   }
+
   return written;
 }
 
