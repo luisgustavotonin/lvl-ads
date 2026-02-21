@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 const PAGE_LIMIT = 100;
-const BATCH_SAVE = 50;
+const BATCH_SAVE = 100;
 const DELAY_MS = 250;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
