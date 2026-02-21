@@ -68,6 +68,17 @@ export default function MetaIngest() {
     }));
   };
 
+  const handleCancel = async (job) => {
+    try {
+      const res = await base44.functions.invoke('cancelMetaIngest', { job_key: job.job_key });
+      if (res.data.error) { toast.error(res.data.error); return; }
+      toast.success('Job cancelado');
+      refetch();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const handleSyncCreatives = async () => {
     if (!form.unit_id) { toast.error('Selecione uma unidade'); return; }
     if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID configurado'); return; }
