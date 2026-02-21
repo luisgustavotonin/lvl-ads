@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
-const PAGE_LIMIT = 100;
+const PAGE_LIMIT = 500;
 const BATCH_SAVE = 100;
 const DELAY_MS = 100;
 
@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
         hasMore = false;
       }
 
-      if (hasMore) await sleep(500);
+      if (hasMore) await sleep(150);
     }
 
     await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
