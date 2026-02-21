@@ -34,8 +34,6 @@ const yesterday = () => {
 };
 
 export default function MetaIngest() {
-  const queryClient = useQueryClient();
-
   const [form, setForm] = useState({
     unit_id: '',
     date_from: yesterday(),
