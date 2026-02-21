@@ -269,7 +269,7 @@ export default function MetaIngest() {
                       <Badge variant="outline" className="text-xs">{job.level}</Badge>
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                      <span>Páginas: <strong>{job.progress || 0}</strong></span>
+                      <span>Fase: <strong>{job.progress || 0}/4</strong></span>
                       <span>Rows: <strong>{job.rows_written || 0}</strong></span>
                       {job.error_message && <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>}
                     </div>
