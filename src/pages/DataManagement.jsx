@@ -175,19 +175,50 @@ export default function DataManagement() {
     setCurrentPage(1);
   };
 
+  const deleteRecords = async (entity, records) => {
+    const BATCH = 30;
+    for (let i = 0; i < records.length; i += BATCH) {
+      await Promise.all(records.slice(i, i + BATCH).map(r => entity.delete(r.id)));
+    }
+  };
+
   const handleDeleteAll = async () => {
     if (!selectedUnit || tabData.length === 0) return;
     setDeleting(true);
     const entity = base44.entities[tabDef.entity];
-    const BATCH = 30;
-    for (let i = 0; i < tabData.length; i += BATCH) {
-      await Promise.all(tabData.slice(i, i + BATCH).map(r => entity.delete(r.id)));
-    }
+    await deleteRecords(entity, tabData);
     setDeleting(false);
     setConfirmDelete(false);
     toast.success(`${tabData.length} registros excluídos`);
     queryClient.invalidateQueries({ queryKey: ['dm', activeTab] });
     setCurrentPage(1);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedUnit || selectedTabsForBulk.length === 0) return;
+    setBulkDeleting(true);
+
+    let totalDeleted = 0;
+    for (let i = 0; i < selectedTabsForBulk.length; i++) {
+      const tabId = selectedTabsForBulk[i];
+      const tab = TABS.find(t => t.id === tabId);
+      setBulkProgress({ current: i + 1, total: selectedTabsForBulk.length, tabLabel: tab.label });
+
+      const entity = base44.entities[tab.entity];
+      const filters = buildFilters(tab);
+      if (!filters.account_id && !filters.unit_id) continue;
+
+      const records = await entity.filter(filters, null, 5000);
+      await deleteRecords(entity, records);
+      totalDeleted += records.length;
+      queryClient.invalidateQueries({ queryKey: ['dm', tabId] });
+    }
+
+    setBulkDeleting(false);
+    setBulkProgress(null);
+    setBulkDeleteOpen(false);
+    setSelectedTabsForBulk([]);
+    toast.success(`${totalDeleted} registros excluídos em ${selectedTabsForBulk.length} tabela(s)`);
   };
 
   return (
