@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { account_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, meta_token } = body;
+    const { account_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, meta_token, mode, job_key_override } = body;
 
     if (!account_id || !date_from || !date_to) {
       return Response.json({ error: 'account_id, date_from, date_to obrigatórios' }, { status: 400 });
@@ -26,8 +26,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'meta_token obrigatório' }, { status: 400 });
     }
 
-    const breakdownsKey = breakdowns.slice().sort().join(',');
-    const job_key = `${account_id}:${job_type}:${level}:${date_from}:${date_to}:${simpleHash(breakdownsKey)}`;
+    const modeStr = mode || 'all';
+    const job_key = job_key_override || `${account_id}:${job_type}:${level}:${date_from}:${date_to}:${modeStr}:${simpleHash(modeStr)}`;
 
     console.log(`📥 enqueueMetaIngest job_key=${job_key} force=${force}`);
 
