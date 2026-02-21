@@ -102,6 +102,7 @@ export default function MetaIngest() {
     try {
       const res = await base44.functions.invoke('enqueueMetaIngest', {
         account_id: selectedUnit.account_id,
+        unit_id: form.unit_id,
         date_from: form.date_from,
         date_to: form.date_to,
         job_type: 'insights',
