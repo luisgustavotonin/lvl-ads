@@ -70,6 +70,28 @@ export default function MetaIngest() {
     }));
   };
 
+  const handleSyncCreatives = async () => {
+    if (!form.unit_id) { toast.error('Selecione uma unidade'); return; }
+    if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID configurado'); return; }
+    if (!selectedUnit?.secret_token) { toast.error('Unidade sem Access Token (secret_token) configurado'); return; }
+
+    setLoadingCreatives(true);
+    try {
+      const res = await base44.functions.invoke('syncMetaCreatives', {
+        account_id: selectedUnit.account_id,
+        unit_id: form.unit_id,
+        meta_token: selectedUnit.secret_token,
+      });
+      const data = res.data;
+      if (data.error) { toast.error(data.error); return; }
+      toast.success(`Criativos sincronizados: ${data.creatives_written} de ${data.ads_found} ads`);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoadingCreatives(false);
+    }
+  };
+
   const handleEnqueue = async () => {
     if (!form.unit_id) { toast.error('Selecione uma unidade'); return; }
     if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID configurado'); return; }
