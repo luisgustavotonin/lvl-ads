@@ -8,6 +8,11 @@ const DELAY_MS = 250;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+function normalizeActId(accountId) {
+  if (!accountId) return '';
+  return String(accountId).replace(/^act_/, '');
+}
+
 function simpleHash(str) {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -19,11 +24,12 @@ function simpleHash(str) {
 
 function buildUniqueKey(accountId, date, level, item, breakdowns) {
   const parts = [accountId, date, level];
+
   if (item.ad_id) parts.push(item.ad_id);
   else if (item.adset_id) parts.push(item.adset_id);
   else if (item.campaign_id) parts.push(item.campaign_id);
 
-  breakdowns.forEach(b => {
+  (breakdowns || []).forEach(b => {
     if (item[b]) parts.push(item[b]);
   });
 
@@ -34,7 +40,6 @@ function parseNum(v) {
   return v !== undefined && v !== null ? (parseFloat(v) || 0) : 0;
 }
 
-// Converte actions array -> map { action_type: value }
 function actionsToMap(actionsArr) {
   const map = {};
   if (!Array.isArray(actionsArr)) return map;
@@ -45,7 +50,6 @@ function actionsToMap(actionsArr) {
   return map;
 }
 
-// Converte cost_per_action_type array -> map { action_type: value }
 function costPerActionToMap(arr) {
   const map = {};
   if (!Array.isArray(arr)) return map;
@@ -56,7 +60,6 @@ function costPerActionToMap(arr) {
   return map;
 }
 
-// Pega valor com fallback (se não existir retorna 0)
 function getFromMap(map, key) {
   return map && Object.prototype.hasOwnProperty.call(map, key) ? parseNum(map[key]) : 0;
 }
@@ -65,26 +68,16 @@ function transformInsight(item, accountId, level, breakdowns, jobKey) {
   const date = item.date_start || item.date_stop || '';
   const unique_key = buildUniqueKey(accountId, date, level, item, breakdowns);
 
-  // ✅ actions e costs em mapas
   const actionsMap = actionsToMap(item.actions);
   const costMap = costPerActionToMap(item.cost_per_action_type);
 
-  // ✅ Link metrics
-  // link_click (clique no link) vem de actions["link_click"]
   const link_clicks = getFromMap(actionsMap, 'link_click');
 
   const impressions = parseNum(item.impressions);
   const spend = parseNum(item.spend);
 
-  // ctr_link = link_clicks / impressions * 100
   const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
-
-  // cpc_link = spend / link_clicks
   const cpc_link = link_clicks > 0 ? (spend / link_clicks) : 0;
-
-  // ⚠️ Conversas/contatos etc: por enquanto só deixamos os mapas no raw_json
-  // Depois a gente mapeia quais action_type são:
-  // contacts / conversations_started / first_response etc.
 
   return {
     unique_key,
@@ -111,15 +104,14 @@ function transformInsight(item, accountId, level, breakdowns, jobKey) {
 
     publisher_platform: item.publisher_platform || null,
     platform_position: item.platform_position || null,
+    impression_device: item.impression_device || null,
     age: item.age || null,
     gender: item.gender || null,
 
-    // ✅ novos campos (você já criou no Ents)
     link_clicks,
     ctr_link,
     cpc_link,
 
-    // Mantém bruto para auditoria + para mapear conversas depois
     raw_json: {
       ...item,
       _actions_map: actionsMap,
@@ -133,7 +125,7 @@ async function upsertBatch(base44, rows) {
 
   const uniqueKeys = rows.map(r => r.unique_key);
 
-  // Buscar existentes por unique_key (um a um para evitar $in issues)
+  // Buscar existentes por unique_key (um a um)
   const existing = [];
   for (const key of uniqueKeys) {
     try {
@@ -166,33 +158,32 @@ async function upsertBatch(base44, rows) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const body = await req.json();
 
-    const { job_key, meta_token } = await req.json();
+    const { job_key, meta_token } = body;
 
     if (!job_key || !meta_token) {
       return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
     }
 
-    // Buscar job
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
     if (jobs.length === 0) {
       return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
     }
     const job = jobs[0];
 
-    // Lock: não rodar se já estiver running
     if (job.status === 'running') {
       return Response.json({ status: 'already_running', job_key });
     }
 
-    // Marcar como running
     await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
       status: 'running', progress: 0, rows_written: 0, error_message: null
     });
 
-    console.log(`🚀 runMetaIngest iniciado: ${job_key}`);
-
     const { account_id, date_from, date_to, level, breakdowns = [] } = job;
+
+    // ✅ normaliza o act id (evita act_act_)
+    const actId = normalizeActId(account_id);
 
     const fields = [
       'campaign_id', 'campaign_name',
@@ -200,14 +191,13 @@ Deno.serve(async (req) => {
       'ad_id', 'ad_name',
       'spend', 'impressions', 'clicks', 'reach', 'frequency', 'ctr', 'cpc', 'cpm',
       'date_start', 'date_stop',
-
-      // ✅ ITEM 2: adicionados
       'actions',
       'cost_per_action_type'
     ];
 
     if (breakdowns.includes('publisher_platform')) fields.push('publisher_platform');
     if (breakdowns.includes('platform_position')) fields.push('platform_position');
+    if (breakdowns.includes('impression_device')) fields.push('impression_device');
     if (breakdowns.includes('age')) fields.push('age');
     if (breakdowns.includes('gender')) fields.push('gender');
 
@@ -225,18 +215,18 @@ Deno.serve(async (req) => {
         limit: String(PAGE_LIMIT),
         time_increment: '1'
       });
+
       if (breakdowns.length > 0) params.set('breakdowns', breakdowns.join(','));
       if (cursor) params.set('after', cursor);
 
-      const url = `${META_BASE}/act_${account_id}/insights?${params.toString()}`;
-      console.log(`📄 Página ${pageNum + 1} cursor=${cursor ? cursor.substring(0, 20) + '...' : 'inicio'}`);
+      // ✅ usa actId normalizado
+      const url = `${META_BASE}/act_${actId}/insights?${params.toString()}`;
 
       const metaRes = await fetch(url);
       const metaData = await metaRes.json();
 
       if (!metaRes.ok || metaData.error) {
         const errMsg = metaData.error?.message || `HTTP ${metaRes.status}`;
-        console.error(`❌ Meta API erro: ${errMsg}`);
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
           status: 'failed', error_message: errMsg
         });
@@ -246,7 +236,6 @@ Deno.serve(async (req) => {
       const items = metaData.data || [];
       const pageHash = simpleHash(JSON.stringify(items.map(i => i.ad_id || i.adset_id || i.campaign_id)));
 
-      // checkpoint
       await base44.asServiceRole.entities.MetaIngestPage.create({
         job_key,
         page_num: pageNum,
@@ -288,12 +277,9 @@ Deno.serve(async (req) => {
       rows_written: totalRows
     });
 
-    console.log(`✅ runMetaIngest concluído: ${pageNum} páginas, ${totalRows} rows`);
     return Response.json({ success: true, job_key, pages: pageNum, rows_written: totalRows });
 
   } catch (error) {
-    console.error('❌ runMetaIngest erro:', error);
-
     try {
       const base44 = createClientFromRequest(req);
       const { job_key } = await req.clone().json().catch(() => ({}));
