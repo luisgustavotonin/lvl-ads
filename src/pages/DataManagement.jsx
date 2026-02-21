@@ -278,21 +278,32 @@ export default function DataManagement() {
         </div>
       ) : (
         <>
-          {/* Tabs */}
-          <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'text-blue-600 border-blue-600'
-                    : 'text-gray-500 border-transparent hover:text-gray-800'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          {/* Tabs + Bulk delete button */}
+          <div className="flex items-center justify-between border-b border-gray-200">
+            <div className="flex gap-1 overflow-x-auto">
+              {TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                    activeTab === tab.id
+                      ? 'text-blue-600 border-blue-600'
+                      : 'text-gray-500 border-transparent hover:text-gray-800'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-2 mb-1 text-red-600 border-red-200 hover:bg-red-50 whitespace-nowrap"
+              onClick={() => { setSelectedTabsForBulk([]); setBulkDeleteOpen(true); }}
+            >
+              <Layers className="w-4 h-4 mr-1" />
+              Excluir múltiplas tabelas
+            </Button>
           </div>
 
           {/* Table card */}
