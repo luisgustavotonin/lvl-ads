@@ -123,32 +123,34 @@ function transformInsight(item, accountId, level, breakdowns, jobKey) {
 async function upsertBatch(base44, rows) {
   if (rows.length === 0) return 0;
 
+  const CONCURRENCY = 8; // se der rate limit, baixa pra 5
   let written = 0;
 
-  for (const row of rows) {
-    try {
-      await base44.asServiceRole.entities.MetaIngestInsight.create(row);
-      written++;
-    } catch (e) {
-      // Se falhar por unique_key, tenta atualizar
-      try {
-        const found = await base44
-          .asServiceRole
-          .entities
-          .MetaIngestInsight
-          .filter({ unique_key: row.unique_key }, null, 1);
+  // roda em "lotes" paralelos
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const chunk = rows.slice(i, i + CONCURRENCY);
 
-        if (found.length > 0) {
-          await base44
-            .asServiceRole
-            .entities
-            .MetaIngestInsight
-            .update(found[0].id, row);
-
-          written++;
+    const results = await Promise.allSettled(
+      chunk.map(async (row) => {
+        try {
+          await base44.asServiceRole.entities.MetaIngestInsight.create(row);
+          return true;
+        } catch (e) {
+          // Se já existe (unique_key), IGNORA (idempotência)
+          const msg = (e?.message || '').toLowerCase();
+          if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) {
+            return false;
+          }
+          // outros erros: rethrow pra você enxergar
+          throw e;
         }
-      } catch {
-        // ignora erro secundário
+      })
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value === true) written++;
+      if (r.status === 'rejected') {
+        console.error('⚠️ create falhou:', r.reason?.message || r.reason);
       }
     }
   }
