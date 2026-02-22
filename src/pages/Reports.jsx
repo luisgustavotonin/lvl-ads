@@ -126,16 +126,19 @@ export default function Reports() {
       if (!selectedUnit) return [];
       if (!selectedPlatforms.includes('META')) return [];
       
+      const unit = units.find(u => u.id === selectedUnit);
+      if (!unit?.account_id) return [];
+
       const startDate = format(previousPeriod.start, 'yyyy-MM-dd');
       const endDate = format(previousPeriod.end, 'yyyy-MM-dd');
       
-      const data = await base44.entities.MetaAdInsights.filter({
-        unit_id: selectedUnit,
+      const data = await base44.entities.MetaInsightBase.filter({
+        account_id: unit.account_id,
         date: { $gte: startDate, $lte: endDate }
       }, '-date', 10000);
       return data || [];
     },
-    enabled: !!selectedUnit,
+    enabled: !!selectedUnit && units.length > 0,
   });
 
   // Auto-detectar plataformas com dados
