@@ -227,12 +227,9 @@ export default function DataManagement() {
     if (!selectedUnit || tabData.length === 0) return;
     setConfirmDelete(false);
     setDeleting(true);
-    setBulkProgress({ progress: 0, total: 1, currentLabel: tabDef?.label });
+    setBulkProgress({ tableIndex: 0, totalTables: 1, tableLabel: tabDef?.label, tableDone: 0, tableTotal: tabData.length });
     try {
-      const res = await invokeBulkDelete([activeTab]);
-      const data = res.data;
-      if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
-      toast.success(`${data.total} registros excluídos`);
+      await handleBulkDelete([activeTab]);
       queryClient.invalidateQueries({ queryKey: ['dm', activeTab] });
       setCurrentPage(1);
     } catch (err) {
