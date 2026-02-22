@@ -15,22 +15,24 @@ const loadFunnelColors = () => {
 export default function FunnelChartNew({ current, previous, stages: configStages }) {
   const [customColors, setCustomColors] = useState(loadFunnelColors);
   const [editingIdx, setEditingIdx] = useState(null);
-  const colorGradients = [
-    'from-blue-100 to-blue-200',
-    'from-blue-200 to-blue-300',
-    'from-blue-300 to-blue-400',
-    'from-blue-400 to-blue-500',
-    'from-blue-500 to-blue-600',
-    'from-blue-600 to-blue-700',
-    'from-blue-700 to-blue-800',
-  ];
+  const DEFAULT_COLORS = ['#93C5FD','#60A5FA','#3B82F6','#2563EB','#1D4ED8','#1E40AF','#1e3a8a'];
+
+  const handleColorChange = (idx, color) => {
+    const next = { ...customColors, [idx]: color };
+    setCustomColors(next);
+    localStorage.setItem(STORAGE_KEY_FUNNEL_COLORS, JSON.stringify(next));
+    setEditingIdx(null);
+  };
+
+  const CURRENCY_KEYS = ['spend', 'cpcLink', 'cpm', 'costPerConversation', 'costPerTotalContact', 'costPerFirstReply'];
 
   const stages = configStages.map((stage, idx) => ({
     key: stage.key,
     label: stage.label,
     value: current[stage.key] || 0,
     prevValue: previous?.[stage.key] || 0,
-    color: colorGradients[idx % colorGradients.length]
+    color: customColors[idx] || DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
+    isCurrency: CURRENCY_KEYS.includes(stage.key),
   }));
 
   const formatNumber = (v, isCurrency = false) => {
