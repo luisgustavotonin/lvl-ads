@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
-  RefreshCw, Loader2, Database, AlertTriangle, Download, Trash2, Layers
+  RefreshCw, Loader2, Database, AlertTriangle, Download, Trash2, Layers, Zap
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -147,6 +148,7 @@ export default function DataManagement() {
   const [selectedTabsForBulk, setSelectedTabsForBulk] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(null); // {progress, total, currentLabel}
+  const [deletingOldCreatives, setDeletingOldCreatives] = useState(false);
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -337,6 +339,24 @@ export default function DataManagement() {
 
   const isAnyDeleting = deleting || bulkDeleting;
 
+  const handleDeleteOldCreatives = async () => {
+    if (!selectedUnit) return;
+    setDeletingOldCreatives(true);
+    try {
+      const res = await base44.functions.invoke('deleteOldCreatives', { unit_id: selectedUnit });
+      if (res.data?.success) {
+        toast.success(`✅ ${res.data.deleted} criativos antigos deletados`);
+        queryClient.invalidateQueries({ queryKey: ['dm', 'creatives'] });
+      } else {
+        toast.error(`Erro: ${res.data?.error || 'Falha ao deletar'}`);
+      }
+    } catch (err) {
+      toast.error(`Erro: ${err.message}`);
+    } finally {
+      setDeletingOldCreatives(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {isAnyDeleting && bulkProgress && (
@@ -467,6 +487,18 @@ export default function DataManagement() {
                     >
                       <Download className="w-4 h-4 mr-1" />
                       CSV
+                    </Button>
+                  )}
+                  {activeTab === 'creatives' && tabData.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeleteOldCreatives}
+                      disabled={deletingOldCreatives}
+                      className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                    >
+                      {deletingOldCreatives ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Zap className="w-4 h-4 mr-1" />}
+                      Deletar Antigos
                     </Button>
                   )}
                   {tabData.length > 0 && (
