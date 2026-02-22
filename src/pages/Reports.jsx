@@ -178,9 +178,9 @@ export default function Reports() {
     const reach = previousMetrics.reduce((s, m) => s + (m.reach || 0), 0);
     const clicks = previousMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
     const linkClicks = previousMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
-    const conversations = previousMetrics.reduce((s, m) => s + (m.wa_conversations_started_7d || 0), 0);
-    const totalContact = previousMetrics.reduce((s, m) => s + (m.wa_total_messaging_connection || 0), 0);
-    const firstReply = previousMetrics.reduce((s, m) => s + (m.wa_messaging_first_reply || 0), 0);
+    const conversations = previousMetrics.reduce((s, m) => s + (m.messaging_conversations_started || 0), 0);
+    const totalContact = previousMetrics.reduce((s, m) => s + (m.messaging_conversations_replied || 0), 0);
+    const firstReply = previousMetrics.reduce((s, m) => s + (m.leads || 0), 0);
     
     return {
       spend,
