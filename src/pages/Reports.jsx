@@ -221,18 +221,20 @@ export default function Reports() {
 
   // Enriquecer métricas com dados de criativos
   const enrichedMetrics = useMemo(() => {
-    const creativeMap = {};
+    const creativeByAdId = {};
     creatives.forEach(c => {
-      creativeMap[c.creative_id] = {
-        thumbnail: c.thumbnail_url || c.image_url,
-        status: c.raw?.status || 'UNKNOWN'
-      };
+      if (c.ad_id) {
+        creativeByAdId[c.ad_id] = {
+          thumbnail: c.thumbnail_url || c.image_url,
+          status: c.raw?.status || 'ACTIVE'
+        };
+      }
     });
 
     return currentMetrics.map(m => ({
       ...m,
-      creative_thumbnail_url: creativeMap[m.creative_id]?.thumbnail || null,
-      ad_effective_status: m.ad_effective_status || creativeMap[m.creative_id]?.status || 'UNKNOWN'
+      creative_thumbnail_url: creativeByAdId[m.ad_id]?.thumbnail || null,
+      ad_effective_status: creativeByAdId[m.ad_id]?.status || 'ACTIVE'
     }));
   }, [currentMetrics, creatives]);
 
