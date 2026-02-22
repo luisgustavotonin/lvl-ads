@@ -141,63 +141,58 @@ const FunnelCard = ({
   );
 };
 
+const STORAGE_KEY = 'funnel_colors';
+
+const loadColors = () => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_COLORS; } catch { return [...DEFAULT_COLORS]; }
+};
+
 export default function ReporteiStyleFunnel({ 
   currentMetrics, 
   previousMetrics = {}
 }) {
+  const [colors, setColors] = useState(loadColors);
+
   if (!currentMetrics || !currentMetrics.totals) return null;
 
   const { totals, funnelPercentages } = currentMetrics;
   const prevTotals = previousMetrics.totals || {};
 
+  const handleColorChange = (index, newColor) => {
+    setColors(prev => {
+      const next = [...prev];
+      next[index] = newColor;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const cards = [
+    { title: 'Valor investido',                    value: totals.spend,                             prevValue: prevTotals.spend,                             type: 'currency', pct: undefined },
+    { title: 'Impressões Totais',                   value: totals.impressions,                        prevValue: prevTotals.impressions,                        pct: funnelPercentages?.impressions },
+    { title: 'Alcance Total',                       value: totals.reach,                              prevValue: prevTotals.reach,                              pct: funnelPercentages?.reach },
+    { title: 'Total de Cliques',                    value: totals.clicks,                             prevValue: prevTotals.clicks,                             pct: funnelPercentages?.clicks },
+    { title: 'Total de cliques no link',            value: totals.link_clicks,                        prevValue: prevTotals.link_clicks,                        pct: funnelPercentages?.link_clicks },
+    { title: 'Conversas iniciadas por mensagem',    value: totals.whatsapp_conversations_started,     prevValue: prevTotals.whatsapp_conversations_started,     pct: funnelPercentages?.whatsapp },
+  ];
+
   return (
     <div className="space-y-4">
       <h3 className="text-base font-semibold text-gray-900">Funil</h3>
-      
-      {/* Grid de cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <FunnelCard
-          title="Valor investido"
-          value={totals.spend}
-          previousValue={prevTotals.spend}
-          type="currency"
-          index={0}
-        />
-        <FunnelCard
-          title="Impressões Totais"
-          value={totals.impressions}
-          previousValue={prevTotals.impressions}
-          percentage={funnelPercentages.impressions}
-          index={1}
-        />
-        <FunnelCard
-          title="Alcance Total"
-          value={totals.reach}
-          previousValue={prevTotals.reach}
-          percentage={funnelPercentages.reach}
-          index={2}
-        />
-        <FunnelCard
-          title="Total de Cliques"
-          value={totals.clicks}
-          previousValue={prevTotals.clicks}
-          percentage={funnelPercentages.clicks}
-          index={3}
-        />
-        <FunnelCard
-          title="Total de cliques no link"
-          value={totals.link_clicks}
-          previousValue={prevTotals.link_clicks}
-          percentage={funnelPercentages.link_clicks}
-          index={4}
-        />
-        <FunnelCard
-          title="Conversas iniciadas por mensagem"
-          value={totals.whatsapp_conversations_started}
-          previousValue={prevTotals.whatsapp_conversations_started}
-          percentage={funnelPercentages.whatsapp}
-          index={5}
-        />
+        {cards.map((card, i) => (
+          <FunnelCard
+            key={i}
+            index={i}
+            title={card.title}
+            value={card.value}
+            previousValue={card.prevValue}
+            type={card.type}
+            percentage={card.pct}
+            color={colors[i] || DEFAULT_COLORS[i]}
+            onColorChange={(c) => handleColorChange(i, c)}
+          />
+        ))}
       </div>
     </div>
   );
