@@ -101,15 +101,16 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
 
     const rows = ads
-      .filter((a) => a?.ad_id && a?.creative?.id)
+      .filter((a) => (a?.id || a?.ad_id) && a?.creative?.id)
       .map((a) => {
         const c = a.creative;
+        const adId = a.id || a.ad_id;
 
         return {
-          unique_key: `${accountId}:${unitId}:${a.ad_id}:${c.id}`,
+          unique_key: `${accountId}:${unitId}:${adId}:${c.id}`,
 
           creative_id: c.id,
-          ad_id: a.ad_id,
+          ad_id: adId,
           campaign_id: a.campaign_id || null,
 
           account_id: accountId,
