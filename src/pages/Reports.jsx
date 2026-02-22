@@ -539,31 +539,34 @@ export default function Reports() {
             </div>
 
             {/* Tabelas de Ranking */}
-            <div className="space-y-6">
-              <RankingTable 
-                title="Campanhas em Destaque"
-                data={currentMetrics}
-                groupKey="campaign_id"
-                nameKey="campaign_name"
-                showThumbnail={false}
-              />
-              
-              <RankingTable 
-                title="Conjuntos de Anúncios em Destaque"
-                data={currentMetrics}
-                groupKey="adset_id"
-                nameKey="adset_name"
-                showThumbnail={false}
-              />
-              
-              <RankingTable 
-                title="Anúncios em Destaque"
-                data={enrichedMetrics}
-                groupKey="ad_id"
-                nameKey="ad_name"
-                showThumbnail={true}
-              />
-            </div>
+             <div className="space-y-6">
+               <RankingTable 
+                 title="Campanhas em Destaque"
+                 data={currentMetrics}
+                 groupKey="campaign_id"
+                 nameKey="campaign_name"
+                 showThumbnail={false}
+                 unitId={selectedUnit}
+               />
+
+               <RankingTable 
+                 title="Conjuntos de Anúncios em Destaque"
+                 data={currentMetrics}
+                 groupKey="adset_id"
+                 nameKey="adset_name"
+                 showThumbnail={false}
+                 unitId={selectedUnit}
+               />
+
+               <RankingTable 
+                 title="Anúncios em Destaque"
+                 data={enrichedMetrics}
+                 groupKey="ad_id"
+                 nameKey="ad_name"
+                 showThumbnail={true}
+                 unitId={selectedUnit}
+               />
+             </div>
           </>
         )}
       </div>
