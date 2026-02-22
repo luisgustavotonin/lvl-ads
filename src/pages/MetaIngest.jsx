@@ -430,7 +430,10 @@ export default function MetaIngest() {
       {/* Recent jobs */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800">Histórico de Jobs</h2>
+          <div>
+            <h2 className="font-semibold text-gray-800">Histórico Recente</h2>
+            <p className="text-xs text-gray-400">Últimos 15 jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
+          </div>
           <Button variant="ghost" size="sm" onClick={() => refetch()} className="gap-1 text-gray-500">
             <RefreshCw className="w-4 h-4" />
             Atualizar
