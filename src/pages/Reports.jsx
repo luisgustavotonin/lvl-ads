@@ -47,6 +47,7 @@ export default function Reports() {
     end: new Date(),
   });
   const [showComparison, setShowComparison] = useState(true);
+  const [customComparisonPeriod, setCustomComparisonPeriod] = useState(null);
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
   const [showLabels, setShowLabels] = useState(false);
