@@ -380,14 +380,6 @@ export default function Reports() {
                   />
                   <label htmlFor="platform-meta" className="text-sm cursor-pointer">Meta Ads</label>
                 </div>
-                <div className="flex items-center gap-2 opacity-50">
-                  <Checkbox id="platform-google" disabled />
-                  <label htmlFor="platform-google" className="text-sm">Google Ads (em breve)</label>
-                </div>
-                <div className="flex items-center gap-2 opacity-50">
-                  <Checkbox id="platform-tiktok" disabled />
-                  <label htmlFor="platform-tiktok" className="text-sm">TikTok Ads (em breve)</label>
-                </div>
               </div>
             </div>
           </div>
