@@ -1,13 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, subDays } from 'date-fns';
 
 const getBrasiliaToday = () => {
-  const now = new Date();
-  const str = now.toLocaleString('en-US', {
+  const str = new Date().toLocaleString('en-US', {
     timeZone: 'America/Sao_Paulo',
     year: 'numeric', month: '2-digit', day: '2-digit'
   });
@@ -16,106 +14,123 @@ const getBrasiliaToday = () => {
 };
 
 const PRESETS = [
-  { id: 'today',        label: 'Hoje',           getDates: () => { const t = getBrasiliaToday(); return { start: t, end: t }; } },
-  { id: 'yesterday',    label: 'Ontem',          getDates: () => { const t = getBrasiliaToday(); const y = subDays(t, 1); return { start: y, end: y }; } },
-  { id: 'last_7_days',  label: 'Últimos 7 dias', getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 6), end: t }; } },
-  { id: 'last_14_days', label: 'Últimos 14 dias',getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 13), end: t }; } },
-  { id: 'last_28_days', label: 'Últimos 28 dias',getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 27), end: t }; } },
-  { id: 'last_30_days', label: 'Últimos 30 dias',getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 29), end: t }; } },
+  { id: 'today',        label: 'Hoje',            getDates: () => { const t = getBrasiliaToday(); return { start: t, end: t }; } },
+  { id: 'yesterday',    label: 'Ontem',           getDates: () => { const t = getBrasiliaToday(); const y = subDays(t, 1); return { start: y, end: y }; } },
+  { id: 'last_7',       label: 'Últimos 7 dias',  getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 6), end: t }; } },
+  { id: 'last_14',      label: 'Últimos 14 dias', getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 13), end: t }; } },
+  { id: 'last_28',      label: 'Últimos 28 dias', getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 27), end: t }; } },
+  { id: 'last_30',      label: 'Últimos 30 dias', getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 29), end: t }; } },
 ];
 
-const toInputValue = (date) => {
+const toInput = (date) => {
   if (!date) return '';
   try { return format(date, 'yyyy-MM-dd'); } catch { return ''; }
 };
 
-const parseInputDate = (str) => {
+const fromInput = (str) => {
   if (!str) return null;
-  const [year, month, day] = str.split('-').map(Number);
-  return new Date(year, month - 1, day, 0, 0, 0, 0);
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
 };
 
-const formatDisplay = (date) => {
-  if (!date) return '';
-  try { return format(date, 'dd/MM/yyyy'); } catch { return ''; }
-};
+export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange }) {
+  const [activePreset, setActivePreset] = React.useState('last_30');
+  const [showComparison, setShowComparison] = React.useState(false);
 
-export default function PeriodFilter({ value, onChange }) {
-  const [activePreset, setActivePreset] = React.useState('last_30_days');
-  const [showCustom, setShowCustom] = React.useState(false);
-
-  const handlePresetClick = (preset) => {
+  const handlePreset = (preset) => {
     setActivePreset(preset.id);
-    const dates = preset.getDates();
-    onChange({ start: dates.start, end: dates.end });
-    setShowCustom(false);
+    onChange(preset.getDates());
   };
 
-  const handleCustomDateChange = (field, strValue) => {
-    const date = parseInputDate(strValue);
+  const handleMainDate = (field, str) => {
+    const date = fromInput(str);
     if (!date) return;
-    const newStart = field === 'start' ? date : (value.start || date);
-    const newEnd = field === 'end' ? date : (value.end || date);
-    onChange({ start: newStart, end: newEnd });
     setActivePreset('custom');
+    onChange({ start: field === 'start' ? date : value.start, end: field === 'end' ? date : value.end });
+  };
+
+  const handleCompDate = (field, str) => {
+    const date = fromInput(str);
+    if (!date) return;
+    const prev = comparisonPeriod || { start: null, end: null };
+    onComparisonChange?.({ start: field === 'start' ? date : prev.start, end: field === 'end' ? date : prev.end });
   };
 
   return (
     <div className="flex flex-col gap-3 w-full">
       {/* Preset buttons */}
       <div className="flex flex-wrap items-center gap-2">
-        {PRESETS.map((preset) => (
+        {PRESETS.map((p) => (
           <Button
-            key={preset.id}
-            variant={activePreset === preset.id ? 'default' : 'outline'}
+            key={p.id}
+            variant={activePreset === p.id ? 'default' : 'outline'}
             size="sm"
-            onClick={() => handlePresetClick(preset)}
+            onClick={() => handlePreset(p)}
           >
-            {preset.label}
+            {p.label}
           </Button>
         ))}
+        <Button
+          variant={showComparison ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setShowComparison(v => !v)}
+          className={showComparison ? 'bg-purple-600 hover:bg-purple-700' : ''}
+        >
+          Comparativo
+        </Button>
       </div>
 
-      {/* Date range row */}
-      <div className="flex flex-wrap items-start gap-4">
+      {/* Date rows */}
+      <div className="flex flex-col gap-2">
         {/* Período analisado */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Período analisado</span>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-            <button
-              onClick={() => setShowCustom(v => !v)}
-              className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <Calendar className="w-4 h-4 text-gray-500" />
-              {value.start && value.end
-                ? `${format(value.start, 'dd/MM')} - ${format(value.end, 'dd/MM')}`
-                : 'Selecionar datas'}
-            </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-gray-500 w-36 shrink-0">Período analisado</span>
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm">
+            <Label className="text-xs text-gray-500">De:</Label>
+            <Input
+              type="date"
+              className="h-7 text-xs w-36 border-0 p-0 shadow-none focus-visible:ring-0"
+              value={toInput(value.start)}
+              onChange={(e) => handleMainDate('start', e.target.value)}
+            />
           </div>
-          {showCustom && (
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm mt-1">
-              <div className="flex items-center gap-1">
-                <Label className="text-xs text-gray-500 whitespace-nowrap">De:</Label>
-                <Input
-                  type="date"
-                  className="h-7 text-xs w-36"
-                  value={toInputValue(value.start)}
-                  onChange={(e) => handleCustomDateChange('start', e.target.value)}
-                />
-              </div>
-              <span className="text-gray-400 text-xs">→</span>
-              <div className="flex items-center gap-1">
-                <Label className="text-xs text-gray-500 whitespace-nowrap">Até:</Label>
-                <Input
-                  type="date"
-                  className="h-7 text-xs w-36"
-                  value={toInputValue(value.end)}
-                  onChange={(e) => handleCustomDateChange('end', e.target.value)}
-                />
-              </div>
-            </div>
-          )}
+          <span className="text-gray-400 text-sm">→</span>
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm">
+            <Label className="text-xs text-gray-500">Até:</Label>
+            <Input
+              type="date"
+              className="h-7 text-xs w-36 border-0 p-0 shadow-none focus-visible:ring-0"
+              value={toInput(value.end)}
+              onChange={(e) => handleMainDate('end', e.target.value)}
+            />
+          </div>
         </div>
+
+        {/* Período comparativo */}
+        {showComparison && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-purple-600 w-36 shrink-0">Período comparativo</span>
+            <div className="flex items-center gap-2 bg-white border border-purple-200 rounded-lg px-3 py-1.5 shadow-sm">
+              <Label className="text-xs text-gray-500">De:</Label>
+              <Input
+                type="date"
+                className="h-7 text-xs w-36 border-0 p-0 shadow-none focus-visible:ring-0"
+                value={toInput(comparisonPeriod?.start)}
+                onChange={(e) => handleCompDate('start', e.target.value)}
+              />
+            </div>
+            <span className="text-gray-400 text-sm">→</span>
+            <div className="flex items-center gap-2 bg-white border border-purple-200 rounded-lg px-3 py-1.5 shadow-sm">
+              <Label className="text-xs text-gray-500">Até:</Label>
+              <Input
+                type="date"
+                className="h-7 text-xs w-36 border-0 p-0 shadow-none focus-visible:ring-0"
+                value={toInput(comparisonPeriod?.end)}
+                onChange={(e) => handleCompDate('end', e.target.value)}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
