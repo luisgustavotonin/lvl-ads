@@ -40,6 +40,7 @@ const navigation = [
   { name: 'Integrações', href: 'Integrations', icon: Link2 },
   { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap },
   { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell },
+
   { name: 'Perfis', href: 'Profiles', icon: Shield },
   { name: 'Usuários', href: 'Users', icon: Users },
   { name: 'Gestão de Dados', href: 'DataManagement', icon: Database },
