@@ -460,7 +460,7 @@ export default function Reports() {
                   onSave={setFunnelStages}
                 />
               </div>
-              <FunnelChartNew current={current} previous={previous} stages={funnelStages} />
+              <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
             </Card>
 
             {/* Gráficos por Dia */}
