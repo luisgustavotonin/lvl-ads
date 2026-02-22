@@ -43,34 +43,15 @@ export default function Dashboard() {
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', period.start, period.end],
     queryFn: async () => {
-      try {
-        const startDate = format(period.start, 'yyyy-MM-dd');
-        const endDate = format(period.end, 'yyyy-MM-dd');
-        
-        // Buscar apenas runs ativos da unidade
-        const runs = await base44.entities.Run.filter({
-          status: { $in: ['success', 'partial'] }
-        });
-        
-        if (runs.length === 0) return [];
-        
-        const runIds = runs.map(r => r.run_id);
-        
-        const data = await base44.entities.MetaAdInsights.filter({
-          date: { 
-            $gte: startDate, 
-            $lte: endDate
-          }
-        }, '-date', 5000);
-        return data || [];
-      } catch (error) {
-        console.error('Erro ao buscar métricas:', error);
-        return [];
-      }
+      const startDate = format(period.start, 'yyyy-MM-dd');
+      const endDate = format(period.end, 'yyyy-MM-dd');
+      const data = await base44.entities.MetaInsightBase.filter({
+        date: { $gte: startDate, $lte: endDate }
+      }, '-date', 5000);
+      return data || [];
     },
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
-    retry: 1,
   });
 
 
