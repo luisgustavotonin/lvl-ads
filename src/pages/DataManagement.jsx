@@ -143,6 +143,7 @@ export default function DataManagement() {
   const [dateTo, setDateTo] = useState('');
   const [activeTab, setActiveTab] = useState('base');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
