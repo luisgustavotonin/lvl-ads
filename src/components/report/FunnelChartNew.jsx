@@ -51,19 +51,48 @@ export default function FunnelChartNew({ current, previous, stages: configStages
         const variation = getVariation(stage.value, stage.prevValue);
         const isPositive = variation > 0;
         const isNegative = variation < 0;
+        const bgColor = stage.color;
 
         return (
           <div key={stage.key} className="w-full flex flex-col items-center">
             <div 
-              className={`w-full bg-gradient-to-r ${stage.color} rounded-lg py-6 px-8 text-center shadow-sm`}
+              className="w-full rounded-lg py-6 px-8 text-center shadow-sm relative"
               style={{ 
-                maxWidth: `${100 - (idx * 15)}%`,
+                maxWidth: `${100 - (idx * 12)}%`,
+                backgroundColor: bgColor,
                 transition: 'all 0.3s ease'
               }}
             >
+              {/* Botão de editar cor - sempre visível */}
+              <button
+                onClick={() => setEditingIdx(editingIdx === idx ? null : idx)}
+                className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 transition-colors"
+                title="Editar cor"
+              >
+                <Pencil className="w-3 h-3 text-white/70" />
+              </button>
+
+              {/* Color picker */}
+              {editingIdx === idx && (
+                <div className="absolute top-8 right-2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-48" onClick={e => e.stopPropagation()}>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Escolher cor</p>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {COLOR_OPTIONS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => handleColorChange(idx, c)}
+                        className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
+                        style={{ backgroundColor: c, borderColor: bgColor === c ? '#000' : 'transparent' }}
+                      />
+                    ))}
+                  </div>
+                  <button onClick={() => setEditingIdx(null)} className="mt-2 text-xs text-gray-400 hover:text-gray-600 w-full text-right">fechar</button>
+                </div>
+              )}
+
               <div className="text-white font-medium mb-1">{stage.label}</div>
               <div className="text-white text-2xl font-bold mb-2">
-                {formatNumber(stage.value)}
+                {formatNumber(stage.value, stage.isCurrency)}
               </div>
               {variation !== null && (
                 <div className={`flex items-center justify-center gap-1 text-sm font-medium ${
@@ -79,7 +108,7 @@ export default function FunnelChartNew({ current, previous, stages: configStages
               )}
             </div>
             {idx < stages.length - 1 && (
-              <div className="h-2 w-0.5 bg-gradient-to-b from-blue-300 to-blue-400" />
+              <div className="h-2 w-0.5 bg-gray-300" />
             )}
           </div>
         );
