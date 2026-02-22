@@ -66,8 +66,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Delete in large parallel batches (100 at a time, no sleep)
-      const BATCH = 100;
+      // Delete sequentially in small batches to avoid rate limits
+      const BATCH = 10;
+      const DELAY = 300; // ms between batches
       let deleted = 0;
       for (let i = 0; i < records.length; i += BATCH) {
         const batch = records.slice(i, i + BATCH);
@@ -75,6 +76,9 @@ Deno.serve(async (req) => {
           batch.map(r => base44.asServiceRole.entities[entityName].delete(r.id))
         );
         deleted += results.filter(r => r.status === 'fulfilled').length;
+        if (i + BATCH < records.length) {
+          await new Promise(r => setTimeout(r, DELAY));
+        }
       }
 
       result[tableId] = deleted;
