@@ -438,7 +438,7 @@ export default function Reports() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {[
-                { title: 'Investimento por Dia', dataKey: 'spend', color: '#3B82F6', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${(v/1000).toFixed(0)}k`, lblFmt: (v) => `R$${(v/1000).toFixed(1)}k`, domain: undefined },
+                { title: 'Investimento por Dia', dataKey: 'spend', color: '#3B82F6', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${(v/1000).toFixed(0)}k`, lblFmt: (v) => `R$${(v/1000).toFixed(1)}k`, domain: ['auto', 'auto'] },
                 { title: 'Impressões por Dia', dataKey: 'impressions', color: '#10B981', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), domain: [0, 1000] },
                 { title: 'Alcance por Dia', dataKey: 'reach', color: '#8B5CF6', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), domain: undefined },
                 { title: 'CTR Link por Dia (%)', dataKey: 'ctr_link', color: '#F59E0B', fmt: (v) => formatPercent(v), tickFmt: (v) => v.toFixed(1) + '%', lblFmt: (v) => v.toFixed(1) + '%', domain: undefined },
