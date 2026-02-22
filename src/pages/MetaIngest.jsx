@@ -85,7 +85,7 @@ export default function MetaIngest() {
 
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['metaIngestRuns'],
-    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 50),
+    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 15),
     refetchInterval: 4000,
   });
 
