@@ -41,11 +41,11 @@ Deno.serve(async (req) => {
       const entityName = TABLE_MAP[tableId];
       if (!entityName) continue;
 
-      // Build filter
+      // Build filter — always filter by unit_id when available, fallback to account_id
       const filters = {};
-      if (tableId === 'creatives') {
+      if (unit_id) {
         filters.unit_id = unit_id;
-      } else {
+      } else if (account_id) {
         filters.account_id = account_id;
       }
 
