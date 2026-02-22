@@ -51,9 +51,9 @@ const COLUMNS = {
     { key: 'link_clicks', label: 'Cliques Link',render: r => fmtNum(r.link_clicks) },
     { key: 'ctr_link',    label: 'CTR Link',    render: r => fmtPct(r.ctr_link) },
     { key: 'cpm',         label: 'CPM',         render: r => fmtCur(r.cpm) },
-    { key: 'messaging_conversations_started', label: 'Conv. Iniciadas', render: r => fmtNum(r.messaging_conversations_started) },
-    { key: 'purchases',   label: 'Compras',     render: r => fmtNum(r.purchases) },
-    { key: 'purchase_value', label: 'Valor Compras', render: r => fmtCur(r.purchase_value) },
+    { key: 'messaging_conversations_started', label: 'Conversas Iniciadas', render: r => fmtNum(r.messaging_conversations_started) },
+    { key: 'messaging_conversations_replied', label: 'Novos Contatos', render: r => fmtNum(r.messaging_conversations_replied) },
+    { key: 'leads',       label: 'Primeira Resposta', render: r => fmtNum(r.leads) },
   ],
   platform: [
     { key: 'date',              label: 'Data',             render: r => fmtDate(r.date) },

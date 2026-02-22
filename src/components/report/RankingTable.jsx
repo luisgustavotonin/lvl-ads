@@ -40,7 +40,7 @@ export default function RankingTable({
   const [statusFilter, setStatusFilter] = useState('all');
   const [columnOrder, setColumnOrder] = useState(ALL_COLUMNS.map((c) => c.key));
   const [visibleColumns, setVisibleColumns] = useState(ALL_COLUMNS.map((c) => c.key));
-  const [sortConfig, setSortConfig] = useState({ key: 'spend', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'conversations', direction: 'desc' });
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
