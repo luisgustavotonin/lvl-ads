@@ -10,7 +10,6 @@ import {
   Settings,
   Building2,
   Link2,
-  Calendar,
   Users,
   Shield,
   Database,
@@ -19,8 +18,6 @@ import {
   X,
   LogOut,
   Bell,
-  Activity,
-  Search,
   Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
