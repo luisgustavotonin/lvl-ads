@@ -509,7 +509,7 @@ export default function DataManagement() {
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               disabled={selectedTabsForBulk.length === 0}
-              onClick={handleBulkDelete}
+              onClick={() => handleBulkDelete(selectedTabsForBulk)}
             >
               Excluir {selectedTabsForBulk.length} tabela(s)
             </AlertDialogAction>
