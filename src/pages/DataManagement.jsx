@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
@@ -148,6 +148,7 @@ export default function DataManagement() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(null); // {progress, total, currentLabel}
   const [deletingOldCreatives, setDeletingOldCreatives] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -191,8 +192,27 @@ export default function DataManagement() {
 
   const cols = COLUMNS[activeTab] || [];
   const effectivePageSize = pageSize === 'Todos' ? tabData.length : pageSize;
-  const totalPages = effectivePageSize > 0 ? Math.ceil(tabData.length / effectivePageSize) : 1;
-  const pageData = tabData.slice((currentPage - 1) * effectivePageSize, currentPage * effectivePageSize);
+  
+  // Apply sorting
+  const sortedData = useMemo(() => {
+    let sorted = [...tabData];
+    if (sortConfig.key) {
+      sorted.sort((a, b) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        if (aVal === null || aVal === undefined) return 1;
+        if (bVal === null || bVal === undefined) return -1;
+        if (typeof aVal === 'string') {
+          return sortConfig.direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      });
+    }
+    return sorted;
+  }, [tabData, sortConfig]);
+  
+  const totalPages = effectivePageSize > 0 ? Math.ceil(sortedData.length / effectivePageSize) : 1;
+  const pageData = sortedData.slice((currentPage - 1) * effectivePageSize, currentPage * effectivePageSize);
 
   // Totals row (numeric columns only)
   const numericKeys = cols.filter(c => {
@@ -201,9 +221,16 @@ export default function DataManagement() {
   }).map(c => c.key);
 
   const totals = numericKeys.reduce((acc, key) => {
-    acc[key] = tabData.reduce((s, r) => s + (r[key] || 0), 0);
+    acc[key] = sortedData.reduce((s, r) => s + (r[key] || 0), 0);
     return acc;
   }, {});
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   const handleTabChange = (id) => {
     setActiveTab(id);
@@ -478,17 +505,17 @@ export default function DataManagement() {
                   >
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   </Button>
-                  {tabData.length > 0 && (
+                  {sortedData.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => exportCSV(tabData, cols.filter(c => c.key !== 'thumbnail_url'), `${activeTab}_export.csv`)}
+                      onClick={() => exportCSV(sortedData, cols.filter(c => c.key !== 'thumbnail_url'), `${activeTab}_export.csv`)}
                     >
                       <Download className="w-4 h-4 mr-1" />
                       CSV
                     </Button>
                   )}
-                  {activeTab === 'creatives' && tabData.length > 0 && (
+                  {activeTab === 'creatives' && sortedData.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -500,14 +527,14 @@ export default function DataManagement() {
                       Deletar Antigos
                     </Button>
                   )}
-                  {tabData.length > 0 && (
+                  {sortedData.length > 0 && (
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={() => setConfirmDelete(true)}
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
-                      Excluir {tabData.length}
+                      Excluir {sortedData.length}
                     </Button>
                   )}
                 </div>
@@ -518,7 +545,7 @@ export default function DataManagement() {
                 <div className="flex justify-center py-12">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                 </div>
-              ) : tabData.length === 0 ? (
+              ) : sortedData.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <AlertTriangle className="w-10 h-10 mx-auto mb-2 text-amber-300" />
                   <p>Nenhum dado encontrado para os filtros selecionados</p>
@@ -530,8 +557,13 @@ export default function DataManagement() {
                       <thead className="bg-gray-50 border-b">
                         <tr>
                           {cols.map(col => (
-                            <th key={col.key} className="px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap">
-                              {col.label}
+                            <th key={col.key} className="px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap cursor-pointer hover:bg-gray-100" onClick={() => handleSort(col.key)}>
+                              <div className="flex items-center gap-1">
+                                {col.label}
+                                {sortConfig.key === col.key && (
+                                  <span className="text-xs">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                                )}
+                              </div>
                             </th>
                           ))}
                         </tr>
@@ -548,19 +580,19 @@ export default function DataManagement() {
                         ))}
                       </tbody>
                       {/* Sticky totals row */}
-                      {numericKeys.length > 0 && (
-                        <tfoot className="sticky bottom-0 bg-yellow-50 border-t-2 border-yellow-300">
-                          <tr>
-                            {cols.map(col => (
-                              <td key={col.key} className="px-3 py-2 text-xs font-bold text-gray-800 whitespace-nowrap">
-                                {numericKeys.includes(col.key)
-                                  ? col.render({ [col.key]: totals[col.key] })
-                                  : col === cols[0] ? 'TOTAL' : ''}
-                              </td>
-                            ))}
-                          </tr>
-                        </tfoot>
-                      )}
+                       {numericKeys.length > 0 && (
+                         <tfoot className="sticky bottom-0 bg-yellow-50 border-t-2 border-yellow-300">
+                           <tr>
+                             {cols.map((col, idx) => (
+                               <td key={col.key} className="px-3 py-2 text-xs font-bold text-gray-800 whitespace-nowrap">
+                                 {numericKeys.includes(col.key)
+                                   ? col.render({ [col.key]: totals[col.key] })
+                                   : idx === 0 ? 'TOTAL' : ''}
+                               </td>
+                             ))}
+                           </tr>
+                         </tfoot>
+                       )}
                     </table>
                   </div>
 
@@ -568,7 +600,7 @@ export default function DataManagement() {
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t">
                       <p className="text-xs text-gray-500">
-                        Página {currentPage} de {totalPages} ({tabData.length} registros)
+                        Página {currentPage} de {totalPages} ({sortedData.length} registros)
                       </p>
                       <div className="flex gap-1">
                         <Button
@@ -668,7 +700,7 @@ export default function DataManagement() {
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>Você está prestes a excluir <strong>{tabData.length} registros</strong> da tabela <strong>{tabDef?.label}</strong>.</p>
+                <p>Você está prestes a excluir <strong>{sortedData.length} registros</strong> da tabela <strong>{tabDef?.label}</strong>.</p>
                 <p>Unidade: <strong>{unit?.name}</strong></p>
                 {dateFrom && <p>A partir de: <strong>{fmtDate(dateFrom)}</strong></p>}
                 {dateTo && <p>Até: <strong>{fmtDate(dateTo)}</strong></p>}
