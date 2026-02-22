@@ -1,5 +1,28 @@
-import React from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Pencil } from 'lucide-react';
+
+const COLOR_OPTIONS = [
+  { label: 'Azul',       value: '#3B82F6' },
+  { label: 'Roxo',       value: '#8B5CF6' },
+  { label: 'Rosa',       value: '#EC4899' },
+  { label: 'Laranja',    value: '#F59E0B' },
+  { label: 'Verde',      value: '#10B981' },
+  { label: 'Ciano',      value: '#06B6D4' },
+  { label: 'Vermelho',   value: '#EF4444' },
+  { label: 'Índigo',     value: '#6366F1' },
+  { label: 'Amarelo',    value: '#EAB308' },
+  { label: 'Lima',       value: '#84CC16' },
+  { label: 'Esmeralda',  value: '#059669' },
+  { label: 'Azul Escuro',value: '#1D4ED8' },
+  { label: 'Teal',       value: '#14B8A6' },
+  { label: 'Fúcsia',     value: '#D946EF' },
+  { label: 'Âmbar',      value: '#D97706' },
+  { label: 'Coral',      value: '#F97316' },
+  { label: 'Marrom',     value: '#92400E' },
+  { label: 'Violeta',    value: '#7C3AED' },
+  { label: 'Cinza',      value: '#6B7280' },
+  { label: 'Preto',      value: '#111827' },
+];
 
 const formatNumber = (value) => {
   if (!value || value === 0) return '0';
