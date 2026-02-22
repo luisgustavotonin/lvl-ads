@@ -141,28 +141,7 @@ export default function Reports() {
     enabled: !!selectedUnit && units.length > 0,
   });
 
-  // Auto-detectar plataformas com dados
-  React.useEffect(() => {
-    const checkPlatformsWithData = async () => {
-      if (!selectedUnit) return;
-      
-      const hasMetaData = await base44.entities.MetaAdInsights.filter({
-        unit_id: selectedUnit,
-        date: { 
-          $gte: format(period.start, 'yyyy-MM-dd'), 
-          $lte: format(period.end, 'yyyy-MM-dd') 
-        }
-      }, '-date', 1);
-      
-      if (hasMetaData.length > 0 && !selectedPlatforms.includes('META')) {
-        setSelectedPlatforms(['META']);
-      } else if (hasMetaData.length === 0 && selectedPlatforms.includes('META')) {
-        setSelectedPlatforms([]);
-      }
-    };
-    
-    checkPlatformsWithData();
-  }, [selectedUnit, period]);
+  // (auto-detect removed — always show META when unit is selected)
 
   const current = useMemo(() => {
     const spend = currentMetrics.reduce((s, m) => s + (m.spend || 0), 0);
