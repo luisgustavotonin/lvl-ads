@@ -58,7 +58,7 @@ export default function Dashboard() {
 
   // Calculate totals
   const totalSpend = metrics.reduce((sum, m) => sum + (m.spend || 0), 0);
-  const totalConversations = metrics.reduce((sum, m) => sum + (m.wa_conversations_started_7d || 0), 0);
+  const totalConversations = metrics.reduce((sum, m) => sum + (m.messaging_conversations_started || 0), 0);
   const totalCostPerConversation = totalConversations > 0 ? totalSpend / totalConversations : 0;
   const activeUnits = units.filter(u => u.status === 'active' || !u.status).length;
 
