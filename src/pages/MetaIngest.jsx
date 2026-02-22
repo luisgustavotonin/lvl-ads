@@ -434,6 +434,39 @@ export default function MetaIngest() {
         </CardContent>
       </Card>
 
+      {/* Creatives Sync History */}
+      {creativesHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Image className="w-4 h-4 text-pink-500" />
+              Histórico: Sincronização de Criativos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {creativesHistory.map((entry, i) => (
+                <div key={i} className="flex items-center gap-3 py-2 border-b last:border-0 flex-wrap">
+                  <span className="text-xs text-gray-400">{new Date(entry.ts).toLocaleString('pt-BR')}</span>
+                  <span className="text-sm font-medium text-gray-700 flex-1">{entry.unit} ({entry.account_id})</span>
+                  {entry.status === 'running' && <StatusBadge status="running" />}
+                  {entry.status === 'done' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-700 border-green-200">
+                      <CheckCircle2 className="w-3 h-3" /> {entry.rows_written} criativos
+                    </span>
+                  )}
+                  {entry.status === 'error' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-100 text-red-700 border-red-200 max-w-xs truncate">
+                      <XCircle className="w-3 h-3" /> {entry.error}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Local Queue Status */}
       {localQueue.length > 0 && (
         <Card>
