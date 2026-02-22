@@ -418,7 +418,66 @@ export default function DataManagement() {
         </>
       )}
 
-      {/* Confirm delete dialog */}
+      {/* Bulk delete modal */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={v => { if (!bulkDeleting) setBulkDeleteOpen(v); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Layers className="w-5 h-5" />
+              Excluir Múltiplas Tabelas
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>Selecione quais tabelas excluir. Os filtros de <strong>período</strong> e <strong>unidade</strong> ativos serão aplicados.</p>
+                {(!dateFrom && !dateTo) && (
+                  <p className="text-amber-600 font-medium">⚠️ Nenhum período selecionado — serão excluídos TODOS os registros das tabelas selecionadas.</p>
+                )}
+                {(dateFrom || dateTo) && (
+                  <p className="text-gray-500">Período: <strong>{fmtDate(dateFrom) || '—'}</strong> até <strong>{fmtDate(dateTo) || '—'}</strong></p>
+                )}
+                <div className="space-y-2 pt-1">
+                  {TABS.map(tab => (
+                    <label key={tab.id} className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50">
+                      <Checkbox
+                        checked={selectedTabsForBulk.includes(tab.id)}
+                        onCheckedChange={checked => {
+                          setSelectedTabsForBulk(prev =>
+                            checked ? [...prev, tab.id] : prev.filter(t => t !== tab.id)
+                          );
+                        }}
+                        disabled={bulkDeleting}
+                      />
+                      <span className="font-medium">{tab.label}</span>
+                      {!tab.hasDate && <span className="text-xs text-gray-400">(ignora filtro de data)</span>}
+                    </label>
+                  ))}
+                </div>
+                {bulkProgress && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded text-blue-700 text-xs">
+                    Excluindo {bulkProgress.current}/{bulkProgress.total}: <strong>{bulkProgress.tabLabel}</strong>…
+                  </div>
+                )}
+                <p className="text-red-600 font-semibold">⚠️ Esta ação não pode ser desfeita!</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={bulkDeleting || selectedTabsForBulk.length === 0}
+              onClick={handleBulkDelete}
+            >
+              {bulkDeleting
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Excluindo...</>
+                : `Excluir ${selectedTabsForBulk.length} tabela(s)`
+              }
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm delete single tab */}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
