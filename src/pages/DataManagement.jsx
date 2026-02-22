@@ -210,6 +210,7 @@ export default function DataManagement() {
   const handleTabChange = (id) => {
     setActiveTab(id);
     setCurrentPage(1);
+    setPageSize(DEFAULT_PAGE_SIZE);
   };
 
   const invokeBulkDelete = async (tables) => {
