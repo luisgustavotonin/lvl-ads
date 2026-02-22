@@ -52,6 +52,19 @@ export default function Reports() {
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
   const [showLabels, setShowLabels] = useState(false);
 
+  // Carregar preferências salvas
+  const { data: preference } = useQuery({
+    queryKey: ['reportPreference', selectedUnit],
+    queryFn: () => selectedUnit ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then(d => d[0]) : null,
+    enabled: !!selectedUnit
+  });
+
+  React.useEffect(() => {
+    if (preference?.selected_kpis?.length > 0) {
+      setSelectedKPIs(preference.selected_kpis);
+    }
+  }, [preference]);
+
   const [funnelStages, setFunnelStages] = useState([
     { key: 'impressions', label: 'Impressões' },
     { key: 'linkClicks', label: 'Cliques no Link' },
@@ -282,6 +295,21 @@ export default function Reports() {
     queryFn: () => selectedUnit ? base44.entities.KpiThreshold.filter({ unit_id: selectedUnit, enabled: true }) : [],
     enabled: !!selectedUnit
   });
+
+  // Salvar preferências quando KPIs mudam
+  React.useEffect(() => {
+    if (selectedUnit && selectedKPIs.length > 0) {
+      const savePreference = async () => {
+        if (preference?.id) {
+          await base44.entities.ReportPreference.update(preference.id, { selected_kpis: selectedKPIs });
+        } else {
+          await base44.entities.ReportPreference.create({ unit_id: selectedUnit, selected_kpis: selectedKPIs });
+        }
+      };
+      const timeoutId = setTimeout(savePreference, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [selectedKPIs, selectedUnit, preference]);
 
   const getKpiLabel = (kpi) => {
     const customLabel = cardLabels.find(cl => cl.card_key === kpi.id);
