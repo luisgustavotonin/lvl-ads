@@ -299,12 +299,6 @@ export default function Reports() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <MetaExportCSV 
-                metricsDaily={[]} 
-                metaAdDaily={currentMetrics}
-                unitName={selectedUnitData?.name || 'Unidade'}
-                period={period}
-              />
               <MetaExportPDF 
                 unitName={selectedUnitData?.name || 'Unidade'}
                 period={period}
