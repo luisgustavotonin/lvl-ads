@@ -464,7 +464,7 @@ export default function DataManagement() {
       )}
 
       {/* Bulk delete modal */}
-      <AlertDialog open={bulkDeleteOpen} onOpenChange={v => { if (!bulkDeleting) setBulkDeleteOpen(v); }}>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={v => { if (!isAnyDeleting) setBulkDeleteOpen(v); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
