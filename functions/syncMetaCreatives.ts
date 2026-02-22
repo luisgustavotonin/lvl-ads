@@ -93,8 +93,8 @@ Deno.serve(async (req) => {
 
     const actId = normalizeActId(accountId);
 
-    // fields com STATUS do anúncio + creative expandido
-    const fields = 'id,name,campaign_id,configured_status,effective_status,status,creative{id,name,body,title,object_type,call_to_action_type,thumbnail_url,image_url,video_id}';
+    // fields otimizados: status do anúncio + apenas campos essenciais do creative
+    const fields = 'id,campaign_id,effective_status,status,creative{id,object_type,thumbnail_url,image_url,video_id}';
 
     const url =
       `${META_BASE}/act_${actId}/ads?` +
@@ -127,19 +127,14 @@ Deno.serve(async (req) => {
           account_id: accountId,
           unit_id: unitId,
 
-          // status do anúncio (ativo/pausado etc.)
-          configured_status: a.configured_status || null,
+          // status do anúncio
           effective_status: a.effective_status || null,
           status: a.status || null,
 
-          // campos do creative
-          name: c.name || a.name || null,
+          // campos do creative (essenciais)
           image_url: c.image_url || null,
           thumbnail_url: c.thumbnail_url || null,
           video_id: c.video_id || null,
-          body: c.body || null,
-          title: c.title || null,
-          call_to_action_type: c.call_to_action_type || null,
           object_type: c.object_type || null,
 
           last_updated: nowIso,
