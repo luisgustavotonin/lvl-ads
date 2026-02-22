@@ -229,25 +229,18 @@ export default function DataManagement() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (!selectedUnit || selectedTabsForBulk.length === 0) return;
+  const handleBulkDelete = async (tabsToDelete) => {
+    const tabs = tabsToDelete || selectedTabsForBulk;
+    if (!selectedUnit || tabs.length === 0) return;
     setBulkDeleteOpen(false);
     setBulkDeleting(true);
-    setBulkProgress({ progress: 0, total: selectedTabsForBulk.length, currentLabel: 'Iniciando…' });
+    setBulkProgress({ progress: 0, total: tabs.length, currentLabel: 'Excluindo…' });
     try {
-      // Update progress label per table (optimistic)
-      for (let i = 0; i < selectedTabsForBulk.length; i++) {
-        const tab = TABS.find(t => t.id === selectedTabsForBulk[i]);
-        setBulkProgress({ progress: i, total: selectedTabsForBulk.length, currentLabel: tab?.label || selectedTabsForBulk[i] });
-        // small yield so UI updates
-        await new Promise(r => setTimeout(r, 50));
-      }
-      setBulkProgress({ progress: 0, total: selectedTabsForBulk.length, currentLabel: 'Excluindo…' });
-      const res = await invokeBulkDelete(selectedTabsForBulk);
+      const res = await invokeBulkDelete(tabs);
       const data = res.data;
       if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
-      toast.success(`${data.total} registros excluídos em ${selectedTabsForBulk.length} tabela(s)`);
-      selectedTabsForBulk.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
+      toast.success(`${data.total} registros excluídos em ${tabs.length} tabela(s)`);
+      tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
       setSelectedTabsForBulk([]);
     } catch (err) {
       toast.error(`Erro: ${err.message}`);
