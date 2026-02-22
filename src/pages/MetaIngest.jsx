@@ -135,7 +135,18 @@ export default function MetaIngest() {
     if (!form.unit_id) { toast.error('Selecione uma unidade'); return; }
     if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID cadastrado'); return; }
     if (!selectedUnit?.secret_token) { toast.error('Unidade sem Token cadastrado'); return; }
+
+    const entry = {
+      ts: new Date().toISOString(),
+      unit: selectedUnit.name,
+      account_id: selectedUnit.account_id,
+      status: 'running',
+      rows_written: null,
+      error: null,
+    };
+    setCreativesHistory(prev => [entry, ...prev]);
     setLoadingCreatives(true);
+
     try {
       const res = await base44.functions.invoke('syncMetaCreatives', {
         account_id: selectedUnit.account_id,
@@ -144,12 +155,16 @@ export default function MetaIngest() {
       });
       const data = res.data;
       if (data?.error) {
+        setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'error', error: data.error } : e));
         toast.error(`Erro: ${data.error}`);
       } else {
-        toast.success(`Criativos sincronizados: ${data.rows_written ?? 0} registros gravados`);
+        setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'done', rows_written: data.rows_written ?? 0 } : e));
+        toast.success(`Criativos sincronizados: ${data.rows_written ?? 0} registros`);
       }
     } catch (err) {
-      toast.error(`Erro inesperado: ${err?.message || err}`);
+      const msg = err?.message || String(err);
+      setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'error', error: msg } : e));
+      toast.error(`Erro: ${msg}`);
     } finally {
       setLoadingCreatives(false);
     }
