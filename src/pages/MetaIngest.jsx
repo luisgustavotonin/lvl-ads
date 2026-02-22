@@ -85,26 +85,7 @@ export default function MetaIngest() {
 
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['metaIngestRuns'],
-    queryFn: async () => {
-      const list = await base44.entities.MetaIngestRun.list('-created_date', 15);
-      // Auto-timeout: mark jobs stuck in "running" for >10min as failed
-      const TEN_MIN = 10 * 60 * 1000;
-      const now = Date.now();
-      for (const job of list) {
-        if (job.status === 'running') {
-          const age = now - new Date(job.created_date).getTime();
-          if (age > TEN_MIN) {
-            await base44.entities.MetaIngestRun.update(job.id, {
-              status: 'failed',
-              error_message: 'Timeout: job ficou em "rodando" por mais de 10 minutos sem concluir.',
-            });
-            job.status = 'failed';
-            job.error_message = 'Timeout automático (>10min)';
-          }
-        }
-      }
-      return list;
-    },
+    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 15),
     refetchInterval: 4000,
   });
 
