@@ -99,6 +99,20 @@ const COLUMNS = {
     { key: 'body',             label: 'Texto',         render: r => r.body ? r.body.substring(0, 60) + '…' : '—' },
     { key: 'last_updated',     label: 'Atualizado',    render: r => r.last_updated ? new Date(r.last_updated).toLocaleDateString('pt-BR') : '—' },
   ],
+  jobs: [
+    { key: 'created_date', label: 'Criado em', render: r => r.created_date ? new Date(r.created_date).toLocaleString('pt-BR') : '—' },
+    { key: 'status',       label: 'Status',    render: r => {
+      const colors = { queued: 'bg-yellow-100 text-yellow-700', running: 'bg-blue-100 text-blue-700', done: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-700' };
+      return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[r.status] || 'bg-gray-100 text-gray-500'}`}>{r.status}</span>;
+    }},
+    { key: 'job_type',     label: 'Tipo',       render: r => r.job_type || '—' },
+    { key: 'date_from',    label: 'De',         render: r => fmtDate(r.date_from) },
+    { key: 'date_to',      label: 'Até',        render: r => fmtDate(r.date_to) },
+    { key: 'progress',     label: 'Progresso',  render: r => r.progress || 0 },
+    { key: 'rows_written', label: 'Rows',       render: r => fmtNum(r.rows_written) },
+    { key: 'error_message',label: 'Erro',       render: r => r.error_message ? <span className="text-red-500 text-xs">{r.error_message.substring(0, 60)}</span> : '—' },
+    { key: 'job_key',      label: 'Job Key',    render: r => <span className="font-mono text-xs text-gray-400">{r.job_key}</span> },
+  ],
 };
 
 function exportCSV(data, columns, filename) {
