@@ -15,8 +15,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import toast from 'react-hot-toast';
 import DeleteProgressOverlay from '@/components/datamanagement/DeleteProgressOverlay';
 
-const PAGE_SIZE = 50;
-const JOBS_PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = [50, 100, 500, 1000, 'Todos'];
+const DEFAULT_PAGE_SIZE = 50;
 
 const fmtDate = (d) => {
   if (!d) return '—';
