@@ -502,16 +502,13 @@ export default function DataManagement() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
-              disabled={bulkDeleting || selectedTabsForBulk.length === 0}
+              disabled={selectedTabsForBulk.length === 0}
               onClick={handleBulkDelete}
             >
-              {bulkDeleting
-                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Excluindo...</>
-                : `Excluir ${selectedTabsForBulk.length} tabela(s)`
-              }
+              Excluir {selectedTabsForBulk.length} tabela(s)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
