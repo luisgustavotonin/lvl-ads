@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import toast from 'react-hot-toast';
+import DeleteProgressOverlay from '@/components/datamanagement/DeleteProgressOverlay';
 
 const PAGE_SIZE = 50;
 const JOBS_PAGE_SIZE = 50;
