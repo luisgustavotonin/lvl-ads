@@ -446,12 +446,12 @@ export default function Reports() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {[
-                { title: 'Investimento por Dia', dataKey: 'spend', color: '#3B82F6', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${(v/1000).toFixed(0)}k`, lblFmt: (v) => `R$${(v/1000).toFixed(1)}k` },
-                { title: 'Impressões por Dia', dataKey: 'impressions', color: '#10B981', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v) },
-                { title: 'Alcance por Dia', dataKey: 'reach', color: '#8B5CF6', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v) },
-                { title: 'CTR Link por Dia (%)', dataKey: 'ctr_link', color: '#F59E0B', fmt: (v) => formatPercent(v), tickFmt: (v) => v.toFixed(1) + '%', lblFmt: (v) => v.toFixed(1) + '%' },
-                { title: 'Conversas por Dia', dataKey: 'conversations', color: '#EC4899', fmt: (v) => formatNumber(v), tickFmt: (v) => formatNumber(v), lblFmt: (v) => String(Math.round(v)) },
-                { title: 'Custo/Conversa por Dia', dataKey: 'cost_per_conversation', color: '#EF4444', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${v.toFixed(0)}`, lblFmt: (v) => 'R$' + v.toFixed(0) },
+                { title: 'Investimento por Dia', dataKey: 'spend', color: '#3B82F6', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${(v/1000).toFixed(0)}k`, lblFmt: (v) => `R$${(v/1000).toFixed(1)}k`, domain: undefined },
+                { title: 'Impressões por Dia', dataKey: 'impressions', color: '#10B981', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), domain: [0, 1000] },
+                { title: 'Alcance por Dia', dataKey: 'reach', color: '#8B5CF6', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), domain: undefined },
+                { title: 'CTR Link por Dia (%)', dataKey: 'ctr_link', color: '#F59E0B', fmt: (v) => formatPercent(v), tickFmt: (v) => v.toFixed(1) + '%', lblFmt: (v) => v.toFixed(1) + '%', domain: undefined },
+                { title: 'Conversas por Dia', dataKey: 'conversations', color: '#EC4899', fmt: (v) => formatNumber(v), tickFmt: (v) => formatNumber(v), lblFmt: (v) => String(Math.round(v)), domain: undefined },
+                { title: 'Custo/Conversa por Dia', dataKey: 'cost_per_conversation', color: '#EF4444', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${v.toFixed(0)}`, lblFmt: (v) => 'R$' + v.toFixed(0), domain: undefined },
               ].map(chart => (
                 <Card key={chart.dataKey} className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
                   <CardTitle className="text-lg mb-4">{chart.title}</CardTitle>
