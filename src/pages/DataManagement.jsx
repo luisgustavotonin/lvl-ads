@@ -158,6 +158,13 @@ export default function DataManagement() {
   const accountId = unit?.account_id || '';
 
   const buildFilters = (tab) => {
+    if (tab.id === 'jobs') {
+      const f = {};
+      if (accountId) f.account_id = accountId;
+      if (dateFrom) f.date_from = { $gte: dateFrom };
+      if (dateTo) f.date_to = { ...(f.date_to || {}), $lte: dateTo };
+      return f;
+    }
     const f = { account_id: accountId };
     if (tab.hasDate) {
       if (dateFrom) f.date = { $gte: dateFrom };
