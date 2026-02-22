@@ -238,14 +238,22 @@ export default function DataManagement() {
     try {
       const res = await invokeBulkDelete(tabs);
       const data = res.data;
-      if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
+      if (!data?.success && !data?.total) throw new Error(data?.error || 'Erro desconhecido');
 
       // Build per-tab summary message
       const tabLabels = TABS.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {});
       const lines = Object.entries(data.deleted)
         .map(([id, n]) => `${tabLabels[id] || id}: ${n} registros`)
         .join('\n');
-      toast.success(`✅ Total: ${data.total} excluídos\n${lines}`, { duration: 8000 });
+      if (data.total > 0) {
+        toast.success(`✅ Total: ${data.total} excluídos\n${lines}`, { duration: 8000 });
+      }
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        const errLines = Object.entries(data.errors)
+          .map(([id, msg]) => `${tabLabels[id] || id}: ${msg}`)
+          .join('\n');
+        toast.error(`⚠️ Erros ao excluir:\n${errLines}`, { duration: 12000 });
+      }
 
       tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
       setSelectedTabsForBulk([]);
