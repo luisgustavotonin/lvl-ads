@@ -74,6 +74,7 @@ export default function MetaIngest() {
   const [localQueue, setLocalQueue] = useState([]); // [{id, mode, label, status, rows_written, error}]
   const [runningQueue, setRunningQueue] = useState(false);
   const [loadingCreatives, setLoadingCreatives] = useState(false);
+  const [creativesHistory, setCreativesHistory] = useState([]); // [{ts, unit, status, rows_written, error}]
   const [expandedJob, setExpandedJob] = useState(null);
 
   const runningRef = useRef(false);
