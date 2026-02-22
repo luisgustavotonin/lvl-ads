@@ -63,11 +63,11 @@ const FunnelCard = ({
   const displayPrevious = type === 'currency' ? formatCurrency(previousValue) : formatNumber(previousValue);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-5 min-h-[200px] flex flex-col relative group">
-      {/* Botão editar cor */}
+    <div className="bg-white rounded-lg border border-gray-200 p-5 min-h-[200px] flex flex-col relative">
+      {/* Botão editar cor - sempre visível */}
       <button
         onClick={() => setShowPicker(v => !v)}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100"
+        className="absolute top-2 right-2 p-1 rounded hover:bg-gray-100"
         title="Editar cor"
       >
         <Pencil className="w-3 h-3 text-gray-400" />
