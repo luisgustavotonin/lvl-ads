@@ -27,7 +27,18 @@ async function upsertBatch(entity, rows) {
   let written = 0;
   for (let i = 0; i < deduped.length; i += CHUNK_SIZE) {
     const chunk = deduped.slice(i, i + CHUNK_SIZE);
-    await entity.upsert(chunk);
+    // Busca registros existentes por unique_key para decidir create vs update
+    const keys = chunk.map(r => r.unique_key);
+    const existing = await entity.filter({ unique_key: { $in: keys } }, null, CHUNK_SIZE);
+    const existingMap = new Map(existing.map(e => [e.unique_key, e.id]));
+
+    const toCreate = chunk.filter(r => !existingMap.has(r.unique_key));
+    const toUpdate = chunk.filter(r => existingMap.has(r.unique_key));
+
+    if (toCreate.length) await entity.bulkCreate(toCreate);
+    for (const r of toUpdate) {
+      await entity.update(existingMap.get(r.unique_key), r);
+    }
     written += chunk.length;
   }
   return written;
