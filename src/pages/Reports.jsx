@@ -361,7 +361,12 @@ export default function Reports() {
                 </SelectContent>
               </Select>
               
-              <PeriodFilter value={period} onChange={setPeriod} />
+              <PeriodFilter
+                value={period}
+                onChange={setPeriod}
+                comparisonPeriod={customComparisonPeriod}
+                onComparisonChange={setCustomComparisonPeriod}
+              />
             </div>
 
             <div>
