@@ -497,11 +497,6 @@ export default function DataManagement() {
                     </label>
                   ))}
                 </div>
-                {bulkProgress && (
-                  <div className="mt-2 p-2 bg-blue-50 rounded text-blue-700 text-xs">
-                    Excluindo {bulkProgress.current}/{bulkProgress.total}: <strong>{bulkProgress.tabLabel}</strong>…
-                  </div>
-                )}
                 <p className="text-red-600 font-semibold">⚠️ Esta ação não pode ser desfeita!</p>
               </div>
             </AlertDialogDescription>
