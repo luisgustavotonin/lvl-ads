@@ -474,6 +474,16 @@ export default function DataManagement() {
                   <p className="text-gray-500">Período: <strong>{fmtDate(dateFrom) || '—'}</strong> até <strong>{fmtDate(dateTo) || '—'}</strong></p>
                 )}
                 <div className="space-y-2 pt-1">
+                  <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50 border-b border-gray-100 pb-3 mb-1">
+                    <Checkbox
+                      checked={selectedTabsForBulk.length === TABS.length}
+                      onCheckedChange={checked => {
+                        setSelectedTabsForBulk(checked ? TABS.map(t => t.id) : []);
+                      }}
+                      disabled={bulkDeleting}
+                    />
+                    <span className="font-semibold text-gray-800">Todas as tabelas</span>
+                  </label>
                   {TABS.map(tab => (
                     <label key={tab.id} className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50">
                       <Checkbox
