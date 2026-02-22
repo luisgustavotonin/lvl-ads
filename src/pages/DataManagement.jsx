@@ -257,8 +257,17 @@ export default function DataManagement() {
     }
   };
 
+  const isAnyDeleting = deleting || bulkDeleting;
+
   return (
     <div className="space-y-6">
+      {isAnyDeleting && bulkProgress && (
+        <DeleteProgressOverlay
+          progress={bulkProgress.progress}
+          total={bulkProgress.total}
+          currentLabel={bulkProgress.currentLabel}
+        />
+      )}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Gestão de Dados</h1>
         <p className="text-gray-500 mt-1 text-sm">Visualize e gerencie os dados das 5 entidades Meta Ads</p>
