@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,13 +36,56 @@ export default function RankingTable({
   data,
   groupKey,
   nameKey,
-  showThumbnail = false
+  showThumbnail = false,
+  unitId
 }) {
   const [limit, setLimit] = useState('10');
   const [statusFilter, setStatusFilter] = useState('all');
   const [columnOrder, setColumnOrder] = useState(ALL_COLUMNS.map((c) => c.key));
   const [visibleColumns, setVisibleColumns] = useState(ALL_COLUMNS.map((c) => c.key));
   const [sortConfig, setSortConfig] = useState({ key: 'conversations', direction: 'desc' });
+
+  // Carregar configurações salvas
+  const { data: config } = useQuery({
+    queryKey: ['rankingTableConfig', unitId, groupKey],
+    queryFn: () => {
+      if (!unitId) return null;
+      return base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
+    },
+    enabled: !!unitId
+  });
+
+  useEffect(() => {
+    if (config?.ranking_table_configs?.[groupKey]) {
+      const saved = config.ranking_table_configs[groupKey];
+      if (saved.columnOrder) setColumnOrder(saved.columnOrder);
+      if (saved.visibleColumns) setVisibleColumns(saved.visibleColumns);
+      if (saved.limit) setLimit(saved.limit);
+    }
+  }, [config, groupKey]);
+
+  // Salvar configurações quando mudam
+  useEffect(() => {
+    if (!unitId) return;
+    const saveConfig = async () => {
+      try {
+        const existing = await base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
+        const newConfig = {
+          ...existing?.ranking_table_configs,
+          [groupKey]: { columnOrder, visibleColumns, limit }
+        };
+        if (existing) {
+          await base44.entities.ReportPreference.update(existing.id, { ranking_table_configs: newConfig });
+        } else {
+          await base44.entities.ReportPreference.create({ unit_id: unitId, ranking_table_configs: newConfig });
+        }
+      } catch (err) {
+        console.error('Erro ao salvar config de ranking table:', err);
+      }
+    };
+    const timeoutId = setTimeout(saveConfig, 500);
+    return () => clearTimeout(timeoutId);
+  }, [columnOrder, visibleColumns, limit, unitId, groupKey]);
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
