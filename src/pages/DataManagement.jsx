@@ -92,12 +92,9 @@ const COLUMNS = {
         ? <img src={r.thumbnail_url} className="w-10 h-10 object-cover rounded" alt="" />
         : '—'
     },
-    { key: 'name',             label: 'Nome',          render: r => r.name || '—' },
     { key: 'ad_id',            label: 'Ad ID',         render: r => r.ad_id || '—' },
     { key: 'object_type',      label: 'Tipo',          render: r => r.object_type ? <Badge variant="outline" className="text-xs">{r.object_type}</Badge> : '—' },
-    { key: 'call_to_action_type', label: 'CTA',        render: r => r.call_to_action_type || '—' },
-    { key: 'title',            label: 'Título',        render: r => r.title || '—' },
-    { key: 'body',             label: 'Texto',         render: r => r.body ? r.body.substring(0, 60) + '…' : '—' },
+    { key: 'status',           label: 'Status',        render: r => r.status || r.effective_status || '—' },
     { key: 'last_updated',     label: 'Atualizado',    render: r => r.last_updated ? new Date(r.last_updated).toLocaleDateString('pt-BR') : '—' },
   ],
   jobs: [
