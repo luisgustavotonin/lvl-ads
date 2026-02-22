@@ -220,7 +220,7 @@ export default function Reports() {
       byDate[m.date].impressions += m.impressions || 0;
       byDate[m.date].reach += m.reach || 0;
       byDate[m.date].link_clicks += m.link_clicks || 0;
-      byDate[m.date].conversations += m.wa_conversations_started_7d || 0;
+      byDate[m.date].conversations += m.messaging_conversations_started || 0;
     });
 
     // Recalcular métricas derivadas
