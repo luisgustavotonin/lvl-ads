@@ -41,36 +41,59 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
+const DEFAULT_COLORS = [
+  '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4'
+];
+
 const FunnelCard = ({ 
   title, 
   value, 
   previousValue = 0, 
   percentage, 
   type = 'number',
-  index
+  index,
+  color,
+  onColorChange
 }) => {
+  const [showPicker, setShowPicker] = useState(false);
   const variation = previousValue > 0 ? ((value - previousValue) / previousValue * 100) : 0;
   const isPositive = variation > 0;
   
   const displayValue = type === 'currency' ? formatCurrency(value) : formatNumber(value);
   const displayPrevious = type === 'currency' ? formatCurrency(previousValue) : formatNumber(previousValue);
 
-  // Cores diferentes para cada card
-  const colors = [
-    '#3B82F6', // blue
-    '#8B5CF6', // purple
-    '#EC4899', // pink
-    '#F59E0B', // orange
-    '#10B981', // green
-    '#06B6D4'  // cyan
-  ];
-  
-  const color = colors[index % colors.length];
-
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-5 min-h-[200px] flex flex-col relative">
+    <div className="bg-white rounded-lg border border-gray-200 p-5 min-h-[200px] flex flex-col relative group">
+      {/* Botão editar cor */}
+      <button
+        onClick={() => setShowPicker(v => !v)}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100"
+        title="Editar cor"
+      >
+        <Pencil className="w-3 h-3 text-gray-400" />
+      </button>
+
+      {/* Color picker dropdown */}
+      {showPicker && (
+        <div className="absolute top-8 right-2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-48">
+          <p className="text-xs font-semibold text-gray-600 mb-2">Escolher cor</p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {COLOR_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                title={opt.label}
+                onClick={() => { onColorChange(opt.value); setShowPicker(false); }}
+                className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
+                style={{ backgroundColor: opt.value, borderColor: color === opt.value ? '#000' : 'transparent' }}
+              />
+            ))}
+          </div>
+          <button onClick={() => setShowPicker(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-600 w-full text-right">fechar</button>
+        </div>
+      )}
+
       {/* Título */}
-      <h3 className="text-xs font-medium text-gray-600 mb-3">{title}</h3>
+      <h3 className="text-xs font-medium text-gray-600 mb-3 pr-6">{title}</h3>
       
       {/* Valor principal */}
       <div className="flex items-center gap-2 mb-2">
@@ -107,7 +130,6 @@ const FunnelCard = ({
           />
         </svg>
         
-        {/* Percentual no rodapé */}
         {percentage !== undefined && percentage !== 100 && (
           <div className="text-center mt-1">
             <span className="text-lg font-bold" style={{ color }}>{percentage.toFixed(2)}%</span>
