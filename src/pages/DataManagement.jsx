@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 50;
+const JOBS_PAGE_SIZE = 50;
 
 const fmtDate = (d) => {
   if (!d) return '—';
