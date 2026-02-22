@@ -192,8 +192,20 @@ export default function DataManagement() {
   });
 
   const cols = COLUMNS[activeTab] || [];
-  const totalPages = Math.ceil(tabData.length / PAGE_SIZE);
-  const pageData = tabData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const effectivePageSize = pageSize === 'Todos' ? tabData.length : pageSize;
+  const totalPages = effectivePageSize > 0 ? Math.ceil(tabData.length / effectivePageSize) : 1;
+  const pageData = tabData.slice((currentPage - 1) * effectivePageSize, currentPage * effectivePageSize);
+
+  // Totals row (numeric columns only)
+  const numericKeys = cols.filter(c => {
+    const sample = tabData.find(r => r[c.key] !== undefined && r[c.key] !== null);
+    return sample && typeof sample[c.key] === 'number';
+  }).map(c => c.key);
+
+  const totals = numericKeys.reduce((acc, key) => {
+    acc[key] = tabData.reduce((s, r) => s + (r[key] || 0), 0);
+    return acc;
+  }, {});
 
   const handleTabChange = (id) => {
     setActiveTab(id);
