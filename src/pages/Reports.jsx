@@ -460,7 +460,7 @@ export default function Reports() {
                       <LineChart data={dailyCharts} margin={{ top: showLabels ? 24 : 10, right: 16, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                         <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                        <YAxis tick={{ fontSize: 13 }} tickFormatter={chart.tickFmt} />
+                        <YAxis tick={{ fontSize: 13 }} tickFormatter={chart.tickFmt} domain={chart.domain || ['auto', 'auto']} />
                         <Tooltip formatter={(v) => chart.fmt(v)} />
                         <Line
                           type="monotone"
