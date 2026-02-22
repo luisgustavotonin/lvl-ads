@@ -59,29 +59,20 @@ Deno.serve(async (req) => {
         }
       }
 
-      const records = await base44.asServiceRole.entities[entityName].filter(filters, null, 50000);
+      // Count first so we can report how many were deleted
+      const records = await base44.asServiceRole.entities[entityName].filter(filters, null, 1);
+      const countCheck = await base44.asServiceRole.entities[entityName].filter(filters, null, 100000);
+      const count = countCheck.length;
 
-      if (records.length === 0) {
+      if (count === 0) {
         result[tableId] = 0;
         continue;
       }
 
-      // Delete sequentially in small batches to avoid rate limits
-      const BATCH = 10;
-      const DELAY = 300; // ms between batches
-      let deleted = 0;
-      for (let i = 0; i < records.length; i += BATCH) {
-        const batch = records.slice(i, i + BATCH);
-        const results = await Promise.allSettled(
-          batch.map(r => base44.asServiceRole.entities[entityName].delete(r.id))
-        );
-        deleted += results.filter(r => r.status === 'fulfilled').length;
-        if (i + BATCH < records.length) {
-          await new Promise(r => setTimeout(r, DELAY));
-        }
-      }
+      // Use deleteMany for bulk deletion (single API call, avoids rate limits)
+      await base44.asServiceRole.entities[entityName].deleteMany(filters);
 
-      result[tableId] = deleted;
+      result[tableId] = count;
     }
 
     const total = Object.values(result).reduce((s, n) => s + n, 0);
