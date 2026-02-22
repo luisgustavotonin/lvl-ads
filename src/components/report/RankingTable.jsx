@@ -16,17 +16,17 @@ const STATUS_COLORS = {
 };
 
 const ALL_COLUMNS = [
-{ key: 'name', label: 'Nome', format: (v) => v },
-{ key: 'status', label: 'Status', format: (v) => v },
-{ key: 'spend', label: 'Investimento', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v) },
-{ key: 'impressions', label: 'Impressões', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)) },
-{ key: 'reach', label: 'Alcance', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)) },
-{ key: 'link_clicks', label: 'Cliques Link', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)) },
-{ key: 'ctr_link', label: 'CTR Link', format: (v) => `${v.toFixed(2)}%` },
-{ key: 'cpc_link', label: 'CPC Link', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v) },
-{ key: 'cpm', label: 'CPM', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v) },
-{ key: 'conversations', label: 'Conversas', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)) },
-{ key: 'cost_per_conversation', label: 'Custo/Conversa', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v) }];
+{ key: 'name', label: 'Nome', format: (v) => v, sortable: true },
+{ key: 'status', label: 'Status', format: (v) => v, sortable: true },
+{ key: 'spend', label: 'Investimento', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), sortable: true },
+{ key: 'impressions', label: 'Impressões', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), sortable: true },
+{ key: 'reach', label: 'Alcance', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), sortable: true },
+{ key: 'link_clicks', label: 'Cliques Link', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), sortable: true },
+{ key: 'ctr_link', label: 'CTR Link', format: (v) => `${v.toFixed(2)}%`, sortable: true },
+{ key: 'cpc_link', label: 'CPC Link', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), sortable: true },
+{ key: 'cpm', label: 'CPM', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), sortable: true },
+{ key: 'conversations', label: 'Conversas', format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v)), sortable: true },
+{ key: 'cost_per_conversation', label: 'Custo/Conversa', format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), sortable: true }];
 
 
 export default function RankingTable({
@@ -82,16 +82,16 @@ export default function RankingTable({
       }
 
       groups[key].spend += item.spend || 0;
-      groups[key].impressions += item.impressions || 0;
-      groups[key].reach += item.reach || 0;
-      groups[key].link_clicks += item.link_clicks || 0;
-      groups[key].clicks += item.clicks || 0;
-      groups[key].conversations += item.wa_conversations_started_7d || 0;
-      groups[key].ctr_link_sum += item.ctr_link || 0;
-      groups[key].cpc_link_sum += item.cpc_link || 0;
-      groups[key].cpm_sum += item.cpm || 0;
-      groups[key].cost_per_conversation_sum += item.cost_per_conversation || 0;
-      groups[key].count += 1;
+       groups[key].impressions += item.impressions || 0;
+       groups[key].reach += item.reach || 0;
+       groups[key].link_clicks += item.link_clicks || 0;
+       groups[key].clicks += item.clicks || 0;
+       groups[key].conversations += item.messaging_conversations_started || 0;
+       groups[key].ctr_link_sum += item.ctr_link || 0;
+       groups[key].cpc_link_sum += item.cpc_link || 0;
+       groups[key].cpm_sum += item.cpm || 0;
+       groups[key].cost_per_conversation_sum += item.cost_per_conversation || 0;
+       groups[key].count += 1;
     });
 
     Object.values(groups).forEach((g) => {
@@ -225,12 +225,12 @@ export default function RankingTable({
           <div key={item.id} className="p-4">
               <div className="flex items-start gap-3 mb-3">
                 {showThumbnail && (
-              item.thumbnail ?
-              <img src={item.thumbnail} alt="Criativo" className="w-12 h-12 object-cover rounded flex-shrink-0" /> :
+                item.thumbnail ?
+                <img src={item.thumbnail} alt="Criativo" className="w-16 h-16 object-cover rounded flex-shrink-0 border border-gray-200" /> :
 
-              <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs flex-shrink-0">N/D</div>)
+                <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs flex-shrink-0">N/D</div>)
 
-              }
+                }
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">{item.name}</p>
@@ -260,16 +260,16 @@ export default function RankingTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
-                {showThumbnail && <th className="text-left py-3 px-2 font-medium text-gray-700 w-16">Criativo</th>}
+                {showThumbnail && <th className="text-left py-3 px-2 font-medium text-gray-700 w-24">Criativo</th>}
                 {orderedColumns.map((col) =>
                 <th
                   key={col.key}
-                  className="text-left py-3 px-2 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
-                  onClick={() => col.key !== 'name' && col.key !== 'status' && handleSort(col.key)}>
+                  className={`text-left py-3 px-2 font-medium text-gray-700 ${col.sortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                  onClick={() => col.sortable && handleSort(col.key)}>
 
                     <div className="flex items-center gap-1">
                       {col.label}
-                      {sortConfig.key === col.key && (
+                      {col.sortable && sortConfig.key === col.key && (
                     sortConfig.direction === 'desc' ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />)
                     }
                     </div>
@@ -281,14 +281,14 @@ export default function RankingTable({
               {aggregated.map((item, idx) =>
               <tr key={item.id} className="border-b hover:bg-gray-50">
                   {showThumbnail &&
-                <td className="py-3 px-2">
+                  <td className="py-3 px-2">
                       {item.thumbnail ?
-                  <img src={item.thumbnail} alt="Criativo" className="w-12 h-12 object-cover rounded" /> :
+                  <img src={item.thumbnail} alt="Criativo" className="w-20 h-20 object-cover rounded border border-gray-200" /> :
 
-                  <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">N/D</div>
+                  <div className="w-20 h-20 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">N/D</div>
                   }
                     </td>
-                }
+                  }
                   {orderedColumns.map((col) =>
                 <td key={col.key} className="py-3 px-2">
                       {col.key === 'name' ?
