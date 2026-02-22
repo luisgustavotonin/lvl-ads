@@ -433,96 +433,48 @@ export default function Reports() {
             </Card>
 
             {/* Gráficos por Dia */}
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
+              <button
+                onClick={() => setShowLabels(v => !v)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  showLabels ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {showLabels ? '🏷️ Rótulos: On' : '🏷️ Rótulos: Off'}
+              </button>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Investimento por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="spend" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#3B82F6', formatter: (v) => `R$${(v/1000).toFixed(1)}k` }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Impressões por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} />
-                      <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="impressions" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#10B981', formatter: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v) }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Alcance por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} />
-                      <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="reach" stroke="#8B5CF6" strokeWidth={2} dot={{ fill: '#8B5CF6', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#8B5CF6', formatter: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v) }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">CTR Link por Dia (%)</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => v.toFixed(1) + '%'} />
-                      <Tooltip formatter={(v) => formatPercent(v)} />
-                      <Line type="monotone" dataKey="ctr_link" stroke="#F59E0B" strokeWidth={2} dot={{ fill: '#F59E0B', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#F59E0B', formatter: (v) => v.toFixed(1) + '%' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Conversas por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                      <YAxis tick={{ fontSize: 13 }} />
-                      <Tooltip formatter={(v) => formatNumber(v)} />
-                      <Line type="monotone" dataKey="conversations" stroke="#EC4899" strokeWidth={2} dot={{ fill: '#EC4899', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#EC4899' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
-                <CardTitle className="text-lg mb-4">Custo/Conversa por Dia</CardTitle>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyCharts} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                      <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `R$${v.toFixed(0)}`} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Line type="monotone" dataKey="cost_per_conversation" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 4 }} label={{ position: 'top', fontSize: 12, fill: '#EF4444', formatter: (v) => 'R$' + v.toFixed(0) }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+              {[
+                { title: 'Investimento por Dia', dataKey: 'spend', color: '#3B82F6', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${(v/1000).toFixed(0)}k`, lblFmt: (v) => `R$${(v/1000).toFixed(1)}k` },
+                { title: 'Impressões por Dia', dataKey: 'impressions', color: '#10B981', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v) },
+                { title: 'Alcance por Dia', dataKey: 'reach', color: '#8B5CF6', fmt: (v) => formatNumber(v), tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v), lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v) },
+                { title: 'CTR Link por Dia (%)', dataKey: 'ctr_link', color: '#F59E0B', fmt: (v) => formatPercent(v), tickFmt: (v) => v.toFixed(1) + '%', lblFmt: (v) => v.toFixed(1) + '%' },
+                { title: 'Conversas por Dia', dataKey: 'conversations', color: '#EC4899', fmt: (v) => formatNumber(v), tickFmt: (v) => formatNumber(v), lblFmt: (v) => String(Math.round(v)) },
+                { title: 'Custo/Conversa por Dia', dataKey: 'cost_per_conversation', color: '#EF4444', fmt: (v) => formatCurrency(v), tickFmt: (v) => `R$${v.toFixed(0)}`, lblFmt: (v) => 'R$' + v.toFixed(0) },
+              ].map(chart => (
+                <Card key={chart.dataKey} className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
+                  <CardTitle className="text-lg mb-4">{chart.title}</CardTitle>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={dailyCharts} margin={{ top: showLabels ? 24 : 10, right: 16, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
+                        <YAxis tick={{ fontSize: 13 }} tickFormatter={chart.tickFmt} />
+                        <Tooltip formatter={(v) => chart.fmt(v)} />
+                        <Line
+                          type="monotone"
+                          dataKey={chart.dataKey}
+                          stroke={chart.color}
+                          strokeWidth={2}
+                          dot={{ fill: chart.color, r: 4 }}
+                          label={showLabels ? { position: 'top', fontSize: 11, fill: chart.color, formatter: chart.lblFmt } : false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              ))}
             </div>
 
             {/* Tabelas de Ranking */}
