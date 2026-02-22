@@ -20,7 +20,10 @@ export default function FunnelChartNew({ current, previous, stages: configStages
     color: colorGradients[idx % colorGradients.length]
   }));
 
-  const formatNumber = (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v));
+  const formatNumber = (v, isCurrency = false) => {
+    if (isCurrency) return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+    return new Intl.NumberFormat('pt-BR').format(Math.round(v));
+  };
 
   const getVariation = (current, previous) => {
     if (!previous || previous === 0) return null;
