@@ -36,6 +36,7 @@ const TABS = [
   { id: 'device',      label: 'Dispositivos',      entity: 'MetaInsightByDevice',           hasDate: true },
   { id: 'demographic', label: 'Idade e Gênero',    entity: 'MetaInsightByDemographic',      hasDate: true },
   { id: 'creatives',   label: 'Criativos',         entity: 'MetaAdsCreative',               hasDate: false },
+  { id: 'jobs',        label: 'Jobs (Ingestão)',   entity: 'MetaIngestRun',                 hasDate: true },
 ];
 
 // Column definitions per tab
