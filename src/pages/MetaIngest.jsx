@@ -478,7 +478,7 @@ export default function MetaIngest() {
         {jobs.map(job => {
           const isExpanded = expandedJob === job.id;
           const unitName = units.find(u => u.account_id === job.account_id)?.name || job.account_id;
-          const modeLabel = INSIGHT_TYPES.find(t => t.mode === job.mode)?.label || job.mode || '—';
+          const modeLabel = INSIGHT_TYPES.find(t => t.mode === job.mode)?.label || (job.mode === 'all' ? 'Todos' : job.mode) || '—';
 
           return (
             <Card key={job.id} className="border-gray-200">
