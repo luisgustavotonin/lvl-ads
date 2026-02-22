@@ -57,20 +57,30 @@ async function fetchAllPages(url) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { job_key, meta_token, unit_id } = await req.json();
+    const { job_key, meta_token, unit_id, account_id } = await req.json();
 
-    if (!job_key || !meta_token) {
-      return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
+    if (!meta_token) {
+      return Response.json({ error: 'meta_token obrigatório' }, { status: 400 });
     }
 
-    // pega o job para descobrir account_id e datas (se precisar)
-    const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
-    if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
-    const job = jobs[0];
+    let accountId, unitId;
 
-    const accountId = job.account_id;           // ex: act_123 ou 123
-    const actId = normalizeActId(accountId);    // garante só número
-    const unitId = unit_id || job.unit_id || '';
+    if (job_key) {
+      // chamado via job_key (fluxo antigo)
+      const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
+      if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
+      const job = jobs[0];
+      accountId = job.account_id;
+      unitId = unit_id || job.unit_id || '';
+    } else if (account_id) {
+      // chamado direto com account_id + unit_id (botão Sincronizar Criativos)
+      accountId = account_id;
+      unitId = unit_id || '';
+    } else {
+      return Response.json({ error: 'job_key ou account_id obrigatório' }, { status: 400 });
+    }
+
+    const actId = normalizeActId(accountId);
 
     // 🔥 fields com STATUS do anúncio + creative expandido
     const fields =
