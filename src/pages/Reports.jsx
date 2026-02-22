@@ -143,6 +143,22 @@ export default function Reports() {
     enabled: !!selectedUnit && units.length > 0,
   });
 
+  // Buscar criativos
+  const { data: creatives = [] } = useQuery({
+    queryKey: ['metaCreatives', selectedUnit],
+    queryFn: async () => {
+      if (!selectedUnit) return [];
+      const unit = units.find(u => u.id === selectedUnit);
+      if (!unit?.account_id) return [];
+      
+      const data = await base44.entities.MetaAdsCreative.filter({
+        account_id: unit.account_id
+      }, '-last_updated', 5000);
+      return data || [];
+    },
+    enabled: !!selectedUnit && units.length > 0,
+  });
+
   // (auto-detect removed — always show META when unit is selected)
 
   const current = useMemo(() => {
@@ -203,9 +219,26 @@ export default function Reports() {
     };
   }, [previousMetrics]);
 
+  // Enriquecer métricas com dados de criativos
+  const enrichedMetrics = useMemo(() => {
+    const creativeMap = {};
+    creatives.forEach(c => {
+      creativeMap[c.creative_id] = {
+        thumbnail: c.thumbnail_url || c.image_url,
+        status: c.raw?.status || 'UNKNOWN'
+      };
+    });
+
+    return currentMetrics.map(m => ({
+      ...m,
+      creative_thumbnail_url: creativeMap[m.creative_id]?.thumbnail || null,
+      ad_effective_status: m.ad_effective_status || creativeMap[m.creative_id]?.status || 'UNKNOWN'
+    }));
+  }, [currentMetrics, creatives]);
+
   const dailyCharts = useMemo(() => {
     const byDate = {};
-    currentMetrics.forEach(m => {
+    enrichedMetrics.forEach(m => {
       if (!byDate[m.date]) {
         byDate[m.date] = {
           date: m.date,
@@ -232,7 +265,7 @@ export default function Reports() {
     });
 
     return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
-  }, [currentMetrics]);
+  }, [enrichedMetrics]);
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   const formatNumber = (val) => new Intl.NumberFormat('pt-BR').format(Math.round(val));
@@ -495,7 +528,7 @@ export default function Reports() {
               
               <RankingTable 
                 title="Anúncios em Destaque"
-                data={currentMetrics}
+                data={enrichedMetrics}
                 groupKey="ad_id"
                 nameKey="ad_name"
                 showThumbnail={true}
