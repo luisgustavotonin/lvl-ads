@@ -139,8 +139,8 @@ export default function Dashboard() {
       <MetaFunnelSection 
         unitId={null}
         period="custom"
-        customStart={period.start}
-        customEnd={period.end}
+        customStartDate={period.start}
+        customEndDate={period.end}
       />
 
       {/* Chart and Status */}
@@ -169,7 +169,7 @@ export default function Dashboard() {
                       tickLine={false}
                     />
                     <YAxis 
-                      tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                      tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(1)}k` : `R$${v.toFixed(0)}`}
                       tick={{ fontSize: 12, fill: '#9CA3AF' }}
                       axisLine={false}
                       tickLine={false}

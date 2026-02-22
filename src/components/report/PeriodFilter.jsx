@@ -16,10 +16,10 @@ const getBrasiliaToday = () => {
 const PRESETS = [
   { id: 'today',        label: 'Hoje',            getDates: () => { const t = getBrasiliaToday(); return { start: t, end: t }; } },
   { id: 'yesterday',    label: 'Ontem',           getDates: () => { const t = getBrasiliaToday(); const y = subDays(t, 1); return { start: y, end: y }; } },
-  { id: 'last_7',       label: 'Últimos 7 dias',  getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 6), end: t }; } },
-  { id: 'last_14',      label: 'Últimos 14 dias', getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 13), end: t }; } },
-  { id: 'last_28',      label: 'Últimos 28 dias', getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 27), end: t }; } },
-  { id: 'last_30',      label: 'Últimos 30 dias', getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 29), end: t }; } },
+  { id: 'last_7',       label: '7 dias',          getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 6), end: t }; } },
+  { id: 'last_14',      label: '14 dias',         getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 13), end: t }; } },
+  { id: 'last_28',      label: '28 dias',         getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 27), end: t }; } },
+  { id: 'last_30',      label: '30 dias',         getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 29), end: t }; } },
 ];
 
 const toInput = (date) => {
@@ -35,6 +35,7 @@ const fromInput = (str) => {
 
 export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange }) {
   const [activePreset, setActivePreset] = React.useState('last_30');
+  const [isCustomOpen, setIsCustomOpen] = React.useState(false);
   const [showComparison, setShowComparison] = React.useState(false);
 
   const handlePreset = (preset) => {
@@ -59,32 +60,42 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
   return (
     <div className="flex flex-col gap-3 w-full">
       {/* Preset buttons */}
-      <div className="flex flex-wrap items-center gap-2">
-        {PRESETS.map((p) => (
-          <Button
-            key={p.id}
-            variant={activePreset === p.id ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handlePreset(p)}
-          >
-            {p.label}
-          </Button>
-        ))}
-        <Button
-          variant={showComparison ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setShowComparison(v => !v)}
-          className={showComparison ? 'bg-purple-600 hover:bg-purple-700' : ''}
-        >
-          Comparativo
-        </Button>
-      </div>
+       <div className="flex flex-wrap items-center gap-2">
+         {PRESETS.map((p) => (
+           <Button
+             key={p.id}
+             variant={activePreset === p.id ? 'default' : 'outline'}
+             size="sm"
+             onClick={() => { handlePreset(p); setIsCustomOpen(false); }}
+           >
+             {p.label}
+           </Button>
+         ))}
+         <Button
+           variant={isCustomOpen || activePreset === 'custom' ? 'default' : 'outline'}
+           size="sm"
+           onClick={() => setIsCustomOpen(!isCustomOpen)}
+         >
+           Personalizado
+         </Button>
+         {(isCustomOpen || showComparison) && (
+           <Button
+             variant={showComparison ? 'default' : 'outline'}
+             size="sm"
+             onClick={() => setShowComparison(v => !v)}
+             className={`${showComparison ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+           >
+             Comparar
+           </Button>
+         )}
+       </div>
 
       {/* Date rows */}
-      <div className="flex flex-col gap-2">
+      {isCustomOpen && (
+      <div className="flex flex-col gap-2 border-t pt-3">
         {/* Período analisado */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500 w-36 shrink-0">Período analisado</span>
+          <span className="text-xs font-semibold text-gray-500 w-36 shrink-0">Período</span>
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm">
             <Label className="text-xs text-gray-500">De:</Label>
             <Input
@@ -131,7 +142,8 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
+        </div>
+        )}
+        </div>
+        );
+        }
