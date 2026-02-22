@@ -1,7 +1,20 @@
-import React from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, TrendingDown, Pencil } from 'lucide-react';
+
+const COLOR_OPTIONS = [
+  '#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#06B6D4',
+  '#EF4444','#6366F1','#EAB308','#84CC16','#059669','#1D4ED8',
+  '#14B8A6','#D946EF','#D97706','#F97316','#7C3AED','#6B7280',
+];
+
+const STORAGE_KEY_FUNNEL_COLORS = 'funnel_chart_colors';
+const loadFunnelColors = () => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY_FUNNEL_COLORS)) || {}; } catch { return {}; }
+};
 
 export default function FunnelChartNew({ current, previous, stages: configStages }) {
+  const [customColors, setCustomColors] = useState(loadFunnelColors);
+  const [editingIdx, setEditingIdx] = useState(null);
   const colorGradients = [
     'from-blue-100 to-blue-200',
     'from-blue-200 to-blue-300',
