@@ -132,18 +132,26 @@ export default function MetaIngest() {
   // Sync creatives
   const handleSyncCreatives = async () => {
     if (!form.unit_id) { toast.error('Selecione uma unidade'); return; }
-    if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID'); return; }
-    if (!selectedUnit?.secret_token) { toast.error('Unidade sem Token'); return; }
+    if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID cadastrado'); return; }
+    if (!selectedUnit?.secret_token) { toast.error('Unidade sem Token cadastrado'); return; }
     setLoadingCreatives(true);
-    const res = await base44.functions.invoke('syncMetaCreatives', {
-      account_id: selectedUnit.account_id,
-      unit_id: form.unit_id,
-      meta_token: selectedUnit.secret_token,
-    });
-    setLoadingCreatives(false);
-    const data = res.data;
-    if (data.error) { toast.error(data.error); return; }
-    toast.success(`Criativos sincronizados: ${data.creatives_written ?? 0}`);
+    try {
+      const res = await base44.functions.invoke('syncMetaCreatives', {
+        account_id: selectedUnit.account_id,
+        unit_id: form.unit_id,
+        meta_token: selectedUnit.secret_token,
+      });
+      const data = res.data;
+      if (data?.error) {
+        toast.error(`Erro: ${data.error}`);
+      } else {
+        toast.success(`Criativos sincronizados: ${data.rows_written ?? 0} registros gravados`);
+      }
+    } catch (err) {
+      toast.error(`Erro inesperado: ${err?.message || err}`);
+    } finally {
+      setLoadingCreatives(false);
+    }
   };
 
   // Enqueue a single mode job and return job_key
