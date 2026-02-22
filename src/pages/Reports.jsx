@@ -49,6 +49,8 @@ export default function Reports() {
   const [showComparison, setShowComparison] = useState(true);
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
+  const [showLabels, setShowLabels] = useState(false);
+
   const [funnelStages, setFunnelStages] = useState([
     { key: 'impressions', label: 'Impressões' },
     { key: 'linkClicks', label: 'Cliques no Link' },
