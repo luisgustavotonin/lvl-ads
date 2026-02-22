@@ -430,7 +430,7 @@ export default function MetaIngest() {
                     <span className="text-xs text-gray-500">{item.rows_written} rows</span>
                   )}
                   {item.error && (
-                    <span className="text-xs text-red-500 max-w-xs truncate">{item.error}</span>
+                    <span className={`text-xs max-w-xs truncate ${item.status === 'skipped' ? 'text-gray-400' : 'text-red-500'}`}>{item.error}</span>
                   )}
                 </div>
               ))}
