@@ -519,6 +519,20 @@ export default function DataManagement() {
                           </tr>
                         ))}
                       </tbody>
+                      {/* Sticky totals row */}
+                      {numericKeys.length > 0 && (
+                        <tfoot className="sticky bottom-0 bg-yellow-50 border-t-2 border-yellow-300">
+                          <tr>
+                            {cols.map(col => (
+                              <td key={col.key} className="px-3 py-2 text-xs font-bold text-gray-800 whitespace-nowrap">
+                                {numericKeys.includes(col.key)
+                                  ? col.render({ [col.key]: totals[col.key] })
+                                  : col === cols[0] ? 'TOTAL' : ''}
+                              </td>
+                            ))}
+                          </tr>
+                        </tfoot>
+                      )}
                     </table>
                   </div>
 
