@@ -438,7 +438,22 @@ export default function DataManagement() {
                     {isLoading ? '…' : `${tabData.length} registros`}
                   </span>
                 </CardTitle>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Page size selector */}
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <span>Mostrar:</span>
+                    {PAGE_SIZE_OPTIONS.map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => { setPageSize(opt); setCurrentPage(1); }}
+                        className={`px-2 py-1 rounded border text-xs font-medium transition-colors ${
+                          pageSize === opt ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
