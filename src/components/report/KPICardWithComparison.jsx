@@ -54,11 +54,12 @@ export default function KPICardWithComparison({
   const isBetterHigher = volumeMetrics.includes(kpiKey) || kpiKey.includes('ctr') || kpiKey.includes('link');
   const isBetterLower = costMetrics.includes(kpiKey) || kpiKey.includes('cost') || kpiKey.includes('cpc') || kpiKey.includes('cpm');
 
-  let indicatorColor = 'text-gray-400';
+  let indicatorColor = 'text-green-600';
   if (isPositive && isBetterHigher) indicatorColor = 'text-green-600';
   if (isPositive && isBetterLower) indicatorColor = 'text-red-600';
   if (isNegative && isBetterHigher) indicatorColor = 'text-red-600';
   if (isNegative && isBetterLower) indicatorColor = 'text-green-600';
+  if (!isPositive && !isNegative) indicatorColor = 'text-gray-400';
 
   let valueColor = 'text-gray-900';
   let bgColor = 'bg-white';
