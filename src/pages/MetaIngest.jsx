@@ -219,8 +219,20 @@ export default function MetaIngest() {
         const job_key = enqueueResult.job_key;
         setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, job_key } : q));
 
+        // Se job já estava rodando (travado), reportar erro
         if (enqueueResult.status === 'running') {
-          setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: 'Job já estava rodando' } : q));
+          setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução" para reiniciar.' } : q));
+          continue;
+        }
+
+        // Se job já estava concluído e não foi forçado, pular com aviso
+        if (enqueueResult.status === 'done' && !form.force) {
+          setLocalQueue(prev => prev.map((q, idx) => idx === i ? {
+            ...q,
+            status: 'skipped',
+            rows_written: enqueueResult.rows_written || 0,
+            error: `Dados já existem (${enqueueResult.rows_written || 0} rows). Use "Forçar re-execução" para atualizar.`
+          } : q));
           continue;
         }
 
