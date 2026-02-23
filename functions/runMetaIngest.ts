@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
     if (!effectiveMode || effectiveMode === 'device') {
       const devItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'impression_device' });
       const devRows = devItems.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, devRows);
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, devRows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 3, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'device') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 3, rows_written: totalRows });
