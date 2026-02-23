@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Download, TrendingUp, TrendingDown, Minus, Settings2 } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Minus, Settings2, Globe, Monitor, Users, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,6 +19,18 @@ import KPICardWithComparison from '@/components/report/KPICardWithComparison';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
 import RankingTable from '@/components/report/RankingTable';
 import FunnelEditor from '@/components/report/FunnelEditor';
+import ReportPlatforms from '@/components/report/ReportPlatforms';
+import ReportDevice from '@/components/report/ReportDevice';
+import ReportDemographic from '@/components/report/ReportDemographic';
+import ReportCreatives from '@/components/report/ReportCreatives';
+
+const REPORT_TABS = [
+  { id: 'overview', label: 'Visão Geral', icon: TrendingUp },
+  { id: 'platforms', label: 'Plataformas', icon: Globe },
+  { id: 'device', label: 'Device', icon: Monitor },
+  { id: 'demographic', label: 'Demográfico', icon: Users },
+  { id: 'creatives', label: 'Criativos', icon: Image },
+];
 
 const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
 
