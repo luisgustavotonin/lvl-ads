@@ -4,8 +4,8 @@ const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
 const PAGE_LIMIT = 500;
-const CHUNK_SIZE = 50;        // menor = menos carga por query $in e menos deletes simultâneos
-const DELAY_BETWEEN_PAGES = 120;
+const CHUNK_SIZE = 50;
+const DELAY_BETWEEN_PAGES = 150;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -58,10 +58,8 @@ function metricsFromItem(item) {
     ctr_link,
     cpc_link,
     cpm: parseNum(item.cpm),
-
     messaging_conversations_started: sumActionsContaining(actionsMap, 'messaging_conversation_started'),
     messaging_conversations_replied: sumActionsContaining(actionsMap, 'messaging_first_reply'),
-
     leads: sumActionsContaining(actionsMap, 'lead'),
     purchases: sumActionsContaining(actionsMap, 'purchase'),
     purchase_value: sumActionsContaining(actionValuesMap, 'purchase'),
@@ -75,22 +73,18 @@ function getDate(item) {
 function baseRow(item, accountId, unitId, jobKey) {
   const date = getDate(item);
   const adId = item.ad_id || '';
-  const unique_key = `${accountId}:${unitId}:${adId}:${date}`;
-
   return {
-    unique_key,
+    unique_key: `${accountId}:${unitId}:${adId}:${date}`,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
     date,
-
     campaign_id: item.campaign_id || null,
     campaign_name: item.campaign_name || null,
     adset_id: item.adset_id || null,
     adset_name: item.adset_name || null,
     ad_id: adId,
     ad_name: item.ad_name || null,
-
     ...metricsFromItem(item),
     raw: item,
   };
@@ -101,33 +95,15 @@ function platformRow(item, accountId, unitId, jobKey) {
   const adId = item.ad_id || '';
   const pp = item.publisher_platform || '';
   const pos = item.platform_position || '';
-  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${pp}:${pos}`;
   const m = metricsFromItem(item);
-
   return {
-    unique_key,
+    unique_key: `${accountId}:${unitId}:${adId}:${date}:${pp}:${pos}`,
     job_key: jobKey,
-    account_id: accountId,
-    unit_id: unitId,
-    date,
-
-    campaign_id: item.campaign_id || null,
-    adset_id: item.adset_id || null,
-    ad_id: adId,
-
-    publisher_platform: pp,
-    platform_position: pos,
-
-    spend: m.spend,
-    impressions: m.impressions,
-    reach: m.reach,
-    frequency: m.frequency,
-    clicks: m.clicks,
-    link_clicks: m.link_clicks,
-    ctr_link: m.ctr_link,
-    cpc_link: m.cpc_link,
-    cpm: m.cpm,
-
+    account_id: accountId, unit_id: unitId, date,
+    campaign_id: item.campaign_id || null, adset_id: item.adset_id || null, ad_id: adId,
+    publisher_platform: pp, platform_position: pos,
+    spend: m.spend, impressions: m.impressions, reach: m.reach, frequency: m.frequency,
+    clicks: m.clicks, link_clicks: m.link_clicks, ctr_link: m.ctr_link, cpc_link: m.cpc_link, cpm: m.cpm,
     raw: item,
   };
 }
@@ -136,32 +112,15 @@ function deviceRow(item, accountId, unitId, jobKey) {
   const date = getDate(item);
   const adId = item.ad_id || '';
   const dev = item.impression_device || '';
-  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${dev}`;
   const m = metricsFromItem(item);
-
   return {
-    unique_key,
+    unique_key: `${accountId}:${unitId}:${adId}:${date}:${dev}`,
     job_key: jobKey,
-    account_id: accountId,
-    unit_id: unitId,
-    date,
-
-    campaign_id: item.campaign_id || null,
-    adset_id: item.adset_id || null,
-    ad_id: adId,
-
+    account_id: accountId, unit_id: unitId, date,
+    campaign_id: item.campaign_id || null, adset_id: item.adset_id || null, ad_id: adId,
     impression_device: dev,
-
-    spend: m.spend,
-    impressions: m.impressions,
-    reach: m.reach,
-    frequency: m.frequency,
-    clicks: m.clicks,
-    link_clicks: m.link_clicks,
-    ctr_link: m.ctr_link,
-    cpc_link: m.cpc_link,
-    cpm: m.cpm,
-
+    spend: m.spend, impressions: m.impressions, reach: m.reach, frequency: m.frequency,
+    clicks: m.clicks, link_clicks: m.link_clicks, ctr_link: m.ctr_link, cpc_link: m.cpc_link, cpm: m.cpm,
     raw: item,
   };
 }
@@ -171,39 +130,24 @@ function demographicRow(item, accountId, unitId, jobKey) {
   const adId = item.ad_id || '';
   const age = item.age || '';
   const gender = item.gender || '';
-  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${age}:${gender}`;
   const m = metricsFromItem(item);
-
   return {
-    unique_key,
+    unique_key: `${accountId}:${unitId}:${adId}:${date}:${age}:${gender}`,
     job_key: jobKey,
-    account_id: accountId,
-    unit_id: unitId,
-    date,
-
-    campaign_id: item.campaign_id || null,
-    adset_id: item.adset_id || null,
-    ad_id: adId,
-
-    age,
-    gender,
-
-    spend: m.spend,
-    impressions: m.impressions,
-    reach: m.reach,
-    frequency: m.frequency,
-    clicks: m.clicks,
-    link_clicks: m.link_clicks,
-    ctr_link: m.ctr_link,
-    cpc_link: m.cpc_link,
-    cpm: m.cpm,
-
+    account_id: accountId, unit_id: unitId, date,
+    campaign_id: item.campaign_id || null, adset_id: item.adset_id || null, ad_id: adId,
+    age, gender,
+    spend: m.spend, impressions: m.impressions, reach: m.reach, frequency: m.frequency,
+    clicks: m.clicks, link_clicks: m.link_clicks, ctr_link: m.ctr_link, cpc_link: m.cpc_link, cpm: m.cpm,
     raw: item,
   };
 }
 
-// force=true: deleta registros existentes e recria tudo
-// force=false: apenas insere registros novos (skip se já existe)
+/**
+ * Upsert batch:
+ * - force=true  → update existing records, create new ones
+ * - force=false → only create records that don't exist yet
+ */
 async function upsertBatch(entity, rows, force) {
   if (!rows.length) return 0;
 
@@ -220,19 +164,28 @@ async function upsertBatch(entity, rows, force) {
     const chunk = deduped.slice(i, i + CHUNK_SIZE);
     const keys = chunk.map(r => r.unique_key);
 
+    // Find existing records for these keys
+    const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
+    const existingMap = new Map(existingList.map(r => [r.unique_key, r.id]));
+
     if (force) {
-      // Delete existing records sequentially in small batches to avoid rate limits
-      const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
-      for (const rec of existingList) {
-        await entity.delete(rec.id);
+      // Update existing + create new — no deletes needed
+      const toCreate = [];
+      for (const row of chunk) {
+        const existingId = existingMap.get(row.unique_key);
+        if (existingId) {
+          await entity.update(existingId, row);
+        } else {
+          toCreate.push(row);
+        }
       }
-      await entity.bulkCreate(chunk);
+      if (toCreate.length > 0) {
+        await entity.bulkCreate(toCreate);
+      }
       written += chunk.length;
     } else {
-      // Only insert rows that don't already exist
-      const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
-      const existingKeys = new Set(existingList.map(r => r.unique_key));
-      const toCreate = chunk.filter(row => !existingKeys.has(row.unique_key));
+      // Only create rows that don't exist yet
+      const toCreate = chunk.filter(row => !existingMap.has(row.unique_key));
       if (toCreate.length > 0) {
         await entity.bulkCreate(toCreate);
         written += toCreate.length;
@@ -276,22 +229,37 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
   return results;
 }
 
+async function markJobFailed(base44, jobKey, errorMsg) {
+  try {
+    const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key: jobKey }, null, 1);
+    if (jobs.length) {
+      await base44.asServiceRole.entities.MetaIngestRun.update(jobs[0].id, {
+        status: 'failed',
+        error_message: String(errorMsg).substring(0, 500),
+      });
+    }
+  } catch (e) {
+    console.error('markJobFailed error:', e?.message);
+  }
+}
+
 Deno.serve(async (req) => {
-  // Lê o body UMA vez e guarda para reusar no catch
+  // Create client FIRST, before reading body — client only reads headers, not body
+  const base44 = createClientFromRequest(req);
+
+  // Read body once
   let bodyData = {};
   try { bodyData = await req.json(); } catch { /* ignore */ }
 
+  const { job_key, meta_token, unit_id, mode, force } = bodyData;
+
+  if (!job_key || !meta_token) {
+    return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
+  }
+
   try {
-    const base44 = createClientFromRequest(req);
-    const { job_key, meta_token, unit_id, mode, force } = bodyData;
-
-    if (!job_key || !meta_token) {
-      return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
-    }
-
-    // mode: 'base' | 'platform' | 'device' | 'demographic' | undefined (all)
     const validModes = ['base', 'platform', 'device', 'demographic'];
-    const effectiveMode = validModes.includes(mode) ? mode : null; // null = run all
+    const effectiveMode = validModes.includes(mode) ? mode : null;
 
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
     if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
@@ -322,50 +290,46 @@ Deno.serve(async (req) => {
 
     let totalRows = 0;
 
-    // Run only the requested mode (or all if mode not specified)
     if (!effectiveMode || effectiveMode === 'base') {
-      const baseItems = await fetchAllPagesInsights(actId, meta_token, baseParams);
-      const baseRows = baseItems.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, baseRows, force);
+      const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
+      const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, rows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 1, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'base') {
-        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 1, rows_written: totalRows });
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'base', rows_written: totalRows });
       }
     }
 
     if (!effectiveMode || effectiveMode === 'platform') {
-      const ppItems = await fetchAllPagesInsights(actId, meta_token, {
-        ...baseParams,
-        breakdowns: 'publisher_platform,platform_position',
-      });
-      const ppRows = ppItems.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, ppRows, force);
+      const items = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'publisher_platform,platform_position' });
+      const rows = items.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 2, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'platform') {
-        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 2, rows_written: totalRows });
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'platform', rows_written: totalRows });
       }
     }
 
     if (!effectiveMode || effectiveMode === 'device') {
-      const devItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'impression_device' });
-      const devRows = devItems.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, devRows, force);
+      const items = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'impression_device' });
+      const rows = items.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, rows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 3, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'device') {
-        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 3, rows_written: totalRows });
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'device', rows_written: totalRows });
       }
     }
 
     if (!effectiveMode || effectiveMode === 'demographic') {
-      const demoItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'age,gender' });
-      const demoRows = demoItems.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, demoRows, force);
+      const items = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'age,gender' });
+      const rows = items.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, rows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 4, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'demographic') {
-        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 4, rows_written: totalRows });
+        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'demographic', rows_written: totalRows });
       }
     }
@@ -377,24 +341,11 @@ Deno.serve(async (req) => {
     });
 
     return Response.json({ success: true, job_key, rows_written: totalRows });
+
   } catch (error) {
     console.error('runMetaIngest error:', error?.message || error);
-
-    try {
-      const base44b = createClientFromRequest(req);
-      if (bodyData.job_key) {
-        const jobs = await base44b.asServiceRole.entities.MetaIngestRun.filter({ job_key: bodyData.job_key }, null, 1);
-        if (jobs.length) {
-          await base44b.asServiceRole.entities.MetaIngestRun.update(jobs[0].id, {
-            status: 'failed',
-            error_message: String(error?.message || error),
-          });
-        }
-      }
-    } catch {
-      // ignore
-    }
-
+    // base44 client already created above — can safely use it here
+    await markJobFailed(base44, job_key, error?.message || String(error));
     return Response.json({ error: String(error?.message || error) }, { status: 500 });
   }
 });
