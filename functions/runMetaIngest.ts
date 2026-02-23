@@ -382,9 +382,8 @@ Deno.serve(async (req) => {
 
     try {
       const base44b = createClientFromRequest(req);
-      const body = await req.clone().json().catch(() => ({}));
-      if (body.job_key) {
-        const jobs = await base44b.asServiceRole.entities.MetaIngestRun.filter({ job_key: body.job_key }, null, 1);
+      if (bodyData.job_key) {
+        const jobs = await base44b.asServiceRole.entities.MetaIngestRun.filter({ job_key: bodyData.job_key }, null, 1);
         if (jobs.length) {
           await base44b.asServiceRole.entities.MetaIngestRun.update(jobs[0].id, {
             status: 'failed',
