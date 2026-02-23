@@ -238,14 +238,16 @@ async function upsertBatch(entity, rows) {
     if (toCreate.length > 0) {
       await entity.bulkCreate(toCreate);
       written += toCreate.length;
+      await sleep(DELAY_BETWEEN_UPDATES);
     }
 
     for (const { id, data } of toUpdate) {
       await entity.update(id, data);
       written++;
+      await sleep(10);
     }
 
-    if (i + CHUNK_SIZE < deduped.length) await sleep(50);
+    if (i + CHUNK_SIZE < deduped.length) await sleep(DELAY_BETWEEN_UPDATES);
   }
 
   return written;
