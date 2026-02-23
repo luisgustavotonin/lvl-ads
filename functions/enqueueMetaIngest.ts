@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { account_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, meta_token, mode, job_key_override } = body;
+    const { account_id, unit_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, meta_token, mode, job_key_override } = body;
 
     if (!account_id || !date_from || !date_to) {
       return Response.json({ error: 'account_id, date_from, date_to obrigatórios' }, { status: 400 });
