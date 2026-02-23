@@ -336,7 +336,7 @@ Deno.serve(async (req) => {
         breakdowns: 'publisher_platform,platform_position',
       });
       const ppRows = ppItems.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, ppRows);
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, ppRows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 2, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'platform') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 2, rows_written: totalRows });
