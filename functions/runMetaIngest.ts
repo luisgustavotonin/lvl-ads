@@ -3,10 +3,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
+// Meta paging
 const PAGE_LIMIT = 500;
-const CHUNK_SIZE = 50;
 const DELAY_BETWEEN_PAGES = 150;
 
+// Save tuning
+const CONCURRENCY = 6; // se der rate limit no Base44, baixa pra 4
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function normalizeActId(id) {
@@ -46,7 +48,7 @@ function metricsFromItem(item) {
 
   const link_clicks = fromMap(actionsMap, 'link_click');
   const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
-  const cpc_link = link_clicks > 0 ? (spend / link_clicks) : 0;
+  const cpc_link = link_clicks > 0 ? spend / link_clicks : 0;
 
   return {
     spend,
@@ -58,6 +60,8 @@ function metricsFromItem(item) {
     ctr_link,
     cpc_link,
     cpm: parseNum(item.cpm),
+
+    // Mensageria / leads / compras (se existir no actions)
     messaging_conversations_started: sumActionsContaining(actionsMap, 'messaging_conversation_started'),
     messaging_conversations_replied: sumActionsContaining(actionsMap, 'messaging_first_reply'),
     leads: sumActionsContaining(actionsMap, 'lead'),
@@ -83,7 +87,7 @@ function baseRow(item, accountId, unitId, jobKey) {
     campaign_name: item.campaign_name || null,
     adset_id: item.adset_id || null,
     adset_name: item.adset_name || null,
-    ad_id: adId,
+    ad_id: adId || null,
     ad_name: item.ad_name || null,
     ...metricsFromItem(item),
     raw: item,
@@ -99,11 +103,23 @@ function platformRow(item, accountId, unitId, jobKey) {
   return {
     unique_key: `${accountId}:${unitId}:${adId}:${date}:${pp}:${pos}`,
     job_key: jobKey,
-    account_id: accountId, unit_id: unitId, date,
-    campaign_id: item.campaign_id || null, adset_id: item.adset_id || null, ad_id: adId,
-    publisher_platform: pp, platform_position: pos,
-    spend: m.spend, impressions: m.impressions, reach: m.reach, frequency: m.frequency,
-    clicks: m.clicks, link_clicks: m.link_clicks, ctr_link: m.ctr_link, cpc_link: m.cpc_link, cpm: m.cpm,
+    account_id: accountId,
+    unit_id: unitId,
+    date,
+    campaign_id: item.campaign_id || null,
+    adset_id: item.adset_id || null,
+    ad_id: adId || null,
+    publisher_platform: pp || null,
+    platform_position: pos || null,
+    spend: m.spend,
+    impressions: m.impressions,
+    reach: m.reach,
+    frequency: m.frequency,
+    clicks: m.clicks,
+    link_clicks: m.link_clicks,
+    ctr_link: m.ctr_link,
+    cpc_link: m.cpc_link,
+    cpm: m.cpm,
     raw: item,
   };
 }
@@ -116,11 +132,22 @@ function deviceRow(item, accountId, unitId, jobKey) {
   return {
     unique_key: `${accountId}:${unitId}:${adId}:${date}:${dev}`,
     job_key: jobKey,
-    account_id: accountId, unit_id: unitId, date,
-    campaign_id: item.campaign_id || null, adset_id: item.adset_id || null, ad_id: adId,
-    impression_device: dev,
-    spend: m.spend, impressions: m.impressions, reach: m.reach, frequency: m.frequency,
-    clicks: m.clicks, link_clicks: m.link_clicks, ctr_link: m.ctr_link, cpc_link: m.cpc_link, cpm: m.cpm,
+    account_id: accountId,
+    unit_id: unitId,
+    date,
+    campaign_id: item.campaign_id || null,
+    adset_id: item.adset_id || null,
+    ad_id: adId || null,
+    impression_device: dev || null,
+    spend: m.spend,
+    impressions: m.impressions,
+    reach: m.reach,
+    frequency: m.frequency,
+    clicks: m.clicks,
+    link_clicks: m.link_clicks,
+    ctr_link: m.ctr_link,
+    cpc_link: m.cpc_link,
+    cpm: m.cpm,
     raw: item,
   };
 }
@@ -134,24 +161,36 @@ function demographicRow(item, accountId, unitId, jobKey) {
   return {
     unique_key: `${accountId}:${unitId}:${adId}:${date}:${age}:${gender}`,
     job_key: jobKey,
-    account_id: accountId, unit_id: unitId, date,
-    campaign_id: item.campaign_id || null, adset_id: item.adset_id || null, ad_id: adId,
-    age, gender,
-    spend: m.spend, impressions: m.impressions, reach: m.reach, frequency: m.frequency,
-    clicks: m.clicks, link_clicks: m.link_clicks, ctr_link: m.ctr_link, cpc_link: m.cpc_link, cpm: m.cpm,
+    account_id: accountId,
+    unit_id: unitId,
+    date,
+    campaign_id: item.campaign_id || null,
+    adset_id: item.adset_id || null,
+    ad_id: adId || null,
+    age: age || null,
+    gender: gender || null,
+    spend: m.spend,
+    impressions: m.impressions,
+    reach: m.reach,
+    frequency: m.frequency,
+    clicks: m.clicks,
+    link_clicks: m.link_clicks,
+    ctr_link: m.ctr_link,
+    cpc_link: m.cpc_link,
+    cpm: m.cpm,
     raw: item,
   };
 }
 
 /**
- * Upsert batch:
- * - force=true  → update existing records, create new ones
- * - force=false → only create records that don't exist yet
+ * SALVAMENTO ROBUSTO (sem $in, sem bulkCreate, sem update):
+ * - create em paralelo controlado
+ * - se der erro de duplicado/unique_key → ignora (idempotente)
  */
-async function upsertBatch(entity, rows, force) {
-  if (!rows.length) return 0;
+async function saveBatchCreateOnly(entity, rows) {
+  if (!rows?.length) return 0;
 
-  // Deduplicate by unique_key
+  // Dedup por unique_key dentro do batch
   const map = new Map();
   for (const r of rows) {
     if (r?.unique_key) map.set(r.unique_key, r);
@@ -160,40 +199,43 @@ async function upsertBatch(entity, rows, force) {
 
   let written = 0;
 
-  for (let i = 0; i < deduped.length; i += CHUNK_SIZE) {
-    const chunk = deduped.slice(i, i + CHUNK_SIZE);
-    const keys = chunk.map(r => r.unique_key);
+  for (let i = 0; i < deduped.length; i += CONCURRENCY) {
+    const chunk = deduped.slice(i, i + CONCURRENCY);
 
-    // Find existing records for these keys
-    const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
-    const existingMap = new Map(existingList.map(r => [r.unique_key, r.id]));
-
-    if (force) {
-      // Update existing + create new — no deletes needed
-      const toCreate = [];
-      for (const row of chunk) {
-        const existingId = existingMap.get(row.unique_key);
-        if (existingId) {
-          await entity.update(existingId, row);
-        } else {
-          toCreate.push(row);
+    const results = await Promise.allSettled(
+      chunk.map(async (row) => {
+        try {
+          await entity.create(row);
+          return true;
+        } catch (e) {
+          const msg = String(e?.message || '').toLowerCase();
+          // idempotência: se já existe, ignora
+          if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) return false;
+          throw e;
         }
-      }
-      if (toCreate.length > 0) {
-        await entity.bulkCreate(toCreate);
-      }
-      written += chunk.length;
-    } else {
-      // Only create rows that don't exist yet
-      const toCreate = chunk.filter(row => !existingMap.has(row.unique_key));
-      if (toCreate.length > 0) {
-        await entity.bulkCreate(toCreate);
-        written += toCreate.length;
-      }
+      })
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value === true) written++;
+      if (r.status === 'rejected') console.error('⚠️ create falhou:', r.reason?.message || r.reason);
     }
   }
 
   return written;
+}
+
+async function fetchJsonWithTimeout(url, ms = 60000) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms);
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 async function fetchAllPagesInsights(actId, metaToken, params) {
@@ -209,11 +251,14 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
     if (cursor) p.set('after', cursor);
 
     const url = `${META_BASE}/act_${actId}/insights?${p.toString()}`;
-    const res = await fetch(url);
-    const data = await res.json();
 
-    if (!res.ok || data.error) {
-      throw new Error(data.error?.message || `Meta API HTTP ${res.status}`);
+    const { res, data } = await fetchJsonWithTimeout(url, 60000);
+
+    if (!res.ok || data?.error) {
+      const msg = data?.error?.message || `Meta API HTTP ${res.status}`;
+      const code = data?.error?.code;
+      const sub = data?.error?.error_subcode;
+      throw new Error(`${msg}${code ? ` | code=${code}` : ''}${sub ? ` | sub=${sub}` : ''}`);
     }
 
     results.push(...(data.data || []));
@@ -244,14 +289,16 @@ async function markJobFailed(base44, jobKey, errorMsg) {
 }
 
 Deno.serve(async (req) => {
-  // Create client FIRST, before reading body — client only reads headers, not body
   const base44 = createClientFromRequest(req);
 
-  // Read body once
   let bodyData = {};
-  try { bodyData = await req.json(); } catch { /* ignore */ }
+  try {
+    bodyData = await req.json();
+  } catch {
+    bodyData = {};
+  }
 
-  const { job_key, meta_token, unit_id, mode, force } = bodyData;
+  const { job_key, meta_token, unit_id, mode } = bodyData;
 
   if (!job_key || !meta_token) {
     return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
@@ -263,8 +310,8 @@ Deno.serve(async (req) => {
 
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
     if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
-    const job = jobs[0];
 
+    const job = jobs[0];
     if (job.status === 'running') return Response.json({ status: 'already_running', job_key });
 
     await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
@@ -278,6 +325,7 @@ Deno.serve(async (req) => {
     const actId = normalizeActId(account_id);
     const effectiveUnitId = unit_id || job.unit_id || '';
 
+    // ✅ fields fixos (breakdown NUNCA entra aqui)
     const baseParams = {
       time_range: JSON.stringify({ since: date_from, until: date_to }),
       fields:
@@ -290,10 +338,11 @@ Deno.serve(async (req) => {
 
     let totalRows = 0;
 
+    // BASE
     if (!effectiveMode || effectiveMode === 'base') {
       const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
       const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, rows, force);
+      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightBase, rows);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 1, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'base') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
@@ -301,10 +350,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // PLATFORM+POSITION
     if (!effectiveMode || effectiveMode === 'platform') {
-      const items = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'publisher_platform,platform_position' });
+      const items = await fetchAllPagesInsights(actId, meta_token, {
+        ...baseParams,
+        breakdowns: 'publisher_platform,platform_position',
+      });
       const rows = items.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows, force);
+      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 2, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'platform') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
@@ -312,10 +365,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // DEVICE
     if (!effectiveMode || effectiveMode === 'device') {
-      const items = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'impression_device' });
+      const items = await fetchAllPagesInsights(actId, meta_token, {
+        ...baseParams,
+        breakdowns: 'impression_device',
+      });
       const rows = items.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDevice, rows, force);
+      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightByDevice, rows);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 3, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'device') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
@@ -323,10 +380,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // DEMOGRAPHIC (age+gender)
     if (!effectiveMode || effectiveMode === 'demographic') {
-      const items = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'age,gender' });
+      const items = await fetchAllPagesInsights(actId, meta_token, {
+        ...baseParams,
+        breakdowns: 'age,gender',
+      });
       const rows = items.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, rows, force);
+      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightByDemographic, rows);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 4, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'demographic') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
@@ -341,10 +402,8 @@ Deno.serve(async (req) => {
     });
 
     return Response.json({ success: true, job_key, rows_written: totalRows });
-
   } catch (error) {
     console.error('runMetaIngest error:', error?.message || error);
-    // base44 client already created above — can safely use it here
     await markJobFailed(base44, job_key, error?.message || String(error));
     return Response.json({ error: String(error?.message || error) }, { status: 500 });
   }
