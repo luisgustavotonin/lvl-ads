@@ -524,10 +524,7 @@ Deno.serve(async (req) => {
       const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
       const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
 
-      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightBase, rows, {
-        force: effectiveForce,
-        job_key,
-      });
+      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightBase, rows, { job_key });
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 1,
