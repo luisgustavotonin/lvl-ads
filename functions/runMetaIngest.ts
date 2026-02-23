@@ -123,7 +123,6 @@ function baseRow(item, accountId, unitId, jobKey) {
     ad_name: item.ad_name || null,
 
     ...metricsFromItem(item),
-    raw: item,
   };
 }
 
