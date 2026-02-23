@@ -377,10 +377,12 @@ export default function Reports() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
+              {activeTab === 'overview' && (
               <MetaExportPDF 
                 unitName={selectedUnitData?.name || 'Unidade'}
                 period={period}
               />
+              )}
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2">
