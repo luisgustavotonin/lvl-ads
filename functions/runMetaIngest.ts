@@ -440,44 +440,14 @@ async function safeUpdateMany(entity, updates) {
 }
 
 /**
- * Salvamento correto (idempotente e rápido):
- * - force=true  => DELETE por job_key e recria tudo (consistente)
- * - force=false => UP SERT: cria faltantes e atualiza existentes
+ * Salvamento: sempre DELETE por job_key + bulkCreate (mais rápido e consistente)
  */
-async function saveUpsert(entity, rows, { force, job_key }) {
+async function saveUpsert(entity, rows, { job_key }) {
   const deduped = dedupByUniqueKey(rows);
   if (!deduped.length) return 0;
 
-  if (force) {
-    await bulkDeleteByJobKey(entity, job_key);
-    return await safeBulkCreate(entity, deduped);
-  }
-
-  const keys = deduped.map((r) => r.unique_key);
-  const existing = await safeFilterByInChunked(entity, keys);
-
-  // Se $in falhar: tenta criar tudo; duplicados serão ignorados no fallback
-  if (existing === null) {
-    return await safeBulkCreate(entity, deduped);
-  }
-
-  const existingMap = new Map(existing.map((e) => [e.unique_key, e.id]));
-
-  const toCreate = [];
-  const toUpdate = [];
-
-  for (const row of deduped) {
-    const id = existingMap.get(row.unique_key);
-    if (id) toUpdate.push({ id, data: row });
-    else toCreate.push(row);
-  }
-
-  let written = 0;
-
-  if (toCreate.length) written += await safeBulkCreate(entity, toCreate);
-  if (toUpdate.length) written += await safeUpdateMany(entity, toUpdate);
-
-  return written;
+  await bulkDeleteByJobKey(entity, job_key);
+  return await safeBulkCreate(entity, deduped);
 }
 
 // -----------------------
