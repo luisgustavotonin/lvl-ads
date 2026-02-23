@@ -581,7 +581,9 @@ export default function MetaIngest() {
                   <div className="mt-3 pt-3 border-t text-xs text-gray-500 space-y-1 font-mono break-all bg-gray-50 rounded p-2">
                     <p><strong>job_key:</strong> {job.job_key}</p>
                     <p><strong>account_id:</strong> {job.account_id}</p>
-                    <p><strong>mode:</strong> {job.mode || 'all'}</p>
+                    <p><strong>tipo:</strong> {modeLabel}</p>
+                    <p><strong>período:</strong> {job.date_from} → {job.date_to}</p>
+                    <p><strong>status:</strong> {job.status}</p>
                     {job.error_message && <p className="text-red-500"><strong>erro:</strong> {job.error_message}</p>}
                     <p><strong>criado em:</strong> {new Date(job.created_date).toLocaleString('pt-BR')}</p>
                   </div>
