@@ -436,13 +436,12 @@ async function safeUpdateMany(entity, updates) {
 }
 
 /**
- * Salvamento: sempre DELETE por job_key + bulkCreate (mais rápido e consistente)
+ * Salvamento: bulkCreate direto, sem delete.
+ * unique_key garante idempotência — duplicatas são ignoradas via fallback.
  */
-async function saveUpsert(entity, rows, { job_key }) {
+async function saveUpsert(entity, rows) {
   const deduped = dedupByUniqueKey(rows);
   if (!deduped.length) return 0;
-
-  await bulkDeleteByJobKey(entity, job_key);
   return await safeBulkCreate(entity, deduped);
 }
 
