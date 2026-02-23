@@ -3,18 +3,42 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
-// Meta paging
+// -----------------------
+// Tuning
+// -----------------------
 const PAGE_LIMIT = 500;
-const DELAY_BETWEEN_PAGES = 50; // antes 150 (mais rápido)
+const DELAY_BETWEEN_PAGES = 120; // recomendo voltar p/ 120~200ms p/ estabilidade
 
-// Save tuning (bulk)
-const BULK_CHUNK = 250; // 200~400 costuma ser bom
+// Save tuning
+const IN_FILTER_CHUNK = 200;     // igual ao antigo (bem seguro)
+const BULK_CHUNK = 250;          // 200~400 costuma ser bom
+const UPDATE_CONCURRENCY = 6;    // updates são mais caros; mantenha baixo
+const DELETE_CONCURRENCY = 10;   // delete controlado p/ não derrubar runtime
 const DELETE_BATCH = 200;
 
-// Fallback create-only (se bulkCreate falhar no seu Base44)
-const CREATE_CONCURRENCY = 8; // se rate limit, baixa pra 4~6
+// Fallback create-only
+const CREATE_CONCURRENCY = 6;    // se instável, 4~6
+
+// Meta retry
+const META_TIMEOUT_MS = 60000;
+const META_MAX_RETRIES = 5;
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+function jitter(ms) {
+  const j = Math.floor(Math.random() * 200);
+  return ms + j;
+}
+
+function splitIntoChunks(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// -----------------------
+// Helpers
+// -----------------------
 function normalizeActId(id) {
   if (!id) return '';
   return String(id).replace(/^act_/, '');
@@ -65,9 +89,9 @@ function metricsFromItem(item) {
     cpc_link,
     cpm: parseNum(item.cpm),
 
-    // Mensageria / leads / compras (se existir no actions)
     messaging_conversations_started: sumActionsContaining(actionsMap, 'messaging_conversation_started'),
     messaging_conversations_replied: sumActionsContaining(actionsMap, 'messaging_first_reply'),
+
     leads: sumActionsContaining(actionsMap, 'lead'),
     purchases: sumActionsContaining(actionsMap, 'purchase'),
     purchase_value: sumActionsContaining(actionValuesMap, 'purchase'),
@@ -78,6 +102,9 @@ function getDate(item) {
   return item.date_start || item.date_stop || '';
 }
 
+// -----------------------
+// Rows
+// -----------------------
 function baseRow(item, accountId, unitId, jobKey) {
   const date = getDate(item);
   const adId = item.ad_id || '';
@@ -87,12 +114,14 @@ function baseRow(item, accountId, unitId, jobKey) {
     account_id: accountId,
     unit_id: unitId,
     date,
+
     campaign_id: item.campaign_id || null,
     campaign_name: item.campaign_name || null,
     adset_id: item.adset_id || null,
     adset_name: item.adset_name || null,
     ad_id: adId || null,
     ad_name: item.ad_name || null,
+
     ...metricsFromItem(item),
     raw: item,
   };
@@ -104,17 +133,21 @@ function platformRow(item, accountId, unitId, jobKey) {
   const pp = item.publisher_platform || '';
   const pos = item.platform_position || '';
   const m = metricsFromItem(item);
+
   return {
     unique_key: `${accountId}:${unitId}:${adId}:${date}:${pp}:${pos}`,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
     date,
+
     campaign_id: item.campaign_id || null,
     adset_id: item.adset_id || null,
     ad_id: adId || null,
+
     publisher_platform: pp || null,
     platform_position: pos || null,
+
     spend: m.spend,
     impressions: m.impressions,
     reach: m.reach,
@@ -124,6 +157,7 @@ function platformRow(item, accountId, unitId, jobKey) {
     ctr_link: m.ctr_link,
     cpc_link: m.cpc_link,
     cpm: m.cpm,
+
     raw: item,
   };
 }
@@ -133,16 +167,20 @@ function deviceRow(item, accountId, unitId, jobKey) {
   const adId = item.ad_id || '';
   const dev = item.impression_device || '';
   const m = metricsFromItem(item);
+
   return {
     unique_key: `${accountId}:${unitId}:${adId}:${date}:${dev}`,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
     date,
+
     campaign_id: item.campaign_id || null,
     adset_id: item.adset_id || null,
     ad_id: adId || null,
+
     impression_device: dev || null,
+
     spend: m.spend,
     impressions: m.impressions,
     reach: m.reach,
@@ -152,6 +190,7 @@ function deviceRow(item, accountId, unitId, jobKey) {
     ctr_link: m.ctr_link,
     cpc_link: m.cpc_link,
     cpm: m.cpm,
+
     raw: item,
   };
 }
@@ -162,17 +201,21 @@ function demographicRow(item, accountId, unitId, jobKey) {
   const age = item.age || '';
   const gender = item.gender || '';
   const m = metricsFromItem(item);
+
   return {
     unique_key: `${accountId}:${unitId}:${adId}:${date}:${age}:${gender}`,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
     date,
+
     campaign_id: item.campaign_id || null,
     adset_id: item.adset_id || null,
     ad_id: adId || null,
+
     age: age || null,
     gender: gender || null,
+
     spend: m.spend,
     impressions: m.impressions,
     reach: m.reach,
@@ -182,14 +225,15 @@ function demographicRow(item, accountId, unitId, jobKey) {
     ctr_link: m.ctr_link,
     cpc_link: m.cpc_link,
     cpm: m.cpm,
+
     raw: item,
   };
 }
 
 // -----------------------
-// Fetch (Meta)
+// Fetch (Meta) w/ retry
 // -----------------------
-async function fetchJsonWithTimeout(url, ms = 60000) {
+async function fetchJsonWithTimeout(url, ms = META_TIMEOUT_MS) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms);
 
@@ -200,6 +244,16 @@ async function fetchJsonWithTimeout(url, ms = 60000) {
   } finally {
     clearTimeout(t);
   }
+}
+
+function isTransientMetaError(res, data) {
+  const http = res?.status || 0;
+  const code = data?.error?.code;
+  // HTTP transitórios
+  if (http === 429 || (http >= 500 && http <= 599)) return true;
+  // Meta throttling/transient típicos
+  if (code === 4 || code === 17 || code === 1 || code === 2) return true;
+  return false;
 }
 
 async function fetchAllPagesInsights(actId, metaToken, params) {
@@ -215,30 +269,42 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
     if (cursor) p.set('after', cursor);
 
     const url = `${META_BASE}/act_${actId}/insights?${p.toString()}`;
-    const { res, data } = await fetchJsonWithTimeout(url, 60000);
 
-    if (!res.ok || data?.error) {
+    let lastErr = null;
+    for (let attempt = 0; attempt <= META_MAX_RETRIES; attempt++) {
+      const { res, data } = await fetchJsonWithTimeout(url, META_TIMEOUT_MS);
+
+      if (res.ok && !data?.error) {
+        results.push(...(data.data || []));
+
+        if (data.paging?.cursors?.after && data.paging?.next) {
+          cursor = data.paging.cursors.after;
+          if (DELAY_BETWEEN_PAGES) await sleep(DELAY_BETWEEN_PAGES);
+          break; // vai para próxima página
+        }
+
+        return results; // acabou
+      }
+
       const msg = data?.error?.message || `Meta API HTTP ${res.status}`;
       const code = data?.error?.code;
       const sub = data?.error?.error_subcode;
-      throw new Error(`${msg}${code ? ` | code=${code}` : ''}${sub ? ` | sub=${sub}` : ''}`);
-    }
+      lastErr = new Error(`${msg}${code ? ` | code=${code}` : ''}${sub ? ` | sub=${sub}` : ''}`);
 
-    results.push(...(data.data || []));
+      if (!isTransientMetaError(res, data) || attempt === META_MAX_RETRIES) {
+        throw lastErr;
+      }
 
-    if (data.paging?.cursors?.after && data.paging?.next) {
-      cursor = data.paging.cursors.after;
-      if (DELAY_BETWEEN_PAGES) await sleep(DELAY_BETWEEN_PAGES);
-      continue;
+      // backoff exponencial com jitter
+      const backoff = jitter(500 * Math.pow(2, attempt));
+      console.warn(`Meta transient error (attempt ${attempt + 1}/${META_MAX_RETRIES + 1}) -> retry in ${backoff}ms:`, lastErr.message);
+      await sleep(backoff);
     }
-    break;
   }
-
-  return results;
 }
 
 // -----------------------
-// Save (Base44) — rápido
+// Save (Base44) — UP SERT REAL
 // -----------------------
 function dedupByUniqueKey(rows) {
   const map = new Map();
@@ -248,28 +314,59 @@ function dedupByUniqueKey(rows) {
   return Array.from(map.values());
 }
 
+async function runWithConcurrency(items, worker, concurrency) {
+  let idx = 0;
+  let ok = 0;
+
+  async function runner() {
+    while (idx < items.length) {
+      const i = idx++;
+      try {
+        const res = await worker(items[i], i);
+        if (res) ok++;
+      } catch (e) {
+        throw e;
+      }
+    }
+  }
+
+  const runners = Array.from({ length: Math.max(1, concurrency) }, () => runner());
+  await Promise.all(runners);
+  return ok;
+}
+
 async function bulkDeleteByJobKey(entity, job_key) {
-  // apaga em lotes, para não travar
   while (true) {
     const list = await entity.filter({ job_key }, null, DELETE_BATCH);
     if (!list?.length) break;
-    await Promise.allSettled(list.map((r) => entity.delete(r.id)));
+
+    await runWithConcurrency(
+      list,
+      async (r) => {
+        await entity.delete(r.id);
+        return true;
+      },
+      DELETE_CONCURRENCY
+    );
+
+    // pequeno respiro evita “rajada”
+    await sleep(50);
   }
 }
 
 async function tryBulkCreate(entity, rows) {
-  // tenta bulkCreate em chunks grandes
   let written = 0;
   for (let i = 0; i < rows.length; i += BULK_CHUNK) {
     const chunk = rows.slice(i, i + BULK_CHUNK);
     await entity.bulkCreate(chunk);
     written += chunk.length;
+    if (i + BULK_CHUNK < rows.length) await sleep(30);
   }
   return written;
 }
 
 async function fallbackCreateOnly(entity, rows) {
-  // fallback: create em paralelo (mais lento que bulk, mas funciona)
+  // create em paralelo com ignore de duplicado
   let written = 0;
 
   for (let i = 0; i < rows.length; i += CREATE_CONCURRENCY) {
@@ -292,13 +389,14 @@ async function fallbackCreateOnly(entity, rows) {
       if (r.status === 'fulfilled' && r.value === true) written++;
       if (r.status === 'rejected') console.error('⚠️ create falhou:', r.reason?.message || r.reason);
     }
+
+    if (i + CREATE_CONCURRENCY < rows.length) await sleep(20);
   }
 
   return written;
 }
 
 async function safeBulkCreate(entity, rows) {
-  // bulkCreate -> se der erro, cai no create-only
   try {
     return await tryBulkCreate(entity, rows);
   } catch (e) {
@@ -307,23 +405,46 @@ async function safeBulkCreate(entity, rows) {
   }
 }
 
-async function safeFilterByIn(entity, keys, limitHint) {
-  // tenta $in; se não rolar no seu Base44, retorna null e a gente segue sem filtrar
+async function safeFilterByInChunked(entity, keys) {
+  // Retorna array completo dos existentes (ou null se $in falhar)
   try {
-    const res = await entity.filter({ unique_key: { $in: keys } }, null, limitHint || keys.length);
-    return Array.isArray(res) ? res : [];
+    const existingAll = [];
+    const chunks = splitIntoChunks(keys, IN_FILTER_CHUNK);
+
+    for (const ck of chunks) {
+      const res = await entity.filter({ unique_key: { $in: ck } }, null, ck.length);
+      if (Array.isArray(res) && res.length) existingAll.push(...res);
+      // respiro pequeno
+      await sleep(10);
+    }
+
+    return existingAll;
   } catch (e) {
-    console.error('⚠️ filter $in falhou (vou criar sem checar existentes):', e?.message || e);
+    console.error('⚠️ filter $in falhou (não dá pra checar existentes):', e?.message || e);
     return null;
   }
 }
 
+async function safeUpdateMany(entity, updates) {
+  // updates: [{ id, data }]
+  // (Base44 não tem bulkUpdate aqui, então controlamos concorrência)
+  const written = await runWithConcurrency(
+    updates,
+    async ({ id, data }) => {
+      await entity.update(id, data);
+      return true;
+    },
+    UPDATE_CONCURRENCY
+  );
+  return written;
+}
+
 /**
- * Salvamento rápido:
- * - force=true  => DELETE por job_key e recria (mais rápido e consistente)
- * - force=false => cria só o que não existe (se $in falhar, cria tudo e ignora duplicado no fallback)
+ * Salvamento correto (idempotente e rápido):
+ * - force=true  => DELETE por job_key e recria tudo (consistente)
+ * - force=false => UP SERT: cria faltantes e atualiza existentes
  */
-async function saveFast(entity, rows, { force, job_key }) {
+async function saveUpsert(entity, rows, { force, job_key }) {
   const deduped = dedupByUniqueKey(rows);
   if (!deduped.length) return 0;
 
@@ -332,24 +453,35 @@ async function saveFast(entity, rows, { force, job_key }) {
     return await safeBulkCreate(entity, deduped);
   }
 
-  // force=false: cria só o que falta (se $in funcionar)
   const keys = deduped.map((r) => r.unique_key);
-  const existing = await safeFilterByIn(entity, keys, Math.min(keys.length, 5000));
+  const existing = await safeFilterByInChunked(entity, keys);
 
+  // Se $in falhar: tenta criar tudo; duplicados serão ignorados no fallback
   if (existing === null) {
-    // $in não funciona — tenta criar tudo via bulk (se duplicar, fallback create-only ignora duplicado)
     return await safeBulkCreate(entity, deduped);
   }
 
-  const existingSet = new Set(existing.map((e) => e.unique_key));
-  const toCreate = deduped.filter((r) => !existingSet.has(r.unique_key));
-  if (!toCreate.length) return 0;
+  const existingMap = new Map(existing.map((e) => [e.unique_key, e.id]));
 
-  return await safeBulkCreate(entity, toCreate);
+  const toCreate = [];
+  const toUpdate = [];
+
+  for (const row of deduped) {
+    const id = existingMap.get(row.unique_key);
+    if (id) toUpdate.push({ id, data: row });
+    else toCreate.push(row);
+  }
+
+  let written = 0;
+
+  if (toCreate.length) written += await safeBulkCreate(entity, toCreate);
+  if (toUpdate.length) written += await safeUpdateMany(entity, toUpdate);
+
+  return written;
 }
 
 // -----------------------
-// Job status helpers
+// Job status
 // -----------------------
 async function markJobFailed(base44, jobKey, errorMsg) {
   try {
@@ -387,7 +519,7 @@ Deno.serve(async (req) => {
   try {
     const validModes = ['base', 'platform', 'device', 'demographic'];
     const effectiveMode = validModes.includes(mode) ? mode : null;
-    const effectiveForce = !!force; // se vier true no body, substitui
+    const effectiveForce = !!force;
 
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
     if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
@@ -406,7 +538,6 @@ Deno.serve(async (req) => {
     const actId = normalizeActId(account_id);
     const effectiveUnitId = unit_id || job.unit_id || '';
 
-    // ✅ fields fixos (breakdown NUNCA entra aqui)
     const baseParams = {
       time_range: JSON.stringify({ since: date_from, until: date_to }),
       fields:
@@ -423,7 +554,8 @@ Deno.serve(async (req) => {
     if (!effectiveMode || effectiveMode === 'base') {
       const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
       const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightBase, rows, {
+
+      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightBase, rows, {
         force: effectiveForce,
         job_key,
       });
@@ -447,7 +579,7 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows, {
+      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows, {
         force: effectiveForce,
         job_key,
       });
@@ -471,7 +603,7 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightByDevice, rows, {
+      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByDevice, rows, {
         force: effectiveForce,
         job_key,
       });
@@ -487,7 +619,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // DEMOGRAPHIC (age+gender)
+    // DEMOGRAPHIC
     if (!effectiveMode || effectiveMode === 'demographic') {
       const items = await fetchAllPagesInsights(actId, meta_token, {
         ...baseParams,
@@ -495,7 +627,7 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightByDemographic, rows, {
+      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByDemographic, rows, {
         force: effectiveForce,
         job_key,
       });
