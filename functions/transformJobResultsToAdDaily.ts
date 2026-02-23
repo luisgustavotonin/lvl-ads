@@ -1,9 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-const CONCURRENCY = 6;
+const BULK_SIZE = 200;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function saveBatch(entity, rows) {
+async function saveBulk(entity, rows) {
     if (!rows?.length) return 0;
     const map = new Map();
     for (const r of rows) {
@@ -11,25 +11,26 @@ async function saveBatch(entity, rows) {
     }
     const deduped = Array.from(map.values());
     let written = 0;
-    for (let i = 0; i < deduped.length; i += CONCURRENCY) {
-        const chunk = deduped.slice(i, i + CONCURRENCY);
-        const results = await Promise.allSettled(
-            chunk.map(async (row) => {
+    for (let i = 0; i < deduped.length; i += BULK_SIZE) {
+        const chunk = deduped.slice(i, i + BULK_SIZE);
+        try {
+            await entity.bulkCreate(chunk);
+            written += chunk.length;
+        } catch (e) {
+            console.warn(`⚠️ bulkCreate falhou, tentando individual: ${e.message}`);
+            for (const row of chunk) {
                 try {
                     await entity.create(row);
-                    return true;
-                } catch (e) {
-                    const msg = String(e?.message || '').toLowerCase();
-                    if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) return false;
-                    throw e;
+                    written++;
+                } catch (e2) {
+                    const msg = String(e2?.message || '').toLowerCase();
+                    if (!msg.includes('unique') && !msg.includes('duplicate') && !msg.includes('already')) {
+                        console.error('create falhou:', e2.message);
+                    }
                 }
-            })
-        );
-        for (const r of results) {
-            if (r.status === 'fulfilled' && r.value === true) written++;
-            if (r.status === 'rejected') console.error('⚠️ create falhou:', r.reason?.message);
+            }
         }
-        if (i + CONCURRENCY < deduped.length) await sleep(50);
+        if (i + BULK_SIZE < deduped.length) await sleep(30);
     }
     return written;
 }
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
 
         if (!job_id) return Response.json({ ok: false, error: 'job_id é obrigatório' }, { status: 400 });
 
-        // Buscar resultado e metadados em paralelo
+        // Buscar metadados em paralelo
         const [results, queueJobs] = await Promise.all([
             base44.asServiceRole.entities.MetaJobsResults.filter({ job_id }),
             base44.asServiceRole.entities.MetaJobsQueue.filter({ job_id })
@@ -65,18 +66,18 @@ Deno.serve(async (req) => {
         const result = results[0];
         unit_id = unit_id || result.unit_id;
         account_id = account_id || result.account_id;
-
         const queueJob = queueJobs?.[0];
         run_id = run_id || queueJob?.run_id;
 
-        if (!run_id) return Response.json({ ok: false, error: 'run_id não encontrado para este job' }, { status: 400 });
+        if (!run_id) return Response.json({ ok: false, error: 'run_id não encontrado' }, { status: 400 });
 
         const jobType  = queueJob?.job_type  || 'insights';
         const breakdown = queueJob?.breakdown || '';
 
         const data = result.result_json?.data || [];
         if (!Array.isArray(data) || data.length === 0) {
-            return Response.json({ ok: false, error: 'Nenhum dado para processar' }, { status: 400 });
+            console.log(`ℹ️ Sem dados para processar. job=${job_id}`);
+            return Response.json({ ok: true, job_id, records_upserted: 0, records_skipped: 0 });
         }
 
         console.log(`📦 job_type=${jobType} breakdown=${breakdown} rows=${data.length}`);
@@ -91,6 +92,7 @@ Deno.serve(async (req) => {
         const isDemographics = jobType === 'demographics' || jobType === 'insights_demographics' || breakdown === 'age,gender' || breakdown === 'age' || breakdown === 'gender';
         const isCreativesBasic = jobType === 'creatives_basic';
 
+        // ── Fase 1: processar todos os dados em memória ──
         if (isInsights) {
             const agg = {};
             for (const row of data) {
@@ -122,32 +124,31 @@ Deno.serve(async (req) => {
                 a.wa_messaging_first_reply      += getAction(row.actions, 'onsite_conversion.messaging_first_reply') || parseInt(row.wa_messaging_first_reply) || 0;
             }
 
-            const records = Object.values(agg).map((a) => {
-                const frequency              = a.reach > 0 ? a.impressions / a.reach : 0;
-                const ctr_link               = a.impressions > 0 ? a.link_clicks / a.impressions : 0;
-                const cpc_link               = a.link_clicks > 0 ? a.spend / a.link_clicks : 0;
-                const cpm                    = a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0;
-                const cost_per_conversation  = a.wa_conversations_started_7d > 0 ? a.spend / a.wa_conversations_started_7d : 0;
-                const cost_per_total_contact = a.wa_total_messaging_connection > 0 ? a.spend / a.wa_total_messaging_connection : 0;
-                const cost_per_first_reply   = a.wa_messaging_first_reply > 0 ? a.spend / a.wa_messaging_first_reply : 0;
-                return {
-                    unique_key: `${run_id}::${job_id}::${a.ad_id}::${a.date}`,
-                    run_id, job_id, unit_id, account_id, platform: 'META',
-                    date: a.date, ad_id: a.ad_id, ad_name: a.ad_name,
-                    ad_effective_status: a.ad_effective_status,
-                    creative_id: a.creative_id, creative_thumbnail_url: a.creative_thumbnail_url,
-                    campaign_id: a.campaign_id, campaign_name: a.campaign_name,
-                    adset_id: a.adset_id, adset_name: a.adset_name,
-                    spend: a.spend, impressions: a.impressions, reach: a.reach, frequency,
-                    clicks: a.clicks, link_clicks: a.link_clicks, ctr_link, cpc_link, cpm,
-                    wa_conversations_started_7d: a.wa_conversations_started_7d,
-                    wa_total_messaging_connection: a.wa_total_messaging_connection,
-                    wa_messaging_first_reply: a.wa_messaging_first_reply,
-                    cost_per_conversation, cost_per_total_contact, cost_per_first_reply,
-                    imported_at_utc: now
-                };
-            });
-            upserted = await saveBatch(base44.asServiceRole.entities.MetaAdInsights, records);
+            const records = Object.values(agg).map((a) => ({
+                unique_key: `${run_id}::${job_id}::${a.ad_id}::${a.date}`,
+                run_id, job_id, unit_id, account_id, platform: 'META',
+                date: a.date, ad_id: a.ad_id, ad_name: a.ad_name,
+                ad_effective_status: a.ad_effective_status,
+                creative_id: a.creative_id, creative_thumbnail_url: a.creative_thumbnail_url,
+                campaign_id: a.campaign_id, campaign_name: a.campaign_name,
+                adset_id: a.adset_id, adset_name: a.adset_name,
+                spend: a.spend, impressions: a.impressions, reach: a.reach,
+                frequency: a.reach > 0 ? a.impressions / a.reach : 0,
+                clicks: a.clicks, link_clicks: a.link_clicks,
+                ctr_link: a.impressions > 0 ? a.link_clicks / a.impressions : 0,
+                cpc_link: a.link_clicks > 0 ? a.spend / a.link_clicks : 0,
+                cpm: a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0,
+                wa_conversations_started_7d: a.wa_conversations_started_7d,
+                wa_total_messaging_connection: a.wa_total_messaging_connection,
+                wa_messaging_first_reply: a.wa_messaging_first_reply,
+                cost_per_conversation: a.wa_conversations_started_7d > 0 ? a.spend / a.wa_conversations_started_7d : 0,
+                cost_per_total_contact: a.wa_total_messaging_connection > 0 ? a.spend / a.wa_total_messaging_connection : 0,
+                cost_per_first_reply: a.wa_messaging_first_reply > 0 ? a.spend / a.wa_messaging_first_reply : 0,
+                imported_at_utc: now
+            }));
+
+            // ── Fase 2: salvar em bulk ──
+            upserted = await saveBulk(base44.asServiceRole.entities.MetaAdInsights, records);
         }
 
         else if (isPlatform) {
@@ -158,24 +159,24 @@ Deno.serve(async (req) => {
                 const publisher_platform = (row.publisher_platform || '').toLowerCase();
                 if (!date || !ad_id || !publisher_platform) { skipped++; continue; }
                 const impressions = parseInt(row.impressions) || 0;
-                const reach       = parseInt(row.reach) || 0;
-                const clicks      = parseInt(row.clicks) || 0;
                 const link_clicks = parseInt(row.inline_link_clicks || row.link_clicks) || 0;
-                const spend       = parseFloat(row.spend) || 0;
+                const spend = parseFloat(row.spend) || 0;
                 records.push({
                     unique_key: `${run_id}::${job_id}::${ad_id}::${date}::${publisher_platform}`,
                     run_id, job_id, unit_id, account_id, date, ad_id,
                     ad_name: row.ad_name || ad_id,
                     adset_id: row.adset_id || '', adset_name: row.adset_name || '',
                     campaign_id: row.campaign_id || '', campaign_name: row.campaign_name || '',
-                    publisher_platform, spend, impressions, reach, clicks, link_clicks,
+                    publisher_platform, spend,
+                    impressions, reach: parseInt(row.reach) || 0,
+                    clicks: parseInt(row.clicks) || 0, link_clicks,
                     ctr_link: impressions > 0 ? link_clicks / impressions : 0,
                     cpc_link: link_clicks > 0 ? spend / link_clicks : 0,
                     cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
                     imported_at_utc: now
                 });
             }
-            upserted = await saveBatch(base44.asServiceRole.entities.MetaAdByPlatform, records);
+            upserted = await saveBulk(base44.asServiceRole.entities.MetaAdByPlatform, records);
         }
 
         else if (isDevice) {
@@ -186,24 +187,24 @@ Deno.serve(async (req) => {
                 const impression_device = (row.impression_device || '').toLowerCase();
                 if (!date || !ad_id || !impression_device) { skipped++; continue; }
                 const impressions = parseInt(row.impressions) || 0;
-                const reach       = parseInt(row.reach) || 0;
-                const clicks      = parseInt(row.clicks) || 0;
                 const link_clicks = parseInt(row.inline_link_clicks || row.link_clicks) || 0;
-                const spend       = parseFloat(row.spend) || 0;
+                const spend = parseFloat(row.spend) || 0;
                 records.push({
                     unique_key: `${run_id}::${job_id}::${ad_id}::${date}::${impression_device}`,
                     run_id, job_id, unit_id, account_id, date, ad_id,
                     ad_name: row.ad_name || ad_id,
                     adset_id: row.adset_id || '', adset_name: row.adset_name || '',
                     campaign_id: row.campaign_id || '', campaign_name: row.campaign_name || '',
-                    impression_device, spend, impressions, reach, clicks, link_clicks,
+                    impression_device, spend,
+                    impressions, reach: parseInt(row.reach) || 0,
+                    clicks: parseInt(row.clicks) || 0, link_clicks,
                     ctr_link: impressions > 0 ? link_clicks / impressions : 0,
                     cpc_link: link_clicks > 0 ? spend / link_clicks : 0,
                     cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
                     imported_at_utc: now
                 });
             }
-            upserted = await saveBatch(base44.asServiceRole.entities.MetaAdByDevice, records);
+            upserted = await saveBulk(base44.asServiceRole.entities.MetaAdByDevice, records);
         }
 
         else if (isDemographics) {
@@ -212,15 +213,14 @@ Deno.serve(async (req) => {
                 const date = normDate(row.date || row.date_start || row.day);
                 const ad_id = row.ad_id;
                 if (!date || !ad_id) { skipped++; continue; }
-                const age    = row.age    || 'unknown';
-                const gender = (row.gender || 'unknown').toLowerCase();
                 records.push({
-                    unique_key: `${run_id}::${job_id}::${ad_id}::${date}::${age}::${gender}`,
+                    unique_key: `${run_id}::${job_id}::${ad_id}::${date}::${row.age || 'unk'}::${row.gender || 'unk'}`,
                     run_id, job_id, unit_id, account_id, date, ad_id,
                     ad_name: row.ad_name || ad_id,
                     adset_id: row.adset_id || '', adset_name: row.adset_name || '',
                     campaign_id: row.campaign_id || '', campaign_name: row.campaign_name || '',
-                    age, gender,
+                    age: row.age || 'unknown',
+                    gender: (row.gender || 'unknown').toLowerCase(),
                     spend: parseFloat(row.spend) || 0,
                     impressions: parseInt(row.impressions) || 0,
                     reach: parseInt(row.reach) || 0,
@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
                     imported_at_utc: now
                 });
             }
-            upserted = await saveBatch(base44.asServiceRole.entities.MetaAdByDemographic, records);
+            upserted = await saveBulk(base44.asServiceRole.entities.MetaAdByDemographic, records);
         }
 
         else if (isCreativesBasic) {
@@ -249,24 +249,27 @@ Deno.serve(async (req) => {
                     last_updated: now
                 });
             }
-            upserted = await saveBatch(base44.asServiceRole.entities.MetaAdsDim, records);
+            upserted = await saveBulk(base44.asServiceRole.entities.MetaAdsDim, records);
         }
 
         else {
             console.warn(`⚠️ Tipo de job não reconhecido: job_type=${jobType} breakdown=${breakdown}`);
         }
 
-        // Atualizar Run
-        const runs = await base44.asServiceRole.entities.Run.filter({ run_id, unit_id });
-        if (runs.length > 0) {
-            await base44.asServiceRole.entities.Run.update(runs[0].id, {
-                status: 'success',
-                total_records: (runs[0].total_records || 0) + upserted,
-                finished_at_utc: now
-            });
-        }
+        // Atualizar Run (sem bloquear o retorno)
+        base44.asServiceRole.entities.Run.filter({ run_id, unit_id })
+            .then(runs => {
+                if (runs.length > 0) {
+                    return base44.asServiceRole.entities.Run.update(runs[0].id, {
+                        status: 'success',
+                        total_records: (runs[0].total_records || 0) + upserted,
+                        finished_at_utc: now
+                    });
+                }
+            })
+            .catch(e => console.warn('Run update falhou:', e.message));
 
-        console.log(`✅ ${upserted} registros salvos (${skipped} ignorados) | job_type=${jobType} | run_id=${run_id}`);
+        console.log(`✅ ${upserted} salvos (${skipped} ignorados) | job_type=${jobType} | run_id=${run_id}`);
         return Response.json({ ok: true, job_id, run_id, job_type: jobType, breakdown, records_upserted: upserted, records_skipped: skipped });
 
     } catch (error) {
