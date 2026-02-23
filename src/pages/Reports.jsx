@@ -469,9 +469,44 @@ export default function Reports() {
           </div>
         </Card>
 
-        {isLoading ? (
+        {/* Tab navigation */}
+        <div className="flex overflow-x-auto gap-1 bg-white rounded-xl border border-gray-200 shadow-sm p-1">
+          {REPORT_TABS.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-1 justify-center ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Breakdowns tabs */}
+        {activeTab === 'platforms' && (
+          <ReportPlatforms unit={units.find(u => u.id === selectedUnit)} period={period} />
+        )}
+        {activeTab === 'device' && (
+          <ReportDevice unit={units.find(u => u.id === selectedUnit)} period={period} />
+        )}
+        {activeTab === 'demographic' && (
+          <ReportDemographic unit={units.find(u => u.id === selectedUnit)} period={period} />
+        )}
+        {activeTab === 'creatives' && (
+          <ReportCreatives unit={units.find(u => u.id === selectedUnit)} period={period} />
+        )}
+
+        {activeTab === 'overview' && isLoading ? (
           <Skeleton className="h-96 w-full" />
-        ) : (
+        ) : activeTab === 'overview' ? (
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4" data-pdf-section>
