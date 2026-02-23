@@ -270,7 +270,7 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { job_key, meta_token, unit_id, mode } = await req.json();
+    const { job_key, meta_token, unit_id, mode, force } = await req.json();
 
     if (!job_key || !meta_token) {
       return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
