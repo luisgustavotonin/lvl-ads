@@ -504,9 +504,9 @@ export default function Reports() {
           <ReportCreatives unit={units.find(u => u.id === selectedUnit)} period={period} />
         )}
 
-        {activeTab === 'overview' && isLoading ? (
+        {activeTab === 'overview' && (isLoading ? (
           <Skeleton className="h-96 w-full" />
-        ) : activeTab === 'overview' ? (
+        ) : (
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4" data-pdf-section>
