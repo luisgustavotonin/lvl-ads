@@ -540,7 +540,7 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows, { job_key });
+      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows);
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 2,
