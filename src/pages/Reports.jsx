@@ -63,6 +63,7 @@ export default function Reports() {
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
   const [showLabels, setShowLabels] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   // Carregar preferências salvas
   const { data: preference } = useQuery({
