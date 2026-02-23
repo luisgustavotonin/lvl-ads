@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Download, TrendingUp, TrendingDown, Minus, Settings2, Globe, Monitor, Users, Image } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Minus, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,18 +19,6 @@ import KPICardWithComparison from '@/components/report/KPICardWithComparison';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
 import RankingTable from '@/components/report/RankingTable';
 import FunnelEditor from '@/components/report/FunnelEditor';
-import ReportPlatforms from '@/components/report/ReportPlatforms';
-import ReportDevice from '@/components/report/ReportDevice';
-import ReportDemographic from '@/components/report/ReportDemographic';
-import ReportCreatives from '@/components/report/ReportCreatives';
-
-const REPORT_TABS = [
-  { id: 'overview', label: 'Visão Geral', icon: TrendingUp },
-  { id: 'platforms', label: 'Plataformas', icon: Globe },
-  { id: 'device', label: 'Device', icon: Monitor },
-  { id: 'demographic', label: 'Demográfico', icon: Users },
-  { id: 'creatives', label: 'Criativos', icon: Image },
-];
 
 const COLORS_BLUE = ['#DBEAFE', '#93C5FD', '#60A5FA', '#3B82F6', '#2563EB', '#1E40AF'];
 
@@ -63,20 +51,6 @@ export default function Reports() {
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map(k => k.id));
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
   const [showLabels, setShowLabels] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-
-  // Carregar preferências salvas
-  const { data: preference } = useQuery({
-    queryKey: ['reportPreference', selectedUnit],
-    queryFn: () => selectedUnit ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then(d => d[0]) : null,
-    enabled: !!selectedUnit
-  });
-
-  React.useEffect(() => {
-    if (preference?.selected_kpis?.length > 0) {
-      setSelectedKPIs(preference.selected_kpis);
-    }
-  }, [preference]);
 
   const [funnelStages, setFunnelStages] = useState([
     { key: 'impressions', label: 'Impressões' },
@@ -309,21 +283,6 @@ export default function Reports() {
     enabled: !!selectedUnit
   });
 
-  // Salvar preferências quando KPIs mudam
-  React.useEffect(() => {
-    if (selectedUnit && selectedKPIs.length > 0) {
-      const savePreference = async () => {
-        if (preference?.id) {
-          await base44.entities.ReportPreference.update(preference.id, { selected_kpis: selectedKPIs });
-        } else {
-          await base44.entities.ReportPreference.create({ unit_id: selectedUnit, selected_kpis: selectedKPIs });
-        }
-      };
-      const timeoutId = setTimeout(savePreference, 500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [selectedKPIs, selectedUnit, preference]);
-
   const getKpiLabel = (kpi) => {
     const customLabel = cardLabels.find(cl => cl.card_key === kpi.id);
     return customLabel?.custom_label || kpi.label;
@@ -377,12 +336,10 @@ export default function Reports() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {activeTab === 'overview' && (
               <MetaExportPDF 
                 unitName={selectedUnitData?.name || 'Unidade'}
                 period={period}
               />
-              )}
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2">
@@ -469,42 +426,7 @@ export default function Reports() {
           </div>
         </Card>
 
-        {/* Tab navigation */}
-        <div className="flex overflow-x-auto gap-1 bg-white rounded-xl border border-gray-200 shadow-sm p-1">
-          {REPORT_TABS.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-1 justify-center ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Breakdowns tabs */}
-        {activeTab === 'platforms' && (
-          <ReportPlatforms unit={units.find(u => u.id === selectedUnit)} period={period} />
-        )}
-        {activeTab === 'device' && (
-          <ReportDevice unit={units.find(u => u.id === selectedUnit)} period={period} />
-        )}
-        {activeTab === 'demographic' && (
-          <ReportDemographic unit={units.find(u => u.id === selectedUnit)} period={period} />
-        )}
-        {activeTab === 'creatives' && (
-          <ReportCreatives unit={units.find(u => u.id === selectedUnit)} period={period} />
-        )}
-
-        {activeTab === 'overview' && (isLoading ? (
+        {isLoading ? (
           <Skeleton className="h-96 w-full" />
         ) : (
           <>
@@ -589,36 +511,33 @@ export default function Reports() {
             </div>
 
             {/* Tabelas de Ranking */}
-             <div className="space-y-6">
-               <RankingTable 
-                 title="Campanhas em Destaque"
-                 data={currentMetrics}
-                 groupKey="campaign_id"
-                 nameKey="campaign_name"
-                 showThumbnail={false}
-                 unitId={selectedUnit}
-               />
-
-               <RankingTable 
-                 title="Conjuntos de Anúncios em Destaque"
-                 data={currentMetrics}
-                 groupKey="adset_id"
-                 nameKey="adset_name"
-                 showThumbnail={false}
-                 unitId={selectedUnit}
-               />
-
-               <RankingTable 
-                 title="Anúncios em Destaque"
-                 data={enrichedMetrics}
-                 groupKey="ad_id"
-                 nameKey="ad_name"
-                 showThumbnail={true}
-                 unitId={selectedUnit}
-               />
-             </div>
+            <div className="space-y-6">
+              <RankingTable 
+                title="Campanhas em Destaque"
+                data={currentMetrics}
+                groupKey="campaign_id"
+                nameKey="campaign_name"
+                showThumbnail={false}
+              />
+              
+              <RankingTable 
+                title="Conjuntos de Anúncios em Destaque"
+                data={currentMetrics}
+                groupKey="adset_id"
+                nameKey="adset_name"
+                showThumbnail={false}
+              />
+              
+              <RankingTable 
+                title="Anúncios em Destaque"
+                data={enrichedMetrics}
+                groupKey="ad_id"
+                nameKey="ad_name"
+                showThumbnail={true}
+              />
+            </div>
           </>
-        ))}
+        )}
       </div>
     </div>
   );

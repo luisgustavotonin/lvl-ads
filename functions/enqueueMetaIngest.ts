@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { account_id, unit_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, meta_token, mode, job_key_override } = body;
+    const { account_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, meta_token, mode, job_key_override } = body;
 
     if (!account_id || !date_from || !date_to) {
       return Response.json({ error: 'account_id, date_from, date_to obrigatórios' }, { status: 400 });
@@ -45,13 +45,12 @@ Deno.serve(async (req) => {
     if (existing.length > 0) {
       await base44.asServiceRole.entities.MetaIngestRun.update(existing[0].id, {
         status: 'queued', progress: 0, rows_written: 0, error_message: null,
-        meta_token_hint: meta_token.substring(0, 8),
-        unit_id: unit_id || existing[0].unit_id || '',
+        meta_token_hint: meta_token.substring(0, 8)
       });
       jobId = existing[0].id;
     } else {
       const created = await base44.asServiceRole.entities.MetaIngestRun.create({
-        job_key, account_id, unit_id: unit_id || '', date_from, date_to, job_type, level,
+        job_key, account_id, date_from, date_to, job_type, level,
         breakdowns, status: 'queued', progress: 0, rows_written: 0,
         meta_token_hint: meta_token.substring(0, 8),
         mode: modeStr,
