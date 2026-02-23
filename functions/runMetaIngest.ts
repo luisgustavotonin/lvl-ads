@@ -322,7 +322,7 @@ Deno.serve(async (req) => {
     if (!effectiveMode || effectiveMode === 'base') {
       const baseItems = await fetchAllPagesInsights(actId, meta_token, baseParams);
       const baseRows = baseItems.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, baseRows);
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightBase, baseRows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 1, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'base') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 1, rows_written: totalRows });
