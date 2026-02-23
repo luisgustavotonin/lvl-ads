@@ -489,7 +489,6 @@ Deno.serve(async (req) => {
   try {
     const validModes = ['base', 'platform', 'device', 'demographic'];
     const effectiveMode = validModes.includes(mode) ? mode : null;
-    const effectiveForce = !!force;
 
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
     if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
