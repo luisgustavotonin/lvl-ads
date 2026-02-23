@@ -4,8 +4,9 @@ const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
 const PAGE_LIMIT = 500;
-const CHUNK_SIZE = 200;
-const DELAY_BETWEEN_PAGES = 120;
+const CHUNK_SIZE = 100;
+const DELAY_BETWEEN_PAGES = 200;
+const DELAY_BETWEEN_UPDATES = 30;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
