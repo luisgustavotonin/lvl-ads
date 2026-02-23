@@ -358,7 +358,7 @@ Deno.serve(async (req) => {
     if (!effectiveMode || effectiveMode === 'demographic') {
       const demoItems = await fetchAllPagesInsights(actId, meta_token, { ...baseParams, breakdowns: 'age,gender' });
       const demoRows = demoItems.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, demoRows);
+      totalRows += await upsertBatch(base44.asServiceRole.entities.MetaInsightByDemographic, demoRows, force);
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 4, rows_written: totalRows }).catch(() => {});
       if (effectiveMode === 'demographic') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', progress: 4, rows_written: totalRows });
