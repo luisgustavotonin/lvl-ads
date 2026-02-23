@@ -202,7 +202,9 @@ function demographicRow(item, accountId, unitId, jobKey) {
   };
 }
 
-async function upsertBatch(entity, rows) {
+// force=true: deleta registros existentes e recria tudo
+// force=false: apenas insere registros novos (skip se já existe)
+async function upsertBatch(entity, rows, force) {
   if (!rows.length) return 0;
 
   // Deduplicate by unique_key
@@ -216,18 +218,25 @@ async function upsertBatch(entity, rows) {
 
   for (let i = 0; i < deduped.length; i += CHUNK_SIZE) {
     const chunk = deduped.slice(i, i + CHUNK_SIZE);
-
-    // Fetch existing records by unique_key
     const keys = chunk.map(r => r.unique_key);
-    const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
-    const existingKeys = new Set(existingList.map(r => r.unique_key));
 
-    // Only create rows that don't exist yet (skip updates to avoid timeout)
-    const toCreate = chunk.filter(row => !existingKeys.has(row.unique_key));
-
-    if (toCreate.length > 0) {
-      await entity.bulkCreate(toCreate);
-      written += toCreate.length;
+    if (force) {
+      // Delete existing records for these keys, then recreate
+      const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
+      if (existingList.length > 0) {
+        await Promise.all(existingList.map(r => entity.delete(r.id)));
+      }
+      await entity.bulkCreate(chunk);
+      written += chunk.length;
+    } else {
+      // Only insert rows that don't already exist
+      const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
+      const existingKeys = new Set(existingList.map(r => r.unique_key));
+      const toCreate = chunk.filter(row => !existingKeys.has(row.unique_key));
+      if (toCreate.length > 0) {
+        await entity.bulkCreate(toCreate);
+        written += toCreate.length;
+      }
     }
   }
 
