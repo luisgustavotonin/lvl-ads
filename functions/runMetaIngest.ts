@@ -221,31 +221,15 @@ async function upsertBatch(entity, rows) {
     // Fetch existing records by unique_key
     const keys = chunk.map(r => r.unique_key);
     const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
-    const existingMap = new Map(existingList.map(r => [r.unique_key, r.id]));
+    const existingKeys = new Set(existingList.map(r => r.unique_key));
 
-    const toCreate = [];
-    const toUpdate = [];
-
-    for (const row of chunk) {
-      const existingId = existingMap.get(row.unique_key);
-      if (existingId) {
-        toUpdate.push({ id: existingId, data: row });
-      } else {
-        toCreate.push(row);
-      }
-    }
+    // Only create rows that don't exist yet (skip updates to avoid timeout)
+    const toCreate = chunk.filter(row => !existingKeys.has(row.unique_key));
 
     if (toCreate.length > 0) {
       await entity.bulkCreate(toCreate);
       written += toCreate.length;
     }
-
-    if (toUpdate.length > 0) {
-      await Promise.all(toUpdate.map(({ id, data }) => entity.update(id, data)));
-      written += toUpdate.length;
-    }
-
-    if (i + CHUNK_SIZE < deduped.length) await sleep(50);
   }
 
   return written;
