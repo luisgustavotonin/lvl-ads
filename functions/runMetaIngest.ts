@@ -4,7 +4,7 @@ const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
 const PAGE_LIMIT = 500;
-const CHUNK_SIZE = 200;
+const CHUNK_SIZE = 50;        // menor = menos carga por query $in e menos deletes simultâneos
 const DELAY_BETWEEN_PAGES = 120;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
