@@ -5,10 +5,14 @@ const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
 // Meta paging
 const PAGE_LIMIT = 500;
-const DELAY_BETWEEN_PAGES = 150;
+const DELAY_BETWEEN_PAGES = 50; // antes 150 (mais rápido)
 
-// Save tuning
-const CONCURRENCY = 6; // se der rate limit no Base44, baixa pra 4
+// Save tuning (bulk)
+const BULK_CHUNK = 250; // 200~400 costuma ser bom
+const DELETE_BATCH = 200;
+
+// Fallback create-only (se bulkCreate falhar no seu Base44)
+const CREATE_CONCURRENCY = 8; // se rate limit, baixa pra 4~6
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function normalizeActId(id) {
@@ -182,49 +186,9 @@ function demographicRow(item, accountId, unitId, jobKey) {
   };
 }
 
-/**
- * SALVAMENTO ROBUSTO (sem $in, sem bulkCreate, sem update):
- * - create em paralelo controlado
- * - se der erro de duplicado/unique_key → ignora (idempotente)
- */
-async function saveBatchCreateOnly(entity, rows) {
-  if (!rows?.length) return 0;
-
-  // Dedup por unique_key dentro do batch
-  const map = new Map();
-  for (const r of rows) {
-    if (r?.unique_key) map.set(r.unique_key, r);
-  }
-  const deduped = Array.from(map.values());
-
-  let written = 0;
-
-  for (let i = 0; i < deduped.length; i += CONCURRENCY) {
-    const chunk = deduped.slice(i, i + CONCURRENCY);
-
-    const results = await Promise.allSettled(
-      chunk.map(async (row) => {
-        try {
-          await entity.create(row);
-          return true;
-        } catch (e) {
-          const msg = String(e?.message || '').toLowerCase();
-          // idempotência: se já existe, ignora
-          if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) return false;
-          throw e;
-        }
-      })
-    );
-
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value === true) written++;
-      if (r.status === 'rejected') console.error('⚠️ create falhou:', r.reason?.message || r.reason);
-    }
-  }
-
-  return written;
-}
-
+// -----------------------
+// Fetch (Meta)
+// -----------------------
 async function fetchJsonWithTimeout(url, ms = 60000) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms);
@@ -251,7 +215,6 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
     if (cursor) p.set('after', cursor);
 
     const url = `${META_BASE}/act_${actId}/insights?${p.toString()}`;
-
     const { res, data } = await fetchJsonWithTimeout(url, 60000);
 
     if (!res.ok || data?.error) {
@@ -265,7 +228,7 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
 
     if (data.paging?.cursors?.after && data.paging?.next) {
       cursor = data.paging.cursors.after;
-      await sleep(DELAY_BETWEEN_PAGES);
+      if (DELAY_BETWEEN_PAGES) await sleep(DELAY_BETWEEN_PAGES);
       continue;
     }
     break;
@@ -274,6 +237,120 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
   return results;
 }
 
+// -----------------------
+// Save (Base44) — rápido
+// -----------------------
+function dedupByUniqueKey(rows) {
+  const map = new Map();
+  for (const r of rows || []) {
+    if (r?.unique_key) map.set(r.unique_key, r);
+  }
+  return Array.from(map.values());
+}
+
+async function bulkDeleteByJobKey(entity, job_key) {
+  // apaga em lotes, para não travar
+  while (true) {
+    const list = await entity.filter({ job_key }, null, DELETE_BATCH);
+    if (!list?.length) break;
+    await Promise.allSettled(list.map((r) => entity.delete(r.id)));
+  }
+}
+
+async function tryBulkCreate(entity, rows) {
+  // tenta bulkCreate em chunks grandes
+  let written = 0;
+  for (let i = 0; i < rows.length; i += BULK_CHUNK) {
+    const chunk = rows.slice(i, i + BULK_CHUNK);
+    await entity.bulkCreate(chunk);
+    written += chunk.length;
+  }
+  return written;
+}
+
+async function fallbackCreateOnly(entity, rows) {
+  // fallback: create em paralelo (mais lento que bulk, mas funciona)
+  let written = 0;
+
+  for (let i = 0; i < rows.length; i += CREATE_CONCURRENCY) {
+    const chunk = rows.slice(i, i + CREATE_CONCURRENCY);
+
+    const results = await Promise.allSettled(
+      chunk.map(async (row) => {
+        try {
+          await entity.create(row);
+          return true;
+        } catch (e) {
+          const msg = String(e?.message || '').toLowerCase();
+          if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) return false;
+          throw e;
+        }
+      })
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value === true) written++;
+      if (r.status === 'rejected') console.error('⚠️ create falhou:', r.reason?.message || r.reason);
+    }
+  }
+
+  return written;
+}
+
+async function safeBulkCreate(entity, rows) {
+  // bulkCreate -> se der erro, cai no create-only
+  try {
+    return await tryBulkCreate(entity, rows);
+  } catch (e) {
+    console.error('⚠️ bulkCreate falhou, usando fallback create-only:', e?.message || e);
+    return await fallbackCreateOnly(entity, rows);
+  }
+}
+
+async function safeFilterByIn(entity, keys, limitHint) {
+  // tenta $in; se não rolar no seu Base44, retorna null e a gente segue sem filtrar
+  try {
+    const res = await entity.filter({ unique_key: { $in: keys } }, null, limitHint || keys.length);
+    return Array.isArray(res) ? res : [];
+  } catch (e) {
+    console.error('⚠️ filter $in falhou (vou criar sem checar existentes):', e?.message || e);
+    return null;
+  }
+}
+
+/**
+ * Salvamento rápido:
+ * - force=true  => DELETE por job_key e recria (mais rápido e consistente)
+ * - force=false => cria só o que não existe (se $in falhar, cria tudo e ignora duplicado no fallback)
+ */
+async function saveFast(entity, rows, { force, job_key }) {
+  const deduped = dedupByUniqueKey(rows);
+  if (!deduped.length) return 0;
+
+  if (force) {
+    await bulkDeleteByJobKey(entity, job_key);
+    return await safeBulkCreate(entity, deduped);
+  }
+
+  // force=false: cria só o que falta (se $in funcionar)
+  const keys = deduped.map((r) => r.unique_key);
+  const existing = await safeFilterByIn(entity, keys, Math.min(keys.length, 5000));
+
+  if (existing === null) {
+    // $in não funciona — tenta criar tudo via bulk (se duplicar, fallback create-only ignora duplicado)
+    return await safeBulkCreate(entity, deduped);
+  }
+
+  const existingSet = new Set(existing.map((e) => e.unique_key));
+  const toCreate = deduped.filter((r) => !existingSet.has(r.unique_key));
+  if (!toCreate.length) return 0;
+
+  return await safeBulkCreate(entity, toCreate);
+}
+
+// -----------------------
+// Job status helpers
+// -----------------------
 async function markJobFailed(base44, jobKey, errorMsg) {
   try {
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key: jobKey }, null, 1);
@@ -288,6 +365,9 @@ async function markJobFailed(base44, jobKey, errorMsg) {
   }
 }
 
+// -----------------------
+// Main
+// -----------------------
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
@@ -298,7 +378,7 @@ Deno.serve(async (req) => {
     bodyData = {};
   }
 
-  const { job_key, meta_token, unit_id, mode } = bodyData;
+  const { job_key, meta_token, unit_id, mode, force } = bodyData;
 
   if (!job_key || !meta_token) {
     return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
@@ -307,6 +387,7 @@ Deno.serve(async (req) => {
   try {
     const validModes = ['base', 'platform', 'device', 'demographic'];
     const effectiveMode = validModes.includes(mode) ? mode : null;
+    const effectiveForce = !!force; // se vier true no body, substitui
 
     const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
     if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
@@ -342,8 +423,16 @@ Deno.serve(async (req) => {
     if (!effectiveMode || effectiveMode === 'base') {
       const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
       const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightBase, rows);
-      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 1, rows_written: totalRows }).catch(() => {});
+      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightBase, rows, {
+        force: effectiveForce,
+        job_key,
+      });
+
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
+        progress: 1,
+        rows_written: totalRows,
+      }).catch(() => {});
+
       if (effectiveMode === 'base') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'base', rows_written: totalRows });
@@ -356,9 +445,18 @@ Deno.serve(async (req) => {
         ...baseParams,
         breakdowns: 'publisher_platform,platform_position',
       });
+
       const rows = items.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows);
-      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 2, rows_written: totalRows }).catch(() => {});
+      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows, {
+        force: effectiveForce,
+        job_key,
+      });
+
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
+        progress: 2,
+        rows_written: totalRows,
+      }).catch(() => {});
+
       if (effectiveMode === 'platform') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'platform', rows_written: totalRows });
@@ -371,9 +469,18 @@ Deno.serve(async (req) => {
         ...baseParams,
         breakdowns: 'impression_device',
       });
+
       const rows = items.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightByDevice, rows);
-      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 3, rows_written: totalRows }).catch(() => {});
+      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightByDevice, rows, {
+        force: effectiveForce,
+        job_key,
+      });
+
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
+        progress: 3,
+        rows_written: totalRows,
+      }).catch(() => {});
+
       if (effectiveMode === 'device') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'device', rows_written: totalRows });
@@ -386,9 +493,18 @@ Deno.serve(async (req) => {
         ...baseParams,
         breakdowns: 'age,gender',
       });
+
       const rows = items.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveBatchCreateOnly(base44.asServiceRole.entities.MetaInsightByDemographic, rows);
-      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { progress: 4, rows_written: totalRows }).catch(() => {});
+      totalRows += await saveFast(base44.asServiceRole.entities.MetaInsightByDemographic, rows, {
+        force: effectiveForce,
+        job_key,
+      });
+
+      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
+        progress: 4,
+        rows_written: totalRows,
+      }).catch(() => {});
+
       if (effectiveMode === 'demographic') {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'demographic', rows_written: totalRows });
