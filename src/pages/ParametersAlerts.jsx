@@ -415,10 +415,14 @@ export default function ParametersAlerts() {
                         <Button 
                           onClick={() => {
                             Object.entries(pendingThresholds).forEach(([id, data]) => {
-                              updateThresholdMutation.mutate({ id, data });
+                              const parsed = {};
+                              Object.entries(data).forEach(([k, v]) => {
+                                parsed[k] = v === '' || v === null || v === undefined ? null : parseFloat(String(v));
+                              });
+                              updateThresholdMutation.mutate({ id, data: parsed });
                             });
                           }}
-                          disabled={Object.keys(pendingThresholds).length === 0}
+                          disabled={Object.keys(pendingThresholds).length === 0 || updateThresholdMutation.isPending}
                         >
                           Salvar Alterações
                         </Button>
