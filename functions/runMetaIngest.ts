@@ -221,10 +221,10 @@ async function upsertBatch(entity, rows, force) {
     const keys = chunk.map(r => r.unique_key);
 
     if (force) {
-      // Delete existing records for these keys, then recreate
+      // Delete existing records sequentially in small batches to avoid rate limits
       const existingList = await entity.filter({ unique_key: { '$in': keys } }, null, CHUNK_SIZE);
-      if (existingList.length > 0) {
-        await Promise.all(existingList.map(r => entity.delete(r.id)));
+      for (const rec of existingList) {
+        await entity.delete(rec.id);
       }
       await entity.bulkCreate(chunk);
       written += chunk.length;
