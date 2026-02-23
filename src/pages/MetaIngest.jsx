@@ -115,19 +115,27 @@ export default function MetaIngest() {
 
   // Cancel a job
   const handleCancel = async (job) => {
-    const res = await base44.functions.invoke('cancelMetaIngest', { job_key: job.job_key });
-    if (res.data.error) { toast.error(res.data.error); return; }
-    toast.success('Job cancelado');
-    refetch();
+    try {
+      const res = await base44.functions.invoke('cancelMetaIngest', { job_key: job.job_key });
+      if (res.data?.error) { toast.error(res.data.error); return; }
+      toast.success('Job cancelado');
+      refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err.message || 'Erro ao cancelar job');
+    }
   };
 
   // Delete a job record
   const handleDelete = async (job) => {
     if (!window.confirm('Excluir registro do job?\n\nOs dados já gravados nas tabelas de insights continuam existindo.')) return;
-    const res = await base44.functions.invoke('deleteMetaIngestRun', { job_id: job.id });
-    if (res.data.error) { toast.error(res.data.error); return; }
-    toast.success('Job excluído');
-    refetch();
+    try {
+      const res = await base44.functions.invoke('deleteMetaIngestRun', { job_id: job.id });
+      if (res.data?.error) { toast.error(res.data.error); return; }
+      toast.success('Job excluído');
+      refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err.message || 'Erro ao excluir job');
+    }
   };
 
   // Sync creatives
