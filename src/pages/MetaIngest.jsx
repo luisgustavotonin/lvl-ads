@@ -274,16 +274,30 @@ export default function MetaIngest() {
           meta_token: selectedUnit.secret_token,
           unit_id: form.unit_id,
           mode: item.mode,
+          force: form.force,
         });
 
         const data = runResult.data;
         if (data.error) {
           setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: data.error } : q));
+          runningRef.current = false;
+          setRunningQueue(false);
+          // mark remaining as skipped
+          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued' ? { ...q, status: 'skipped', error: 'Parado por erro anterior' } : q));
+          toast.error(`Erro em "${item.label}". Fila interrompida.`);
+          refetch();
+          return;
         } else {
           setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'done', rows_written: data.rows_written || 0 } : q));
         }
       } catch (err) {
         setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: err.message } : q));
+        runningRef.current = false;
+        setRunningQueue(false);
+        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued' ? { ...q, status: 'skipped', error: 'Parado por erro anterior' } : q));
+        toast.error(`Erro em "${item.label}". Fila interrompida.`);
+        refetch();
+        return;
       }
 
       refetch();
