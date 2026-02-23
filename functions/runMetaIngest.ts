@@ -157,7 +157,6 @@ function platformRow(item, accountId, unitId, jobKey) {
     cpc_link: m.cpc_link,
     cpm: m.cpm,
 
-    raw: item,
   };
 }
 
