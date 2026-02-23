@@ -277,9 +277,13 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
 }
 
 Deno.serve(async (req) => {
+  // Lê o body UMA vez e guarda para reusar no catch
+  let bodyData = {};
+  try { bodyData = await req.json(); } catch { /* ignore */ }
+
   try {
     const base44 = createClientFromRequest(req);
-    const { job_key, meta_token, unit_id, mode, force } = await req.json();
+    const { job_key, meta_token, unit_id, mode, force } = bodyData;
 
     if (!job_key || !meta_token) {
       return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
