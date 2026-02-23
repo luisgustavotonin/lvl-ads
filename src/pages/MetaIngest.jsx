@@ -115,19 +115,27 @@ export default function MetaIngest() {
 
   // Cancel a job
   const handleCancel = async (job) => {
-    const res = await base44.functions.invoke('cancelMetaIngest', { job_key: job.job_key });
-    if (res.data.error) { toast.error(res.data.error); return; }
-    toast.success('Job cancelado');
-    refetch();
+    try {
+      const res = await base44.functions.invoke('cancelMetaIngest', { job_key: job.job_key });
+      if (res.data?.error) { toast.error(res.data.error); return; }
+      toast.success('Job cancelado');
+      refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err.message || 'Erro ao cancelar job');
+    }
   };
 
   // Delete a job record
   const handleDelete = async (job) => {
     if (!window.confirm('Excluir registro do job?\n\nOs dados já gravados nas tabelas de insights continuam existindo.')) return;
-    const res = await base44.functions.invoke('deleteMetaIngestRun', { job_id: job.id });
-    if (res.data.error) { toast.error(res.data.error); return; }
-    toast.success('Job excluído');
-    refetch();
+    try {
+      const res = await base44.functions.invoke('deleteMetaIngestRun', { job_id: job.id });
+      if (res.data?.error) { toast.error(res.data.error); return; }
+      toast.success('Job excluído');
+      refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err.message || 'Erro ao excluir job');
+    }
   };
 
   // Sync creatives
@@ -266,16 +274,30 @@ export default function MetaIngest() {
           meta_token: selectedUnit.secret_token,
           unit_id: form.unit_id,
           mode: item.mode,
+          force: form.force,
         });
 
         const data = runResult.data;
         if (data.error) {
           setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: data.error } : q));
+          runningRef.current = false;
+          setRunningQueue(false);
+          // mark remaining as skipped
+          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued' ? { ...q, status: 'skipped', error: 'Parado por erro anterior' } : q));
+          toast.error(`Erro em "${item.label}". Fila interrompida.`);
+          refetch();
+          return;
         } else {
           setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'done', rows_written: data.rows_written || 0 } : q));
         }
       } catch (err) {
         setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: err.message } : q));
+        runningRef.current = false;
+        setRunningQueue(false);
+        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued' ? { ...q, status: 'skipped', error: 'Parado por erro anterior' } : q));
+        toast.error(`Erro em "${item.label}". Fila interrompida.`);
+        refetch();
+        return;
       }
 
       refetch();
@@ -559,7 +581,9 @@ export default function MetaIngest() {
                   <div className="mt-3 pt-3 border-t text-xs text-gray-500 space-y-1 font-mono break-all bg-gray-50 rounded p-2">
                     <p><strong>job_key:</strong> {job.job_key}</p>
                     <p><strong>account_id:</strong> {job.account_id}</p>
-                    <p><strong>mode:</strong> {job.mode || 'all'}</p>
+                    <p><strong>tipo:</strong> {modeLabel}</p>
+                    <p><strong>período:</strong> {job.date_from} → {job.date_to}</p>
+                    <p><strong>status:</strong> {job.status}</p>
                     {job.error_message && <p className="text-red-500"><strong>erro:</strong> {job.error_message}</p>}
                     <p><strong>criado em:</strong> {new Date(job.created_date).toLocaleString('pt-BR')}</p>
                   </div>

@@ -415,10 +415,14 @@ export default function ParametersAlerts() {
                         <Button 
                           onClick={() => {
                             Object.entries(pendingThresholds).forEach(([id, data]) => {
-                              updateThresholdMutation.mutate({ id, data });
+                              const parsed = {};
+                              Object.entries(data).forEach(([k, v]) => {
+                                parsed[k] = v === '' || v === null || v === undefined ? null : parseFloat(String(v));
+                              });
+                              updateThresholdMutation.mutate({ id, data: parsed });
                             });
                           }}
-                          disabled={Object.keys(pendingThresholds).length === 0}
+                          disabled={Object.keys(pendingThresholds).length === 0 || updateThresholdMutation.isPending}
                         >
                           Salvar Alterações
                         </Button>
@@ -458,84 +462,45 @@ export default function ParametersAlerts() {
                             />
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                            <div>
-                              <Label className="text-xs text-green-600 font-medium">Verde (Bom)</Label>
-                              <div className="flex gap-2 mt-1">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={pendingThresholds[threshold.id]?.green_min ?? threshold.green_min}
-                                  onChange={(e) => setPendingThresholds({
-                                    ...pendingThresholds,
-                                    [threshold.id]: {
-                                      ...pendingThresholds[threshold.id],
-                                      green_min: parseFloat(e.target.value)
-                                    }
-                                  })}
-                                  className="h-8"
-                                />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={threshold.green_max}
-                                  onChange={(e) => updateThresholdMutation.mutate({ 
-                                    id: threshold.id, 
-                                    data: { green_max: parseFloat(e.target.value) } 
-                                  })}
-                                  className="h-8"
-                                />
+                            {[
+                              { label: 'Verde (Bom)', color: 'text-green-600', minKey: 'green_min', maxKey: 'green_max' },
+                              { label: 'Amarelo (Atenção)', color: 'text-yellow-600', minKey: 'yellow_min', maxKey: 'yellow_max' },
+                              { label: 'Vermelho (Ruim)', color: 'text-red-600', minKey: 'red_min', maxKey: 'red_max' },
+                            ].map(({ label, color, minKey, maxKey }) => (
+                              <div key={minKey}>
+                                <Label className={`text-xs ${color} font-medium`}>{label}</Label>
+                                <div className="flex gap-2 mt-1">
+                                  <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="min"
+                                    value={pendingThresholds[threshold.id]?.[minKey] ?? (threshold[minKey] ?? '')}
+                                    onChange={(e) => setPendingThresholds(prev => ({
+                                      ...prev,
+                                      [threshold.id]: {
+                                        ...prev[threshold.id],
+                                        [minKey]: e.target.value
+                                      }
+                                    }))}
+                                    className="h-8"
+                                  />
+                                  <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="max"
+                                    value={pendingThresholds[threshold.id]?.[maxKey] ?? (threshold[maxKey] ?? '')}
+                                    onChange={(e) => setPendingThresholds(prev => ({
+                                      ...prev,
+                                      [threshold.id]: {
+                                        ...prev[threshold.id],
+                                        [maxKey]: e.target.value
+                                      }
+                                    }))}
+                                    className="h-8"
+                                  />
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <Label className="text-xs text-yellow-600 font-medium">Amarelo (Atenção)</Label>
-                              <div className="flex gap-2 mt-1">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={threshold.yellow_min}
-                                  onChange={(e) => updateThresholdMutation.mutate({ 
-                                    id: threshold.id, 
-                                    data: { yellow_min: parseFloat(e.target.value) } 
-                                  })}
-                                  className="h-8"
-                                />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={threshold.yellow_max}
-                                  onChange={(e) => updateThresholdMutation.mutate({ 
-                                    id: threshold.id, 
-                                    data: { yellow_max: parseFloat(e.target.value) } 
-                                  })}
-                                  className="h-8"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-xs text-red-600 font-medium">Vermelho (Ruim)</Label>
-                              <div className="flex gap-2 mt-1">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={threshold.red_min}
-                                  onChange={(e) => updateThresholdMutation.mutate({ 
-                                    id: threshold.id, 
-                                    data: { red_min: parseFloat(e.target.value) } 
-                                  })}
-                                  className="h-8"
-                                />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={threshold.red_max}
-                                  onChange={(e) => updateThresholdMutation.mutate({ 
-                                    id: threshold.id, 
-                                    data: { red_max: parseFloat(e.target.value) } 
-                                  })}
-                                  className="h-8"
-                                />
-                              </div>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       ))}
