@@ -587,10 +587,7 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByDemographic, rows, {
-        force: effectiveForce,
-        job_key,
-      });
+      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByDemographic, rows, { job_key });
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 4,
