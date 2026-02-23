@@ -506,7 +506,7 @@ export default function Reports() {
 
         {activeTab === 'overview' && (isLoading ? (
           <Skeleton className="h-96 w-full" />
-        ) : (<>
+        ) : (
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4" data-pdf-section>
