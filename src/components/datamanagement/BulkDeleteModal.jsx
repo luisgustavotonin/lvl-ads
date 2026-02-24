@@ -43,12 +43,12 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
   // Deletes all records for one table by calling the function in a loop until hasMore = false
   const deleteTable = async (tableId) => {
     let batchCount = 0;
-    let totalDeleted = 0;
+    let tableDeleted = 0;
     let hasMore = true;
 
     while (hasMore) {
       batchCount++;
-      setStatus(s => ({ ...s, table: tableId, batch: batchCount }));
+      setStatus(s => ({ ...s, table: tableId, batch: batchCount, tableTotal: tableDeleted }));
 
       let res;
       try {
@@ -61,8 +61,7 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
         res = response.data;
       } catch (e) {
         console.error(`Batch ${batchCount} error for ${tableId}:`, e.message);
-        await sleep(2000);
-        // Try one more time then give up
+        await sleep(5000);
         try {
           const response = await base44.functions.invoke('bulkDeleteByUnit', {
             unit_id: unitId,
@@ -76,17 +75,18 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
         }
       }
 
-      totalDeleted += res?.deleted || 0;
+      const batchDeleted = res?.deleted || 0;
+      tableDeleted += batchDeleted;
       hasMore = res?.hasMore === true;
 
-      setStatus(s => ({ ...s, total: s.total + (res?.deleted || 0) }));
+      setStatus(s => ({ ...s, total: s.total + batchDeleted, tableTotal: tableDeleted }));
 
       if (hasMore) {
-        await sleep(500); // brief pause between batches
+        await sleep(3000); // pause between batches
       }
     }
 
-    return totalDeleted;
+    return tableDeleted;
   };
 
   const handleDelete = async () => {
