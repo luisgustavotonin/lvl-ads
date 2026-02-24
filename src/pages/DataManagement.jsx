@@ -255,7 +255,6 @@ export default function DataManagement() {
     setBulkProgress({ tableIndex: 0, totalTables: 1, tableLabel: tabDef?.label, tableDone: 0, tableTotal: tabData.length });
     try {
       await handleBulkDelete([activeTab]);
-      queryClient.invalidateQueries({ queryKey: ['dm', activeTab] });
       setCurrentPage(1);
     } catch (err) {
       toast.error(`Erro: ${err.message}`);
