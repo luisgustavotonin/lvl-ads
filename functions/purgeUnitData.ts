@@ -31,15 +31,24 @@ async function deleteAllMatching(entity, query) {
 
     if (!records || records.length === 0) break;
 
-    // Deleta em paralelo (sem await individual)
-    await Promise.all(records.map(rec => entity.delete(rec.id).catch(err => {
-      console.error(`[purge] erro ao deletar ${rec.id}:`, err?.message);
-    })));
+    // Deleta sequencialmente com pequenas pausas para evitar rate limit
+    for (const rec of records) {
+      try {
+        await entity.delete(rec.id);
+      } catch (err) {
+        console.error(`[purge] erro ao deletar ${rec.id}:`, err?.message);
+      }
+      // Pequena pausa entre cada deleção
+      await sleep(10);
+    }
     
     total += records.length;
     console.log(`[purge] round=${rounds} batch=${records.length} total=${total}`);
 
     if (records.length < 200) break;
+
+    // Pausa entre batches
+    await sleep(500);
   }
 
   return total;
