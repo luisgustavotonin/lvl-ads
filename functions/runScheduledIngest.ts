@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
   const nowBrasilia = getBrasiliaHHMM();
   const today = getBrasiliaDate(0);
   const yesterday = getBrasiliaDate(-1);
+  const todayDOW = getBrasiliaDayOfWeek();
 
   console.log(`⏰ runScheduledIngest | brasília_time=${nowBrasilia} | today=${today} | yesterday=${yesterday}`);
 
