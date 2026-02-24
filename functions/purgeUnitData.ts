@@ -22,28 +22,47 @@ async function deleteAllMatching(entity, query) {
 
   while (true) {
     rounds++;
-    let result;
 
+    // Busca até 50 registros de uma vez
+    let records;
     try {
-      result = await entity.deleteMany(query);
+      records = await entity.filter(query, null, 50);
     } catch (e) {
       const msg = String(e?.message || '');
-      if (msg.includes('429') || msg.includes('Rate limit')) {
-        console.warn(`[purge] 429 rate limit, sleeping 10s (round ${rounds})`);
+      if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
+        console.warn(`[purge] 429 rate limit ao listar, sleeping 10s (round ${rounds})`);
         await sleep(10000);
-        result = await entity.deleteMany(query);
+        records = await entity.filter(query, null, 50);
       } else {
         throw e;
       }
     }
 
-    const deleted = result?.deleted || 0;
-    total += deleted;
-    console.log(`[purge] round=${rounds} deleted=${deleted} total=${total}`);
+    if (!records || records.length === 0) break;
 
-    if (deleted === 0) break;
+    // Deleta um a um
+    for (const rec of records) {
+      try {
+        await entity.delete(rec.id);
+        total++;
+      } catch (e) {
+        const msg = String(e?.message || '');
+        if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
+          await sleep(5000);
+          await entity.delete(rec.id);
+          total++;
+        } else {
+          throw e;
+        }
+      }
+      await sleep(100);
+    }
 
-    await sleep(1200);
+    console.log(`[purge] round=${rounds} batch=${records.length} total=${total}`);
+
+    if (records.length < 50) break;
+
+    await sleep(1000);
   }
 
   return total;
@@ -97,7 +116,6 @@ Deno.serve(async (req) => {
       results[table] = { error: e?.message || String(e) };
     }
 
-    // Pausa entre tabelas para não pressionar rate limit
     await sleep(2000);
   }
 
