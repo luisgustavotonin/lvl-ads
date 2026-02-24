@@ -40,6 +40,7 @@ const navigation = [
 
   { name: 'Perfis', href: 'Profiles', icon: Shield },
   { name: 'Usuários', href: 'Users', icon: Users },
+  { name: 'Agendamentos', href: 'IngestSchedules', icon: Clock },
   { name: 'Gestão de Dados', href: 'DataManagement', icon: Database },
   { name: 'Configurações', href: 'Settings', icon: Settings },
 ];
