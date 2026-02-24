@@ -178,123 +178,126 @@ export default function MetaIngest() {
     }
   };
 
-  // Enqueue a single mode job and return job_key
-  const enqueueOne = async (mode) => {
-    const account_id = selectedUnit.account_id;
+  // Enqueue and run a single unit+mode job
+  const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
+    const account_id = unit.account_id;
     const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
 
-    const res = await base44.functions.invoke('enqueueMetaIngest', {
+    const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
       account_id,
-      unit_id: form.unit_id,
+      unit_id: unit.id,
       date_from: form.date_from,
       date_to: form.date_to,
       job_type: 'insights',
       level: 'ad',
       breakdowns: [],
       force: form.force,
-      meta_token: selectedUnit.secret_token,
+      meta_token: unit.secret_token,
       mode,
       job_key_override: job_key,
     });
 
-    return { job_key, ...res.data };
-  };
+    const enqData = { job_key, ...enqRes.data };
 
-  // Run single job (fire and wait)
-  const runOne = async (job_key) => {
-    const res = await base44.functions.invoke('runMetaIngest', {
+    if (enqData.status === 'running') {
+      updateItem(queueId, { status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução".' });
+      return false;
+    }
+
+    if (enqData.status === 'done' && !form.force) {
+      updateItem(queueId, { status: 'skipped', rows_written: enqData.rows_written || 0, error: `Dados já existem. Use "Forçar re-execução".` });
+      return true;
+    }
+
+    updateItem(queueId, { job_key });
+
+    const runResult = await base44.functions.invoke('runMetaIngest', {
       job_key,
-      meta_token: selectedUnit.secret_token,
-      unit_id: form.unit_id,
-      mode: INSIGHT_TYPES.find(t => job_key.includes(t.mode))?.mode,
+      meta_token: unit.secret_token,
+      unit_id: unit.id,
+      mode,
+      force: form.force,
     });
-    return res.data;
+
+    const data = runResult.data;
+    if (data.error) {
+      updateItem(queueId, { status: 'failed', error: data.error });
+      return false;
+    }
+
+    updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
+    return true;
   };
 
-  // Main: build queue and run sequentially
+  // Main: build queue (units x types) and run sequentially
   const handleRunQueue = async () => {
-    if (!form.unit_id) { toast.error('Selecione uma unidade'); return; }
-    if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID'); return; }
-    if (!selectedUnit?.secret_token) { toast.error('Unidade sem Token'); return; }
+    if (!form.unit_ids.length) { toast.error('Selecione ao menos uma unidade'); return; }
     if (!form.date_from || !form.date_to) { toast.error('Informe o período'); return; }
     if (selectedTypes.length === 0) { toast.error('Selecione ao menos um tipo'); return; }
 
-    const queueItems = selectedTypes.map(typeId => {
-      const type = INSIGHT_TYPES.find(t => t.id === typeId);
-      return {
-        id: `${typeId}-${Date.now()}`,
-        typeId,
-        mode: type.mode,
-        label: type.label,
-        status: 'queued',
-        job_key: null,
-        rows_written: 0,
-        error: null,
-      };
-    });
+    const selectedUnits = units.filter(u => form.unit_ids.includes(u.id));
+    const invalidUnits = selectedUnits.filter(u => !u.account_id || !u.secret_token);
+    if (invalidUnits.length) {
+      toast.error(`Unidades sem configuração: ${invalidUnits.map(u => u.name).join(', ')}`);
+      return;
+    }
+
+    // Build flat queue: unit x type
+    const queueItems = [];
+    for (const unit of selectedUnits) {
+      for (const typeId of selectedTypes) {
+        const type = INSIGHT_TYPES.find(t => t.id === typeId);
+        queueItems.push({
+          id: `${unit.id}-${typeId}-${Date.now()}`,
+          unitId: unit.id,
+          unitName: unit.name,
+          typeId,
+          mode: type.mode,
+          label: `${unit.name} — ${type.label}`,
+          status: 'queued',
+          job_key: null,
+          rows_written: 0,
+          error: null,
+        });
+      }
+    }
 
     setLocalQueue(queueItems);
     setRunningQueue(true);
     runningRef.current = true;
 
+    const updateItem = (id, patch) => {
+      setLocalQueue(prev => prev.map(q => q.id === id ? { ...q, ...patch } : q));
+    };
+
     for (let i = 0; i < queueItems.length; i++) {
       if (!runningRef.current) break;
 
       const item = queueItems[i];
+      const unit = units.find(u => u.id === item.unitId);
 
-      // Mark as running
-      setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'running' } : q));
+      updateItem(item.id, { status: 'running' });
 
       try {
-        // 1. enqueue
-        const enqueueResult = await enqueueOne(item.mode);
-        const job_key = enqueueResult.job_key;
-        setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, job_key } : q));
-
-        // Se job já estava rodando (travado), reportar erro
-        if (enqueueResult.status === 'running') {
-          setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução" para reiniciar.' } : q));
-          continue;
-        }
-
-        // Se job já estava concluído e não foi forçado, pular com aviso
-        if (enqueueResult.status === 'done' && !form.force) {
-          setLocalQueue(prev => prev.map((q, idx) => idx === i ? {
-            ...q,
-            status: 'skipped',
-            rows_written: enqueueResult.rows_written || 0,
-            error: `Dados já existem (${enqueueResult.rows_written || 0} rows). Use "Forçar re-execução" para atualizar.`
-          } : q));
-          continue;
-        }
-
-        // 2. run (blocking)
-        const runResult = await base44.functions.invoke('runMetaIngest', {
-          job_key,
-          meta_token: selectedUnit.secret_token,
-          unit_id: form.unit_id,
-          mode: item.mode,
-          force: form.force,
-        });
-
-        const data = runResult.data;
-        if (data.error) {
-          setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: data.error } : q));
+        const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
+        if (!ok) {
+          // stop on error
           runningRef.current = false;
           setRunningQueue(false);
-          // mark remaining as skipped
-          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued' ? { ...q, status: 'skipped', error: 'Parado por erro anterior' } : q));
+          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+            : q));
           toast.error(`Erro em "${item.label}". Fila interrompida.`);
           refetch();
           return;
-        } else {
-          setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'done', rows_written: data.rows_written || 0 } : q));
         }
       } catch (err) {
-        setLocalQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'failed', error: err.message } : q));
+        updateItem(item.id, { status: 'failed', error: err.message });
         runningRef.current = false;
         setRunningQueue(false);
-        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued' ? { ...q, status: 'skipped', error: 'Parado por erro anterior' } : q));
+        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+          : q));
         toast.error(`Erro em "${item.label}". Fila interrompida.`);
         refetch();
         return;
