@@ -7,38 +7,22 @@ const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 // Tuning
 // -----------------------
 const PAGE_LIMIT = 500;
-const DELAY_BETWEEN_PAGES = 120; // recomendo voltar p/ 120~200ms p/ estabilidade
+const DELAY_BETWEEN_PAGES = 150; // mais estável p/ breakdowns
 
-// Save tuning
-const IN_FILTER_CHUNK = 200;     // igual ao antigo (bem seguro)
-const BULK_CHUNK = 250;          // 200~400 costuma ser bom
-const UPDATE_CONCURRENCY = 6;    // updates são mais caros; mantenha baixo
-const DELETE_CONCURRENCY = 10;   // delete controlado p/ não derrubar runtime
+// Persistência
+const CHUNK_SIZE = 200;          // chunk para $in (seguro)
+const BULK_CHUNK_BASE = 200;     // base aguenta mais
+const BULK_CHUNK_BREAKDOWN = 100;// breakdown menor = menos 500
 const DELETE_BATCH = 200;
+const DELETE_CONCURRENCY = 10;
 
-// Fallback create-only
-const CREATE_CONCURRENCY = 6;    // se instável, 4~6
-
-// Meta retry
+// Meta fetch robusto
 const META_TIMEOUT_MS = 60000;
 const META_MAX_RETRIES = 5;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const jitter = (ms) => ms + Math.floor(Math.random() * 200);
 
-function jitter(ms) {
-  const j = Math.floor(Math.random() * 200);
-  return ms + j;
-}
-
-function splitIntoChunks(arr, size) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
-
-// -----------------------
-// Helpers
-// -----------------------
 function normalizeActId(id) {
   if (!id) return '';
   return String(id).replace(/^act_/, '');
@@ -104,12 +88,15 @@ function getDate(item) {
 
 // -----------------------
 // Rows
+// - raw SOMENTE no Base (para evitar 500 em breakdown)
 // -----------------------
 function baseRow(item, accountId, unitId, jobKey) {
   const date = getDate(item);
   const adId = item.ad_id || '';
+  const unique_key = `${accountId}:${unitId}:${adId}:${date}`;
+
   return {
-    unique_key: `${accountId}:${unitId}:${adId}:${date}`,
+    unique_key,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
@@ -123,6 +110,9 @@ function baseRow(item, accountId, unitId, jobKey) {
     ad_name: item.ad_name || null,
 
     ...metricsFromItem(item),
+
+    // ✅ raw só aqui
+    raw: item,
   };
 }
 
@@ -131,10 +121,11 @@ function platformRow(item, accountId, unitId, jobKey) {
   const adId = item.ad_id || '';
   const pp = item.publisher_platform || '';
   const pos = item.platform_position || '';
+  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${pp}:${pos}`;
   const m = metricsFromItem(item);
 
   return {
-    unique_key: `${accountId}:${unitId}:${adId}:${date}:${pp}:${pos}`,
+    unique_key,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
@@ -156,7 +147,6 @@ function platformRow(item, accountId, unitId, jobKey) {
     ctr_link: m.ctr_link,
     cpc_link: m.cpc_link,
     cpm: m.cpm,
-
   };
 }
 
@@ -164,10 +154,11 @@ function deviceRow(item, accountId, unitId, jobKey) {
   const date = getDate(item);
   const adId = item.ad_id || '';
   const dev = item.impression_device || '';
+  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${dev}`;
   const m = metricsFromItem(item);
 
   return {
-    unique_key: `${accountId}:${unitId}:${adId}:${date}:${dev}`,
+    unique_key,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
@@ -188,7 +179,6 @@ function deviceRow(item, accountId, unitId, jobKey) {
     ctr_link: m.ctr_link,
     cpc_link: m.cpc_link,
     cpm: m.cpm,
-
   };
 }
 
@@ -197,10 +187,11 @@ function demographicRow(item, accountId, unitId, jobKey) {
   const adId = item.ad_id || '';
   const age = item.age || '';
   const gender = item.gender || '';
+  const unique_key = `${accountId}:${unitId}:${adId}:${date}:${age}:${gender}`;
   const m = metricsFromItem(item);
 
   return {
-    unique_key: `${accountId}:${unitId}:${adId}:${date}:${age}:${gender}`,
+    unique_key,
     job_key: jobKey,
     account_id: accountId,
     unit_id: unitId,
@@ -222,17 +213,15 @@ function demographicRow(item, accountId, unitId, jobKey) {
     ctr_link: m.ctr_link,
     cpc_link: m.cpc_link,
     cpm: m.cpm,
-
   };
 }
 
 // -----------------------
-// Fetch (Meta) w/ retry
+// Fetch Meta (timeout + retry)
 // -----------------------
 async function fetchJsonWithTimeout(url, ms = META_TIMEOUT_MS) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms);
-
   try {
     const res = await fetch(url, { signal: controller.signal });
     const data = await res.json().catch(() => ({}));
@@ -245,9 +234,7 @@ async function fetchJsonWithTimeout(url, ms = META_TIMEOUT_MS) {
 function isTransientMetaError(res, data) {
   const http = res?.status || 0;
   const code = data?.error?.code;
-  // HTTP transitórios
   if (http === 429 || (http >= 500 && http <= 599)) return true;
-  // Meta throttling/transient típicos
   if (code === 4 || code === 17 || code === 1 || code === 2) return true;
   return false;
 }
@@ -268,7 +255,7 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
 
     let lastErr = null;
     for (let attempt = 0; attempt <= META_MAX_RETRIES; attempt++) {
-      const { res, data } = await fetchJsonWithTimeout(url, META_TIMEOUT_MS);
+      const { res, data } = await fetchJsonWithTimeout(url);
 
       if (res.ok && !data?.error) {
         results.push(...(data.data || []));
@@ -276,10 +263,10 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
         if (data.paging?.cursors?.after && data.paging?.next) {
           cursor = data.paging.cursors.after;
           if (DELAY_BETWEEN_PAGES) await sleep(DELAY_BETWEEN_PAGES);
-          break; // vai para próxima página
+          break;
         }
 
-        return results; // acabou
+        return results;
       }
 
       const msg = data?.error?.message || `Meta API HTTP ${res.status}`;
@@ -287,21 +274,24 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
       const sub = data?.error?.error_subcode;
       lastErr = new Error(`${msg}${code ? ` | code=${code}` : ''}${sub ? ` | sub=${sub}` : ''}`);
 
-      if (!isTransientMetaError(res, data) || attempt === META_MAX_RETRIES) {
-        throw lastErr;
-      }
+      if (!isTransientMetaError(res, data) || attempt === META_MAX_RETRIES) throw lastErr;
 
-      // backoff exponencial com jitter
       const backoff = jitter(500 * Math.pow(2, attempt));
-      console.warn(`Meta transient error (attempt ${attempt + 1}/${META_MAX_RETRIES + 1}) -> retry in ${backoff}ms:`, lastErr.message);
+      console.warn(`Meta transient error (attempt ${attempt + 1}/${META_MAX_RETRIES + 1}) -> retry in ${backoff}ms: ${lastErr.message}`);
       await sleep(backoff);
     }
   }
 }
 
 // -----------------------
-// Save (Base44) — UP SERT REAL
+// Persist helpers
 // -----------------------
+function splitIntoChunks(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 function dedupByUniqueKey(rows) {
   const map = new Map();
   for (const r of rows || []) {
@@ -312,137 +302,127 @@ function dedupByUniqueKey(rows) {
 
 async function runWithConcurrency(items, worker, concurrency) {
   let idx = 0;
-  let ok = 0;
+  const conc = Math.max(1, concurrency);
 
   async function runner() {
     while (idx < items.length) {
       const i = idx++;
-      try {
-        const res = await worker(items[i], i);
-        if (res) ok++;
-      } catch (e) {
-        throw e;
-      }
+      await worker(items[i], i);
     }
   }
 
-  const runners = Array.from({ length: Math.max(1, concurrency) }, () => runner());
-  await Promise.all(runners);
-  return ok;
+  await Promise.all(Array.from({ length: conc }, () => runner()));
 }
 
-async function bulkDeleteByJobKey(entity, job_key) {
+function buildPeriodFilter({ account_id, unit_id, date_from, date_to }) {
+  // ✅ Base44 geralmente aceita $gte/$lte. Se no seu não aceitar, me manda o erro que ajusto.
+  return {
+    account_id,
+    unit_id,
+    date: { $gte: date_from, $lte: date_to },
+  };
+}
+
+async function deleteByPeriod(entity, { account_id, unit_id, date_from, date_to }) {
+  const filter = buildPeriodFilter({ account_id, unit_id, date_from, date_to });
+
   while (true) {
-    const list = await entity.filter({ job_key }, null, DELETE_BATCH);
+    const list = await entity.filter(filter, null, DELETE_BATCH);
     if (!list?.length) break;
 
     await runWithConcurrency(
       list,
       async (r) => {
         await entity.delete(r.id);
-        return true;
       },
       DELETE_CONCURRENCY
     );
 
-    // pequeno respiro evita “rajada”
     await sleep(50);
   }
 }
 
-async function tryBulkCreate(entity, rows) {
-  let written = 0;
-  for (let i = 0; i < rows.length; i += BULK_CHUNK) {
-    const chunk = rows.slice(i, i + BULK_CHUNK);
-    await entity.bulkCreate(chunk);
-    written += chunk.length;
-    if (i + BULK_CHUNK < rows.length) await sleep(30);
-  }
-  return written;
-}
-
-async function fallbackCreateOnly(entity, rows) {
-  // create em paralelo com ignore de duplicado
-  let written = 0;
-
-  for (let i = 0; i < rows.length; i += CREATE_CONCURRENCY) {
-    const chunk = rows.slice(i, i + CREATE_CONCURRENCY);
-
-    const results = await Promise.allSettled(
-      chunk.map(async (row) => {
-        try {
-          await entity.create(row);
-          return true;
-        } catch (e) {
-          const msg = String(e?.message || '').toLowerCase();
-          if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) return false;
-          throw e;
-        }
-      })
-    );
-
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value === true) written++;
-      if (r.status === 'rejected') console.error('⚠️ create falhou:', r.reason?.message || r.reason);
-    }
-
-    if (i + CREATE_CONCURRENCY < rows.length) await sleep(20);
-  }
-
-  return written;
-}
-
-async function safeBulkCreate(entity, rows) {
-  try {
-    return await tryBulkCreate(entity, rows);
-  } catch (e) {
-    console.error('⚠️ bulkCreate falhou, usando fallback create-only:', e?.message || e);
-    return await fallbackCreateOnly(entity, rows);
-  }
-}
-
 async function safeFilterByInChunked(entity, keys) {
-  // Retorna array completo dos existentes (ou null se $in falhar)
   try {
     const existingAll = [];
-    const chunks = splitIntoChunks(keys, IN_FILTER_CHUNK);
+    const chunks = splitIntoChunks(keys, CHUNK_SIZE);
 
     for (const ck of chunks) {
       const res = await entity.filter({ unique_key: { $in: ck } }, null, ck.length);
       if (Array.isArray(res) && res.length) existingAll.push(...res);
-      // respiro pequeno
       await sleep(10);
     }
 
     return existingAll;
   } catch (e) {
-    console.error('⚠️ filter $in falhou (não dá pra checar existentes):', e?.message || e);
+    console.error('⚠️ filter $in falhou:', e?.message || e);
     return null;
   }
 }
 
-async function safeUpdateMany(entity, updates) {
-  // updates: [{ id, data }]
-  // (Base44 não tem bulkUpdate aqui, então controlamos concorrência)
-  const written = await runWithConcurrency(
-    updates,
-    async ({ id, data }) => {
-      await entity.update(id, data);
-      return true;
-    },
-    UPDATE_CONCURRENCY
-  );
+async function bulkCreateChunked(entity, rows, bulkChunkSize) {
+  let written = 0;
+  for (let i = 0; i < rows.length; i += bulkChunkSize) {
+    const chunk = rows.slice(i, i + bulkChunkSize);
+    await entity.bulkCreate(chunk);
+    written += chunk.length;
+    if (i + bulkChunkSize < rows.length) await sleep(30);
+  }
   return written;
 }
 
+async function createOnlyFallback(entity, rows) {
+  // fallback seguro: cria 1 a 1 e ignora duplicado
+  let written = 0;
+  for (const row of rows) {
+    try {
+      await entity.create(row);
+      written++;
+    } catch (e) {
+      const msg = String(e?.message || '').toLowerCase();
+      if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already')) continue;
+      throw e;
+    }
+  }
+  return written;
+}
+
+async function safeBulkCreate(entity, rows, bulkChunkSize) {
+  try {
+    return await bulkCreateChunked(entity, rows, bulkChunkSize);
+  } catch (e) {
+    console.error('⚠️ bulkCreate falhou, usando createOnlyFallback:', e?.message || e);
+    return await createOnlyFallback(entity, rows);
+  }
+}
+
 /**
- * Salvamento: bulkCreate direto, sem delete.
- * unique_key garante idempotência — duplicatas são ignoradas via fallback.
+ * ✅ COMPORTAMENTO QUE VOCÊ QUER:
+ * - force=false: se já existe na data/unique_key, NÃO grava nada (só cria faltantes)
+ * - force=true : deleta o período e sobrepõe
  */
-async function saveUpsert(entity, rows) {
+async function saveMode(entity, rows, ctx, { bulkChunkSize }) {
   const deduped = dedupByUniqueKey(rows);
   if (!deduped.length) return 0;
-  return await safeBulkCreate(entity, deduped);
+
+  if (ctx.force) {
+    await deleteByPeriod(entity, ctx);
+    return await safeBulkCreate(entity, deduped, bulkChunkSize);
+  }
+
+  const keys = deduped.map((r) => r.unique_key);
+  const existing = await safeFilterByInChunked(entity, keys);
+
+  // Se não der pra checar existentes (falha no $in), tentamos criar tudo e ignorar duplicado no fallback
+  if (existing === null) {
+    return await safeBulkCreate(entity, deduped, bulkChunkSize);
+  }
+
+  const existingSet = new Set(existing.map((e) => e.unique_key));
+  const toCreate = deduped.filter((r) => !existingSet.has(r.unique_key));
+  if (!toCreate.length) return 0;
+
+  return await safeBulkCreate(entity, toCreate, bulkChunkSize);
 }
 
 // -----------------------
@@ -502,6 +482,14 @@ Deno.serve(async (req) => {
     const actId = normalizeActId(account_id);
     const effectiveUnitId = unit_id || job.unit_id || '';
 
+    const ctx = {
+      account_id,
+      unit_id: effectiveUnitId,
+      date_from,
+      date_to,
+      force: !!force, // ✅ parâmetro que você quer
+    };
+
     const baseParams = {
       time_range: JSON.stringify({ since: date_from, until: date_to }),
       fields:
@@ -519,7 +507,9 @@ Deno.serve(async (req) => {
       const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
       const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
 
-      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightBase, rows);
+      totalRows += await saveMode(base44.asServiceRole.entities.MetaInsightBase, rows, ctx, {
+        bulkChunkSize: BULK_CHUNK_BASE,
+      });
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 1,
@@ -532,7 +522,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // PLATFORM+POSITION
+    // PLATFORM
     if (!effectiveMode || effectiveMode === 'platform') {
       const items = await fetchAllPagesInsights(actId, meta_token, {
         ...baseParams,
@@ -540,7 +530,9 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => platformRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows);
+      totalRows += await saveMode(base44.asServiceRole.entities.MetaInsightByPlatformPosition, rows, ctx, {
+        bulkChunkSize: BULK_CHUNK_BREAKDOWN,
+      });
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 2,
@@ -561,7 +553,9 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => deviceRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByDevice, rows);
+      totalRows += await saveMode(base44.asServiceRole.entities.MetaInsightByDevice, rows, ctx, {
+        bulkChunkSize: BULK_CHUNK_BREAKDOWN,
+      });
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 3,
@@ -582,7 +576,9 @@ Deno.serve(async (req) => {
       });
 
       const rows = items.map((i) => demographicRow(i, account_id, effectiveUnitId, job_key));
-      totalRows += await saveUpsert(base44.asServiceRole.entities.MetaInsightByDemographic, rows);
+      totalRows += await saveMode(base44.asServiceRole.entities.MetaInsightByDemographic, rows, ctx, {
+        bulkChunkSize: BULK_CHUNK_BREAKDOWN,
+      });
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 4,
