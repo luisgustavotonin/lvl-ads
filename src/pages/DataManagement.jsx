@@ -252,7 +252,6 @@ export default function DataManagement() {
     if (!selectedUnit || tabData.length === 0) return;
     setConfirmDelete(false);
     setDeleting(true);
-    setBulkProgress({ tableIndex: 0, totalTables: 1, tableLabel: tabDef?.label, tableDone: 0, tableTotal: tabData.length });
     try {
       await handleBulkDelete([activeTab]);
       setCurrentPage(1);
