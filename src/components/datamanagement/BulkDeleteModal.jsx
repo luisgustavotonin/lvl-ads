@@ -30,7 +30,7 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(ALL_TABLES.map(t => t.id));
   const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState({ table: '', batch: 0, total: 0, done: [] });
+  const [status, setStatus] = useState({ table: '', batch: 0, total: 0, done: [], tableTotal: 0 });
 
   const toggle = (id) => {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
