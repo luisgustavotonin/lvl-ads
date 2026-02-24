@@ -264,55 +264,97 @@ export default function DataManagement() {
     }
   };
 
+  const ENTITY_MAP = {
+    base:        'MetaInsightBase',
+    platform:    'MetaInsightByPlatformPosition',
+    device:      'MetaInsightByDevice',
+    demographic: 'MetaInsightByDemographic',
+    creatives:   'MetaAdsCreative',
+    jobs:        'MetaIngestRun',
+  };
+  const TAB_HAS_DATE = {
+    base: true, platform: true, device: true, demographic: true, creatives: false, jobs: true,
+  };
+
+  const buildEntityFilters = (tabId) => {
+    const f = { unit_id: selectedUnit };
+    if (TAB_HAS_DATE[tabId]) {
+      if (dateFrom) f.date = { $gte: dateFrom };
+      if (dateTo) f.date = { ...(f.date || {}), $lte: dateTo };
+    }
+    return f;
+  };
+
   const handleBulkDelete = async (tabsToDelete) => {
     const tabs = tabsToDelete || selectedTabsForBulk;
     if (!selectedUnit || tabs.length === 0) return;
     setBulkDeleteOpen(false);
     setBulkDeleting(true);
     const tabLabels = TABS.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {});
-    setBulkProgress({ tableIndex: 0, totalTables: tabs.length, tableLabel: 'Processando...', tableDone: 0, tableTotal: 0 });
 
-    try {
-      const response = await base44.functions.invoke('bulkDeleteByUnit', {
-        unit_id: selectedUnit,
-        account_id: accountId,
-        date_from: dateFrom || null,
-        date_to: dateTo || null,
-        tables: tabs,
-      });
+    const totalDeleted = {};
+    let grandTotal = 0;
 
-      const data = response.data;
+    for (let t = 0; t < tabs.length; t++) {
+      const tabId = tabs[t];
+      const entityName = ENTITY_MAP[tabId];
+      if (!entityName) continue;
 
-      if (!data.success) {
-        throw new Error(data.error || 'Erro desconhecido');
+      const label = tabLabels[tabId] || tabId;
+      setBulkProgress({ tableIndex: t, totalTables: tabs.length, tableLabel: label, tableDone: 0, tableTotal: 0 });
+
+      const entity = base44.entities[entityName];
+      const filters = buildEntityFilters(tabId);
+
+      // Fetch all IDs first
+      let allIds = [];
+      let skip = 0;
+      const PAGE = 500;
+      while (true) {
+        const rows = await entity.filter(filters, null, PAGE, skip);
+        if (!rows || rows.length === 0) break;
+        allIds = allIds.concat(rows.map(r => r.id));
+        if (rows.length < PAGE) break;
+        skip += PAGE;
       }
 
-      const lines = Object.entries(data.deleted || {})
-        .map(([id, n]) => `${tabLabels[id] || id}: ${n} registros`)
-        .join('\n');
+      const total = allIds.length;
+      setBulkProgress(p => ({ ...p, tableTotal: total, tableDone: 0 }));
 
-      if (data.total > 0) {
-        toast.success(`✅ Total: ${data.total} excluídos\n${lines}`, { duration: 8000 });
-      } else {
-        toast('Nenhum registro encontrado para excluir.');
+      if (total === 0) {
+        totalDeleted[tabId] = 0;
+        continue;
       }
 
-      if (data.errors && Object.keys(data.errors).length > 0) {
-        const errLines = Object.entries(data.errors)
-          .map(([id, msg]) => `${tabLabels[id] || id}: ${msg}`)
-          .join('\n');
-        toast.error(`⚠️ Erros:\n${errLines}`, { duration: 12000 });
+      // Delete in batches of 20 with progress
+      let deleted = 0;
+      const BATCH = 20;
+      for (let i = 0; i < allIds.length; i += BATCH) {
+        const batch = allIds.slice(i, i + BATCH);
+        await Promise.allSettled(batch.map(id => entity.delete(id)));
+        deleted += batch.length;
+        setBulkProgress(p => ({ ...p, tableDone: deleted, tableTotal: total }));
+        await new Promise(r => setTimeout(r, 50));
       }
 
-      tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
-      queryClient.invalidateQueries({ queryKey: ['dm'] });
-      setSelectedTabsForBulk([]);
-    } catch (err) {
-      toast.error(`Erro: ${err.message}`);
-    } finally {
-      setBulkDeleting(false);
-      setBulkProgress(null);
+      totalDeleted[tabId] = deleted;
+      grandTotal += deleted;
     }
+
+    setBulkProgress(p => ({ ...p, tableIndex: tabs.length, tableDone: p?.tableTotal || 0 }));
+
+    if (grandTotal > 0) {
+      const lines = Object.entries(totalDeleted).map(([id, n]) => `${tabLabels[id] || id}: ${n}`).join(' | ');
+      toast.success(`✅ ${grandTotal} registros excluídos — ${lines}`, { duration: 8000 });
+    } else {
+      toast('Nenhum registro encontrado para excluir.');
+    }
+
+    tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
+    queryClient.invalidateQueries({ queryKey: ['dm'] });
+    setSelectedTabsForBulk([]);
+    setBulkDeleting(false);
+    setBulkProgress(null);
   };
 
   const isAnyDeleting = deleting || bulkDeleting;
