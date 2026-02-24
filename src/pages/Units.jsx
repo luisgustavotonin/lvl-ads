@@ -234,10 +234,14 @@ export default function Units() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-sm text-gray-500">
+                <div className="flex flex-col gap-2 text-sm text-gray-500">
                   <div className="flex items-center gap-1">
                     <Link2 className="w-4 h-4" />
                     {getIntegrationsCount(unit.id)} integrações
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-400">ID:</span>
+                    <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 select-all">{unit.id}</code>
                   </div>
                 </div>
               </CardContent>
