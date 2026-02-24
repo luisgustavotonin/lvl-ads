@@ -140,7 +140,7 @@ export default function MetaIngest() {
 
   // Sync creatives
   const handleSyncCreatives = async () => {
-    if (!form.unit_id) { toast.error('Selecione uma unidade'); return; }
+    if (!form.unit_ids.length) { toast.error('Selecione uma unidade'); return; }
     if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID cadastrado'); return; }
     if (!selectedUnit?.secret_token) { toast.error('Unidade sem Token cadastrado'); return; }
 
