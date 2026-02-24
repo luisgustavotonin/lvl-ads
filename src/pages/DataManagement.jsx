@@ -242,14 +242,34 @@ export default function DataManagement() {
     setPageSize(DEFAULT_PAGE_SIZE);
   };
 
-  const invokeBulkDelete = async (tables) => {
-    return base44.functions.invoke('bulkDeleteByUnit', {
-      unit_id: selectedUnit,
-      account_id: accountId,
-      date_from: dateFrom || null,
-      date_to: dateTo || null,
-      tables,
-    });
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  // Delete all records from ONE table by looping until hasMore=false
+  const deleteTableLoop = async (tableId) => {
+    let totalDeleted = 0;
+    let batchNum = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      batchNum++;
+      let res;
+      try {
+        const response = await base44.functions.invoke('bulkDeleteByUnit', {
+          unit_id: selectedUnit,
+          date_from: dateFrom || null,
+          date_to: dateTo || null,
+          table: tableId,
+        });
+        res = response.data;
+      } catch (e) {
+        console.error(`Batch ${batchNum} error for ${tableId}:`, e.message);
+        break;
+      }
+      totalDeleted += res?.deleted || 0;
+      hasMore = res?.hasMore === true;
+      if (hasMore) await sleep(300);
+    }
+    return totalDeleted;
   };
 
   const handleDeleteAll = async () => {
@@ -257,28 +277,19 @@ export default function DataManagement() {
     setConfirmDelete(false);
     setDeleting(true);
     setBulkDeleting(true);
+    setBulkProgress({ tableIndex: 0, totalTables: 1, tableLabel: tabDef?.label || activeTab, tableDone: 0, tableTotal: 0 });
+
     try {
-      const res = await base44.functions.invoke('bulkDeleteByUnit', {
-        unit_id: selectedUnit,
-        account_id: accountId,
-        date_from: dateFrom || null,
-        date_to: dateTo || null,
-        tables: [activeTab],
-      });
-      const data = res.data;
-      const grandTotal = data?.total || 0;
-      if (grandTotal > 0) {
-        toast.success(`✅ ${grandTotal} registros excluídos`);
+      const count = await deleteTableLoop(activeTab);
+      if (count > 0) {
+        toast.success(`✅ ${count} registros excluídos`);
       } else {
         toast('Nenhum registro encontrado para excluir.');
-      }
-      if (data?.errors && Object.keys(data.errors).length > 0) {
-        toast.error(`Erros: ${JSON.stringify(data.errors)}`);
       }
       setCurrentPage(1);
       queryClient.invalidateQueries({ queryKey: ['dm'] });
     } catch (err) {
-      toast.error(`Erro ao excluir: ${err.message || 'Network Error — tente novamente'}`);
+      toast.error(`Erro ao excluir: ${err.message}`);
     } finally {
       setDeleting(false);
       setBulkDeleting(false);
@@ -293,40 +304,23 @@ export default function DataManagement() {
     setBulkDeleting(true);
     const tabLabels = TABS.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {});
 
-    setBulkProgress({ tableIndex: 0, totalTables: tabs.length, tableLabel: 'Aguardando...', tableDone: 0, tableTotal: 0 });
+    let grandTotal = 0;
+    const results = {};
 
-    try {
-      // Show each table label in sequence while backend runs
-      tabs.forEach((tabId, i) => {
-        setTimeout(() => {
-          setBulkProgress(p => p ? { ...p, tableIndex: i, tableLabel: tabLabels[tabId] || tabId } : p);
-        }, i * 500);
-      });
+    for (let i = 0; i < tabs.length; i++) {
+      const tableId = tabs[i];
+      setBulkProgress({ tableIndex: i, totalTables: tabs.length, tableLabel: tabLabels[tableId] || tableId, tableDone: grandTotal, tableTotal: 0 });
+      const count = await deleteTableLoop(tableId);
+      grandTotal += count;
+      results[tableId] = count;
+      await sleep(500);
+    }
 
-      const res = await base44.functions.invoke('bulkDeleteByUnit', {
-        unit_id: selectedUnit,
-        account_id: accountId,
-        date_from: dateFrom || null,
-        date_to: dateTo || null,
-        tables: tabs,
-      });
-
-      const data = res.data;
-      const grandTotal = data.total || 0;
-
-      if (grandTotal > 0) {
-        const lines = Object.entries(data.deleted || {}).map(([id, n]) => `${tabLabels[id] || id}: ${n}`).join(' | ');
-        toast.success(`✅ ${grandTotal} registros excluídos — ${lines}`, { duration: 8000 });
-      } else {
-        toast('Nenhum registro encontrado para excluir.');
-      }
-
-      if (data.errors && Object.keys(data.errors).length > 0) {
-        const errLines = Object.entries(data.errors).map(([id, msg]) => `${tabLabels[id] || id}: ${msg}`).join('\n');
-        toast.error(`⚠️ Erros:\n${errLines}`, { duration: 12000 });
-      }
-    } catch (err) {
-      toast.error(`Erro: ${err.message}`);
+    if (grandTotal > 0) {
+      const lines = Object.entries(results).map(([id, n]) => `${tabLabels[id] || id}: ${n}`).join(' | ');
+      toast.success(`✅ ${grandTotal} registros excluídos — ${lines}`, { duration: 8000 });
+    } else {
+      toast('Nenhum registro encontrado para excluir.');
     }
 
     tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
