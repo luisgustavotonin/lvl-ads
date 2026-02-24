@@ -49,7 +49,9 @@ Deno.serve(async (req) => {
   // Load all active schedules (or just one if schedule_id passed)
   let schedules;
   if (schedule_id) {
-    schedules = await base44.asServiceRole.entities.IngestSchedule.filter({ id: schedule_id, is_active: true });
+    // id is a built-in field, can't filter by it - fetch all and filter in-memory
+    const all = await base44.asServiceRole.entities.IngestSchedule.filter({ is_active: true });
+    schedules = all.filter(s => s.id === schedule_id);
   } else {
     schedules = await base44.asServiceRole.entities.IngestSchedule.filter({ is_active: true });
   }

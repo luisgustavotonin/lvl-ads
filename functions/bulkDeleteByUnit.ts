@@ -17,8 +17,8 @@ const HAS_DATE = {
   insights: true, creatives_basic: false,
 };
 
-const FETCH_BATCH = 200;
-const DELETE_CONCURRENCY = 5; // low to avoid rate limits
+const FETCH_BATCH = 50;
+const DELETE_CONCURRENCY = 2; // very conservative to avoid rate limits
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function deleteAll(entity, filters) {
@@ -29,16 +29,16 @@ async function deleteAll(entity, filters) {
 
     const ids = rows.map(r => r.id);
 
-    // Delete in small parallel chunks to respect rate limits
+    // Delete one-by-one in small chunks with generous pauses
     for (let i = 0; i < ids.length; i += DELETE_CONCURRENCY) {
       const chunk = ids.slice(i, i + DELETE_CONCURRENCY);
       await Promise.all(chunk.map(id => entity.delete(id)));
       total += chunk.length;
-      if (i + DELETE_CONCURRENCY < ids.length) await sleep(100);
+      await sleep(500); // 500ms between each micro-batch
     }
 
     if (rows.length < FETCH_BATCH) break;
-    await sleep(200);
+    await sleep(1000); // 1s between fetch batches
   }
   return total;
 }
