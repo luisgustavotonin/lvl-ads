@@ -60,7 +60,7 @@ export default function MetaIngest() {
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
-    unit_id: '',
+    unit_ids: [], // multi-unit support
     date_from: yesterday(),
     date_to: yesterday(),
     force: false,
