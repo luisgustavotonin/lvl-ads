@@ -312,10 +312,12 @@ export default function DataManagement() {
     for (let i = 0; i < tabs.length; i++) {
       const tableId = tabs[i];
       setBulkProgress({ tableIndex: i, totalTables: tabs.length, tableLabel: tabLabels[tableId] || tableId, tableDone: grandTotal, tableTotal: 0 });
-      const count = await deleteTableLoop(tableId);
+      const count = await deleteTableLoop(tableId, (batchTotal) => {
+        setBulkProgress(p => p ? { ...p, tableDone: batchTotal } : p);
+      });
       grandTotal += count;
       results[tableId] = count;
-      await sleep(500);
+      await sleep(200);
     }
 
     if (grandTotal > 0) {
