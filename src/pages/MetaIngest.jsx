@@ -90,7 +90,7 @@ export default function MetaIngest() {
     refetchInterval: 4000,
   });
 
-  const selectedUnit = units.find(u => u.id === form.unit_id);
+  const selectedUnit = units.find(u => u.id === form.unit_ids[0]); // for creatives (single)
 
   // Type selection logic
   const toggleType = (id) => {
