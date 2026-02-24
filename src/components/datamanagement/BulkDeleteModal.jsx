@@ -100,8 +100,8 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
     for (const tableId of selected) {
       const count = await deleteTable(tableId);
       grandTotal += count;
-      setStatus(s => ({ ...s, done: [...s.done, tableId], total: grandTotal }));
-      await sleep(1000); // pause between tables
+      setStatus(s => ({ ...s, done: [...s.done, tableId], total: grandTotal, tableTotal: 0 }));
+      await sleep(2000); // pause between tables
     }
 
     setRunning(false);
