@@ -1,15 +1,13 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 
-export default function DeleteProgressOverlay({ tables, progress }) {
-  // progress = { tableId, tableDone, tableTotal, tableIndex, totalTables, deleted }
-  const { tableId, tableDone, tableTotal, tableIndex, totalTables, tableLabel, tableCount } = progress || {};
+export default function DeleteProgressOverlay({ progress }) {
+  // progress = { tableIndex, totalTables, tableLabel, tableDone }
+  const { tableIndex = 0, totalTables = 1, tableLabel = '', tableDone = 0 } = progress || {};
 
   const globalPct = totalTables > 0
-    ? Math.round(((tableIndex || 0) / totalTables) * 100 + (tableTotal > 0 ? ((tableDone || 0) / tableTotal / totalTables) * 100 : 0))
+    ? Math.round((tableIndex / totalTables) * 100)
     : 0;
-
-  const tablePct = tableTotal > 0 ? Math.round(((tableDone || 0) / tableTotal) * 100) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -23,16 +21,20 @@ export default function DeleteProgressOverlay({ tables, progress }) {
           {tableLabel && (
             <p className="text-sm text-gray-500 mt-1">
               Tabela atual: <strong>{tableLabel}</strong>
-              {tableCount !== undefined && <span className="text-gray-400"> ({tableCount.toLocaleString('pt-BR')} registros)</span>}
+            </p>
+          )}
+          {tableDone > 0 && (
+            <p className="text-sm text-blue-600 font-medium mt-1">
+              {tableDone.toLocaleString('pt-BR')} registros excluídos nesta tabela
             </p>
           )}
         </div>
 
-        {/* Progresso global (tabelas) */}
+        {/* Progresso global (tabelas concluídas) */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-gray-500">
             <span>Progresso geral</span>
-            <span>{tableIndex || 0} de {totalTables || '?'} tabelas ({globalPct}%)</span>
+            <span>{tableIndex} de {totalTables} tabelas ({globalPct}%)</span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
             <div
@@ -42,21 +44,16 @@ export default function DeleteProgressOverlay({ tables, progress }) {
           </div>
         </div>
 
-        {/* Progresso dentro da tabela atual */}
-        {tablePct !== null && tableTotal > 0 && (
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Dentro desta tabela</span>
-              <span>{(tableDone || 0).toLocaleString('pt-BR')} de {tableTotal.toLocaleString('pt-BR')} ({tablePct}%)</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-2 rounded-full bg-red-500 transition-all duration-150"
-                style={{ width: `${tablePct}%` }}
-              />
-            </div>
+        {/* Barra animada da tabela atual */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Tabela atual</span>
+            <span>Em andamento…</span>
           </div>
-        )}
+          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div className="h-2 rounded-full bg-red-400 animate-pulse" style={{ width: '100%' }} />
+          </div>
+        </div>
 
         <p className="text-xs text-gray-400">Por favor, não feche esta janela.</p>
       </div>
