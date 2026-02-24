@@ -22,47 +22,24 @@ async function deleteAllMatching(entity, query) {
 
   while (true) {
     rounds++;
-
-    // Busca até 50 registros de uma vez
     let records;
     try {
-      records = await entity.filter(query, null, 50);
+      records = await entity.filter(query, null, 200);
     } catch (e) {
-      const msg = String(e?.message || '');
-      if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
-        console.warn(`[purge] 429 rate limit ao listar, sleeping 10s (round ${rounds})`);
-        await sleep(10000);
-        records = await entity.filter(query, null, 50);
-      } else {
-        throw e;
-      }
+      throw e;
     }
 
     if (!records || records.length === 0) break;
 
-    // Deleta um a um
-    for (const rec of records) {
-      try {
-        await entity.delete(rec.id);
-        total++;
-      } catch (e) {
-        const msg = String(e?.message || '');
-        if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
-          await sleep(5000);
-          await entity.delete(rec.id);
-          total++;
-        } else {
-          throw e;
-        }
-      }
-      await sleep(100);
-    }
-
+    // Deleta em paralelo (sem await individual)
+    await Promise.all(records.map(rec => entity.delete(rec.id).catch(err => {
+      console.error(`[purge] erro ao deletar ${rec.id}:`, err?.message);
+    })));
+    
+    total += records.length;
     console.log(`[purge] round=${rounds} batch=${records.length} total=${total}`);
 
-    if (records.length < 50) break;
-
-    await sleep(1000);
+    if (records.length < 200) break;
   }
 
   return total;
