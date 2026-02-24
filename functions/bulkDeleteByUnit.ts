@@ -14,8 +14,6 @@ const HAS_DATE = {
   creatives: false, jobs: true,
 };
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me();
@@ -41,55 +39,14 @@ Deno.serve(async (req) => {
     if (date_to) query.date.$lte = date_to;
   }
 
-  console.log(`[bulkDelete] START table=${table} unit=${unit_id}`);
+  console.log(`[bulkDelete] table=${table} unit=${unit_id}`);
 
-  let totalDeleted = 0;
-  let round = 0;
+  // Single deleteMany call — frontend will call us repeatedly until deleted=0
+  const result = await entity.deleteMany(query);
+  const deleted = result?.deleted || 0;
 
-  // Keep calling deleteMany until 0 records remain, with pauses to avoid 429
-  while (true) {
-    round++;
-    // Check if there's anything left first
-    let check;
-    try {
-      check = await entity.filter(query, null, 1);
-    } catch (e) {
-      console.warn(`Check failed round ${round}:`, e?.message);
-      await sleep(5000);
-      continue;
-    }
+  console.log(`[bulkDelete] deleted=${deleted}`);
 
-    if (!check || check.length === 0) {
-      console.log(`[bulkDelete] No more records after round ${round}`);
-      break;
-    }
-
-    // Wait before deleteMany to give the rate limit bucket time to refill
-    await sleep(2000);
-
-    let result;
-    try {
-      result = await entity.deleteMany(query);
-      totalDeleted += result.deleted || 0;
-      console.log(`[bulkDelete] round=${round} deleted=${result.deleted} total=${totalDeleted}`);
-    } catch (e) {
-      const msg = e?.message || '';
-      if (msg.includes('429') || msg.includes('Rate limit')) {
-        console.warn(`[bulkDelete] 429 on round ${round}, waiting 10s`);
-        await sleep(10000);
-        continue; // retry same round
-      }
-      console.error(`[bulkDelete] Error on round ${round}:`, msg);
-      break;
-    }
-
-    if (!result.deleted || result.deleted === 0) break;
-
-    // Pause before next round
-    await sleep(3000);
-  }
-
-  console.log(`[bulkDelete] DONE table=${table} totalDeleted=${totalDeleted}`);
-
-  return Response.json({ success: true, table, deleted: totalDeleted, hasMore: false });
+  // If we deleted something, tell the frontend to call again (there may be more)
+  return Response.json({ success: true, table, deleted, hasMore: deleted > 0 });
 });
