@@ -14,6 +14,8 @@ const HAS_DATE = {
   creatives: false, jobs: true,
 };
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me();
@@ -39,14 +41,42 @@ Deno.serve(async (req) => {
     if (date_to) query.date.$lte = date_to;
   }
 
-  console.log(`[bulkDelete] table=${table} unit=${unit_id}`);
+  // Delete up to 5 batches of deleteMany per call (~500 records)
+  // Each deleteMany deletes up to 100 records, so 5 rounds = ~500 max
+  let totalDeleted = 0;
+  let hasMore = true;
 
-  // Single deleteMany call — frontend will call us repeatedly until deleted=0
-  const result = await entity.deleteMany(query);
-  const deleted = result?.deleted || 0;
+  for (let i = 0; i < 5; i++) {
+    let result;
+    try {
+      result = await entity.deleteMany(query);
+    } catch (e) {
+      const msg = e?.message || '';
+      if (msg.includes('429') || msg.includes('Rate limit')) {
+        console.warn(`[bulkDelete] 429 on round ${i + 1}, pausing 8s`);
+        await sleep(8000);
+        try {
+          result = await entity.deleteMany(query);
+        } catch (_) {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
 
-  console.log(`[bulkDelete] deleted=${deleted}`);
+    const deleted = result?.deleted || 0;
+    totalDeleted += deleted;
+    console.log(`[bulkDelete] round=${i + 1} deleted=${deleted} total=${totalDeleted}`);
 
-  // If we deleted something, tell the frontend to call again (there may be more)
-  return Response.json({ success: true, table, deleted, hasMore: deleted > 0 });
+    if (deleted === 0) {
+      hasMore = false;
+      break;
+    }
+
+    // Small pause between rounds to avoid rate limit
+    if (i < 4) await sleep(1500);
+  }
+
+  return Response.json({ success: true, table, deleted: totalDeleted, hasMore });
 });
