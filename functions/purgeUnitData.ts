@@ -1,10 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const TABLE_MAP = {
-  base:        'MetaInsightBase',
-  platform:    'MetaInsightByPlatformPosition',
-  device:      'MetaInsightByDevice',
-  demographic: 'MetaInsightByDemographic',
+  base:        'MetaAdInsights',
+  platform:    'MetaAdByPlatform',
+  device:      'MetaAdByDevice',
+  demographic: 'MetaAdByDemographic',
   creatives:   'MetaAdsCreative',
   jobs:        'MetaIngestRun',
 };
