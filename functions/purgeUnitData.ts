@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
 
   const results = {};
 
-  await Promise.all(tables.map(async (table) => {
+  const promises = tables.map(async (table) => {
     const entityName = TABLE_MAP[table];
     if (!entityName) {
       results[table] = { error: `Tabela inválida: ${table}` };
@@ -92,7 +92,9 @@ Deno.serve(async (req) => {
       console.error(`[purge] ERROR table=${table}:`, e?.message);
       results[table] = { error: e?.message || String(e) };
     }
-  }));
+  });
+
+  await Promise.all(promises);
 
   return Response.json({ success: true, unit_id, date_from, date_to, results });
 });
