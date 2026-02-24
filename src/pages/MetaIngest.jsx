@@ -569,11 +569,14 @@ export default function MetaIngest() {
 
         {jobs.map(job => {
           const isExpanded = expandedJob === job.id;
-          const unitName = units.find(u => u.account_id === job.account_id)?.name || job.account_id;
+          const unitName = units.find(u => u.account_id === job.account_id)?.name
+            || units.find(u => u.id === job.unit_id)?.name
+            || job.account_id;
           const modeLabel = INSIGHT_TYPES.find(t => t.mode === job.mode)?.label || (job.mode === 'all' ? 'Todos' : job.mode) || '—';
+          const isScheduled = job.trigger_type === 'scheduled';
 
           return (
-            <Card key={job.id} className="border-gray-200">
+            <Card key={job.id} className={`border-gray-200 ${isScheduled ? 'border-l-4 border-l-purple-400' : ''}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="flex-1 min-w-0">
@@ -582,10 +585,22 @@ export default function MetaIngest() {
                       <span className="text-sm font-medium text-gray-800 truncate">{unitName}</span>
                       <Badge variant="outline" className="text-xs">{modeLabel}</Badge>
                       <span className="text-xs text-gray-400">{job.date_from} → {job.date_to}</span>
+                      {isScheduled ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
+                          <CalendarClock className="w-3 h-3" />
+                          {job.schedule_name || 'Agendado'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
+                          <User className="w-3 h-3" />
+                          Manual
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                      <span>Progresso: <strong>{job.progress || 0}</strong></span>
                       <span>Rows: <strong>{job.rows_written || 0}</strong></span>
+                      <span className="text-gray-300">·</span>
+                      <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
                       {job.error_message && (
                         <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
                       )}
@@ -615,9 +630,10 @@ export default function MetaIngest() {
                     <p><strong>account_id:</strong> {job.account_id}</p>
                     <p><strong>tipo:</strong> {modeLabel}</p>
                     <p><strong>período:</strong> {job.date_from} → {job.date_to}</p>
+                    <p><strong>origem:</strong> {isScheduled ? `Agendamento — ${job.schedule_name || ''}` : 'Manual'}</p>
                     <p><strong>status:</strong> {job.status}</p>
                     {job.error_message && <p className="text-red-500"><strong>erro:</strong> {job.error_message}</p>}
-                    <p><strong>criado em:</strong> {new Date(job.created_date).toLocaleString('pt-BR')}</p>
+                    <p><strong>criado em:</strong> {new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
                   </div>
                 )}
               </CardContent>
