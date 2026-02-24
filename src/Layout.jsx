@@ -18,7 +18,8 @@ import {
   X,
   LogOut,
   Bell,
-  Zap
+  Zap,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
