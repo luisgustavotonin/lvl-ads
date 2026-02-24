@@ -16,49 +16,33 @@ const HAS_DATE = {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// Delete records one at a time with generous pauses to avoid rate limits
-async function deleteAllSerial(entity, filters) {
-  let total = 0;
-  let attempts = 0;
-  const MAX_ATTEMPTS = 200; // safety cap per table
-
-  while (attempts < MAX_ATTEMPTS) {
-    attempts++;
-
-    // Fetch a small batch
-    let rows;
-    try {
-      rows = await entity.filter(filters, null, 10);
-    } catch (e) {
-      console.error('Fetch error:', e?.message);
-      await sleep(2000);
-      continue;
-    }
-
-    if (!rows || rows.length === 0) break;
-
-    // Delete each one individually with pause
-    for (const row of rows) {
-      let deleted = false;
-      let retries = 0;
-      while (!deleted && retries < 5) {
-        try {
-          await entity.delete(row.id);
-          deleted = true;
-          total++;
-        } catch (e) {
-          retries++;
-          console.warn(`Delete retry ${retries} for ${row.id}:`, e?.message);
-          await sleep(1000 * retries); // exponential backoff
-        }
-      }
-      await sleep(300); // 300ms between each delete
-    }
-
-    await sleep(1000); // 1s between fetch batches
+// Deletes ONE batch of records (up to batchSize) and returns how many were deleted + whether there are more
+async function deleteOneBatch(entity, filters, batchSize = 20) {
+  let rows;
+  try {
+    rows = await entity.filter(filters, null, batchSize);
+  } catch (e) {
+    console.error('Fetch error:', e?.message);
+    return { deleted: 0, hasMore: false, error: e.message };
   }
 
-  return total;
+  if (!rows || rows.length === 0) {
+    return { deleted: 0, hasMore: false };
+  }
+
+  let deleted = 0;
+  for (const row of rows) {
+    try {
+      await entity.delete(row.id);
+      deleted++;
+      await sleep(200);
+    } catch (e) {
+      console.warn(`Failed to delete ${row.id}:`, e?.message);
+      await sleep(500);
+    }
+  }
+
+  return { deleted, hasMore: rows.length >= batchSize };
 }
 
 Deno.serve(async (req) => {
@@ -66,42 +50,37 @@ Deno.serve(async (req) => {
   const user = await base44.auth.me();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { unit_id, date_from, date_to, tables } = await req.json();
-  if (!unit_id || !tables?.length) {
-    return Response.json({ error: 'unit_id e tables são obrigatórios' }, { status: 400 });
+  const { unit_id, date_from, date_to, table } = await req.json();
+
+  if (!unit_id || !table) {
+    return Response.json({ error: 'unit_id e table são obrigatórios' }, { status: 400 });
   }
 
-  const deleted = {};
-  const errors = {};
-  let total = 0;
-
-  for (const tableId of tables) {
-    const entityName = TABLE_MAP[tableId];
-    if (!entityName) continue;
-
-    const entity = base44.asServiceRole.entities[entityName];
-    const filters = { unit_id };
-
-    if (HAS_DATE[tableId] && (date_from || date_to)) {
-      filters.date = {};
-      if (date_from) filters.date.$gte = date_from;
-      if (date_to) filters.date.$lte = date_to;
-    }
-
-    console.log(`Deleting ${tableId} (${entityName}) for unit=${unit_id} date=${date_from}→${date_to}`);
-
-    try {
-      const count = await deleteAllSerial(entity, filters);
-      deleted[tableId] = count;
-      total += count;
-      console.log(`Done ${tableId}: ${count} deleted`);
-    } catch (e) {
-      console.error(`Error deleting ${tableId}:`, e?.message);
-      errors[tableId] = e.message || String(e);
-    }
-
-    await sleep(2000); // 2s pause between tables
+  const entityName = TABLE_MAP[table];
+  if (!entityName) {
+    return Response.json({ error: `Tabela inválida: ${table}` }, { status: 400 });
   }
 
-  return Response.json({ success: true, total, deleted, errors });
+  const entity = base44.asServiceRole.entities[entityName];
+  const filters = { unit_id };
+
+  if (HAS_DATE[table] && (date_from || date_to)) {
+    filters.date = {};
+    if (date_from) filters.date.$gte = date_from;
+    if (date_to) filters.date.$lte = date_to;
+  }
+
+  console.log(`[bulkDelete] table=${table} entity=${entityName} unit=${unit_id} date=${date_from}→${date_to}`);
+
+  const result = await deleteOneBatch(entity, filters);
+
+  console.log(`[bulkDelete] deleted=${result.deleted} hasMore=${result.hasMore}`);
+
+  return Response.json({
+    success: true,
+    table,
+    deleted: result.deleted,
+    hasMore: result.hasMore,
+    error: result.error || null,
+  });
 });
