@@ -252,9 +252,15 @@ export default function DataManagement() {
     setBulkProgress({ tableIndex: 0, totalTables: 1, tableLabel: tabDef?.label || activeTab, tableDone: 0, tableTotal: 0 });
 
     try {
-      const count = await deleteTableLoop(activeTab, (batchTotal) => {
-        setBulkProgress(p => p ? { ...p, tableDone: batchTotal } : p);
+      const response = await base44.functions.invoke('purgeUnitData', {
+        unit_id: selectedUnit,
+        date_from: dateFrom || null,
+        date_to: dateTo || null,
+        tables: [activeTab],
       });
+      const results = response.data?.results || {};
+      const count = results[activeTab]?.deleted || 0;
+      
       if (count > 0) {
         toast.success(`✅ ${count} registros excluídos`);
       } else {
