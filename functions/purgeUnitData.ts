@@ -58,14 +58,13 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json();
+  const { unit_id, date_from, date_to, tables, list_units } = body;
 
   // Se pedir listagem de unidades
-  if (body.list_units) {
+  if (list_units) {
     const units = await base44.asServiceRole.entities.Unit.list();
     return Response.json(units.map(u => ({ id: u.id, name: u.name, account_id: u.account_id })));
   }
-
-  const { unit_id, date_from, date_to, tables } = body;
 
   if (!unit_id || !tables || !tables.length) {
     return Response.json({ error: 'unit_id e tables[] são obrigatórios' }, { status: 400 });
