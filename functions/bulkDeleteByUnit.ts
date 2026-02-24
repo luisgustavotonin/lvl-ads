@@ -17,7 +17,7 @@ const HAS_DATE = {
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // Deletes ONE batch of records (up to batchSize) and returns how many were deleted + whether there are more
-async function deleteOneBatch(entity, filters, batchSize = 20) {
+async function deleteOneBatch(entity, filters, batchSize = 100) {
   let rows;
   try {
     rows = await entity.filter(filters, null, batchSize);
