@@ -55,6 +55,8 @@ Deno.serve(async (req) => {
         breakdowns, status: 'queued', progress: 0, rows_written: 0,
         meta_token_hint: meta_token.substring(0, 8),
         mode: modeStr,
+        trigger_type,
+        schedule_name,
       });
       jobId = created.id;
     }
