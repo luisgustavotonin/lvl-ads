@@ -282,6 +282,36 @@ export default function IngestSchedules() {
               </div>
             </div>
 
+            {/* Creatives */}
+            <div className="space-y-2 border rounded-lg p-3 bg-purple-50 border-purple-200">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={form.sync_creatives} onCheckedChange={v => setForm(f => ({ ...f, sync_creatives: !!v }))} />
+                <span className="text-sm font-medium text-purple-800 flex items-center gap-1">
+                  <Image className="w-3.5 h-3.5" /> Sincronizar Criativos
+                </span>
+              </label>
+              {form.sync_creatives && (
+                <div className="ml-6 space-y-1">
+                  <Label className="text-xs text-purple-700">Dia da semana para sincronizar</Label>
+                  <Select
+                    value={String(form.creatives_day_of_week ?? '')}
+                    onValueChange={v => setForm(f => ({ ...f, creatives_day_of_week: v === '' ? null : Number(v) }))}
+                  >
+                    <SelectTrigger className="w-40 h-8 text-sm">
+                      <SelectValue placeholder="Sempre" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>Sempre que rodar</SelectItem>
+                      {DAYS_OF_WEEK.map(d => (
+                        <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-purple-600">Criativos serão sincronizados somente neste dia da semana.</p>
+                </div>
+              )}
+            </div>
+
             {/* Force */}
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox checked={form.force} onCheckedChange={v => setForm(f => ({ ...f, force: !!v }))} />
