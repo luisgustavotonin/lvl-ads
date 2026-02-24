@@ -73,10 +73,14 @@ function metricsFromItem(item) {
     cpc_link,
     cpm: parseNum(item.cpm),
 
-    messaging_conversations_started: sumActionsContaining(actionsMap, 'messaging_conversation_started'),
-    messaging_conversations_replied: sumActionsContaining(actionsMap, 'messaging_first_reply'),
+    // WhatsApp / Messaging actions
+    // 1. Conversas iniciadas por mensagem
+    messaging_conversations_started: fromMap(actionsMap, 'onsite_conversion.messaging_conversation_started_7d'),
+    // 2. Contatos por mensagem (total de conexões)
+    messaging_conversations_replied: fromMap(actionsMap, 'onsite_conversion.total_messaging_connection'),
+    // 3. Novos contatos / primeira resposta
+    leads: fromMap(actionsMap, 'onsite_conversion.messaging_first_reply'),
 
-    leads: sumActionsContaining(actionsMap, 'lead'),
     purchases: sumActionsContaining(actionsMap, 'purchase'),
     purchase_value: sumActionsContaining(actionValuesMap, 'purchase'),
   };
