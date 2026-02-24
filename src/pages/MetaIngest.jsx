@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
   Play, RefreshCw, CheckCircle2, XCircle, Clock, Loader2,
-  ChevronDown, ChevronUp, Image, StopCircle, Trash2, ListOrdered, Layers
+  ChevronDown, ChevronUp, Image, StopCircle, Trash2, ListOrdered, Layers, CalendarClock, User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
