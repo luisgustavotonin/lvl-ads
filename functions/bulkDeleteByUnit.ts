@@ -16,37 +16,6 @@ const HAS_DATE = {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// Run deleteMany with retry on 429
-async function deleteManyWithRetry(entity, query, maxAttempts = 10) {
-  let totalDeleted = 0;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      // Check how many records remain first
-      const rows = await entity.filter(query, null, 1);
-      if (!rows || rows.length === 0) break;
-
-      const result = await entity.deleteMany(query);
-      totalDeleted += result.deleted || 0;
-      console.log(`[deleteMany] attempt=${attempt} deleted=${result.deleted} total=${totalDeleted}`);
-
-      // Keep going if there might be more
-      if (!result.deleted || result.deleted === 0) break;
-      await sleep(3000); // 3s between rounds to respect rate limit
-    } catch (e) {
-      const msg = e?.message || '';
-      if (msg.includes('429') || msg.includes('Rate limit')) {
-        const wait = 5000 * attempt;
-        console.warn(`429 on attempt ${attempt}, waiting ${wait}ms`);
-        await sleep(wait);
-      } else {
-        console.error(`Unexpected error on attempt ${attempt}:`, msg);
-        throw e;
-      }
-    }
-  }
-  return totalDeleted;
-}
-
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me();
@@ -72,11 +41,55 @@ Deno.serve(async (req) => {
     if (date_to) query.date.$lte = date_to;
   }
 
-  console.log(`[bulkDelete] START table=${table} unit=${unit_id} date=${date_from}→${date_to}`);
+  console.log(`[bulkDelete] START table=${table} unit=${unit_id}`);
 
-  const totalDeleted = await deleteManyWithRetry(entity, query);
+  let totalDeleted = 0;
+  let round = 0;
 
-  console.log(`[bulkDelete] DONE table=${table} total=${totalDeleted}`);
+  // Keep calling deleteMany until 0 records remain, with pauses to avoid 429
+  while (true) {
+    round++;
+    // Check if there's anything left first
+    let check;
+    try {
+      check = await entity.filter(query, null, 1);
+    } catch (e) {
+      console.warn(`Check failed round ${round}:`, e?.message);
+      await sleep(5000);
+      continue;
+    }
+
+    if (!check || check.length === 0) {
+      console.log(`[bulkDelete] No more records after round ${round}`);
+      break;
+    }
+
+    // Wait before deleteMany to give the rate limit bucket time to refill
+    await sleep(2000);
+
+    let result;
+    try {
+      result = await entity.deleteMany(query);
+      totalDeleted += result.deleted || 0;
+      console.log(`[bulkDelete] round=${round} deleted=${result.deleted} total=${totalDeleted}`);
+    } catch (e) {
+      const msg = e?.message || '';
+      if (msg.includes('429') || msg.includes('Rate limit')) {
+        console.warn(`[bulkDelete] 429 on round ${round}, waiting 10s`);
+        await sleep(10000);
+        continue; // retry same round
+      }
+      console.error(`[bulkDelete] Error on round ${round}:`, msg);
+      break;
+    }
+
+    if (!result.deleted || result.deleted === 0) break;
+
+    // Pause before next round
+    await sleep(3000);
+  }
+
+  console.log(`[bulkDelete] DONE table=${table} totalDeleted=${totalDeleted}`);
 
   return Response.json({ success: true, table, deleted: totalDeleted, hasMore: false });
 });
