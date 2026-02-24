@@ -16,34 +16,26 @@ const HAS_DATE = {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// Fetch a batch of IDs then delete them in parallel (5 concurrent)
-async function deleteOneBatch(entity, filters) {
-  const FETCH_SIZE = 200;
-  const CONCURRENCY = 5;
-
-  let rows;
-  try {
-    rows = await entity.filter(filters, null, FETCH_SIZE);
-  } catch (e) {
-    console.error('Fetch error:', e?.message);
-    return { deleted: 0, hasMore: false, error: e.message };
+// Retry a single delete with backoff on 429
+async function deleteWithRetry(entity, id, maxRetries = 5) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await entity.delete(id);
+      return true;
+    } catch (e) {
+      const msg = e?.message || '';
+      if (msg.includes('429') || msg.includes('Rate limit')) {
+        // Wait longer on rate limit: 2s, 4s, 8s...
+        const wait = 2000 * attempt;
+        console.warn(`429 on ${id}, waiting ${wait}ms (attempt ${attempt})`);
+        await sleep(wait);
+      } else {
+        console.warn(`Delete failed for ${id}:`, msg);
+        return false;
+      }
+    }
   }
-
-  if (!rows || rows.length === 0) {
-    return { deleted: 0, hasMore: false };
-  }
-
-  // Delete in parallel chunks of CONCURRENCY
-  let deleted = 0;
-  for (let i = 0; i < rows.length; i += CONCURRENCY) {
-    const chunk = rows.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(chunk.map(row => entity.delete(row.id)));
-    deleted += results.filter(r => r.status === 'fulfilled').length;
-    // Small pause between chunks to avoid rate limit
-    if (i + CONCURRENCY < rows.length) await sleep(100);
-  }
-
-  return { deleted, hasMore: rows.length >= FETCH_SIZE };
+  return false;
 }
 
 Deno.serve(async (req) => {
@@ -71,17 +63,30 @@ Deno.serve(async (req) => {
     if (date_to) filters.date.$lte = date_to;
   }
 
-  console.log(`[bulkDelete] table=${table} entity=${entityName} unit=${unit_id} date=${date_from}→${date_to}`);
+  console.log(`[bulkDelete] table=${table} unit=${unit_id} date=${date_from}→${date_to}`);
 
-  const result = await deleteOneBatch(entity, filters);
+  // Fetch a batch of 50
+  let rows;
+  try {
+    rows = await entity.filter(filters, null, 50);
+  } catch (e) {
+    return Response.json({ success: false, error: e.message }, { status: 500 });
+  }
 
-  console.log(`[bulkDelete] deleted=${result.deleted} hasMore=${result.hasMore}`);
+  if (!rows || rows.length === 0) {
+    return Response.json({ success: true, table, deleted: 0, hasMore: false });
+  }
 
-  return Response.json({
-    success: true,
-    table,
-    deleted: result.deleted,
-    hasMore: result.hasMore,
-    error: result.error || null,
-  });
+  // Delete sequentially with 300ms pause between each to avoid 429
+  let deleted = 0;
+  for (const row of rows) {
+    const ok = await deleteWithRetry(entity, row.id);
+    if (ok) deleted++;
+    await sleep(300); // steady 300ms between deletes
+  }
+
+  const hasMore = rows.length >= 50;
+  console.log(`[bulkDelete] deleted=${deleted}/${rows.length} hasMore=${hasMore}`);
+
+  return Response.json({ success: true, table, deleted, hasMore });
 });
