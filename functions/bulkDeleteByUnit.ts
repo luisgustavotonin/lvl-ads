@@ -1,21 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const TABLE_MAP = {
-  insights:    'MetaInsightBase',
-  platform:    'MetaInsightByPlatformPosition',
-  device:      'MetaInsightByDevice',
-  demographic: 'MetaInsightByDemographic',
+  base:            'MetaInsightBase',
+  platform:        'MetaInsightByPlatformPosition',
+  device:          'MetaInsightByDevice',
+  demographic:     'MetaInsightByDemographic',
+  creatives:       'MetaAdsCreative',
+  jobs:            'MetaIngestRun',
+  // aliases
+  insights:        'MetaInsightBase',
   creatives_basic: 'MetaAdsCreative',
-  jobs:        'MetaIngestRun',
-  // legacy keys
-  base:        'MetaInsightBase',
-  creatives:   'MetaAdsCreative',
 };
 
 const HAS_DATE = {
-  insights: true, platform: true, device: true, demographic: true,
-  creatives_basic: false, jobs: true,
-  base: true, creatives: false,
+  base: true, platform: true, device: true, demographic: true,
+  creatives: false, jobs: true,
+  insights: true, creatives_basic: false,
 };
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
