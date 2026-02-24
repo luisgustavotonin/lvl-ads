@@ -284,32 +284,40 @@ export default function DataManagement() {
     setBulkDeleting(true);
     const tabLabels = TABS.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {});
 
-    let grandTotal = 0;
-    const results = {};
-
-    for (let i = 0; i < tabs.length; i++) {
-      const tableId = tabs[i];
-      setBulkProgress({ tableIndex: i, totalTables: tabs.length, tableLabel: tabLabels[tableId] || tableId, tableDone: grandTotal, tableTotal: 0 });
-      const count = await deleteTableLoop(tableId, (batchTotal) => {
-        setBulkProgress(p => p ? { ...p, tableDone: batchTotal } : p);
+    try {
+      const response = await base44.functions.invoke('purgeUnitData', {
+        unit_id: selectedUnit,
+        date_from: dateFrom || null,
+        date_to: dateTo || null,
+        tables: tabs,
       });
-      grandTotal += count;
-      results[tableId] = count;
-      await sleep(200);
-    }
+      
+      const apiResults = response.data?.results || {};
+      let grandTotal = 0;
+      const results = {};
+      
+      tabs.forEach(tableId => {
+        const deleted = apiResults[tableId]?.deleted || 0;
+        results[tableId] = deleted;
+        grandTotal += deleted;
+      });
 
-    if (grandTotal > 0) {
-      const lines = Object.entries(results).map(([id, n]) => `${tabLabels[id] || id}: ${n}`).join(' | ');
-      toast.success(`✅ ${grandTotal} registros excluídos — ${lines}`, { duration: 8000 });
-    } else {
-      toast('Nenhum registro encontrado para excluir.');
-    }
+      if (grandTotal > 0) {
+        const lines = Object.entries(results).map(([id, n]) => `${tabLabels[id] || id}: ${n}`).join(' | ');
+        toast.success(`✅ ${grandTotal} registros excluídos — ${lines}`, { duration: 8000 });
+      } else {
+        toast('Nenhum registro encontrado para excluir.');
+      }
 
-    tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
-    queryClient.invalidateQueries({ queryKey: ['dm'] });
-    setSelectedTabsForBulk([]);
-    setBulkDeleting(false);
-    setBulkProgress(null);
+      tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
+      queryClient.invalidateQueries({ queryKey: ['dm'] });
+    } catch (err) {
+      toast.error(`Erro ao excluir: ${err.message}`);
+    } finally {
+      setSelectedTabsForBulk([]);
+      setBulkDeleting(false);
+      setBulkProgress(null);
+    }
   };
 
   const isAnyDeleting = deleting || bulkDeleting;
