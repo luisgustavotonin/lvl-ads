@@ -469,7 +469,7 @@ export default function MetaIngest() {
             ) : (
               <Button
                 onClick={handleRunQueue}
-                disabled={!form.unit_id || selectedTypes.length === 0}
+                disabled={!form.unit_ids.length || selectedTypes.length === 0}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Play className="w-4 h-4 mr-2" />
