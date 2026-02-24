@@ -18,16 +18,48 @@ Deno.serve(async (req) => {
         if (rawPayload.body && typeof rawPayload.body === 'object') rawPayload = rawPayload.body;
         else if (rawPayload.json && typeof rawPayload.json === 'object') rawPayload = rawPayload.json;
 
-        const { run_id, unit_id, account_id, result_json, row_count } = rawPayload;
+        let { run_id, unit_id, account_id, result_json, row_count } = rawPayload;
         const job_id = rawPayload.job_id || null;
 
-        if (!run_id || !unit_id || !account_id || !result_json) {
+        if (!run_id || !account_id || !result_json) {
             return Response.json({
                 ok: false,
-                error: 'run_id, unit_id, account_id e result_json são obrigatórios',
+                error: 'run_id, account_id e result_json são obrigatórios',
                 debug_keys: Object.keys(rawPayload),
                 debug_sample: JSON.stringify(rawPayload).substring(0, 300)
             }, { status: 400 });
+        }
+
+        // ✅ Validar account_id: encontrar a unidade correta
+        if (!unit_id) {
+            // Se não veio unit_id, buscar pela conta
+            const units = await base44.asServiceRole.entities.Unit.filter({ account_id }, null, 1);
+            if (!units.length) {
+                return Response.json({
+                    ok: false,
+                    error: `Nenhuma unidade encontrada para account_id: ${account_id}`
+                }, { status: 400 });
+            }
+            unit_id = units[0].id;
+            console.log(`🔍 Unit ID inferida: ${unit_id} para account_id: ${account_id}`);
+        } else {
+            // Se veio unit_id, validar se o account_id corresponde
+            const unit = await base44.asServiceRole.entities.Unit.get(unit_id);
+            if (!unit) {
+                return Response.json({
+                    ok: false,
+                    error: `Unit não encontrada: ${unit_id}`
+                }, { status: 400 });
+            }
+            if (unit.account_id !== account_id) {
+                console.warn(`⚠️ account_id mismatch! Payload=${account_id} vs Unit=${unit.account_id}. Usando Unit correto.`);
+                // Buscar a unidade correta para este account_id
+                const units = await base44.asServiceRole.entities.Unit.filter({ account_id }, null, 1);
+                if (units.length) {
+                    unit_id = units[0].id;
+                    console.log(`🔄 Unit corrigida: ${unit_id} para account_id: ${account_id}`);
+                }
+            }
         }
 
         let normalizedResultJson;
