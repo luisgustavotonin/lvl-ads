@@ -19,8 +19,8 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 async function deleteAllMatching(entity, query) {
   let total = 0;
   let rounds = 0;
-  const CONCURRENT = 100; // max 100 deletes simultâneos
-  const BATCH_SIZE = 800; // fetch 800 por vez
+  const CONCURRENT = 50; // max 50 deletes simultâneos
+  const BATCH_SIZE = 500; // fetch 500 por vez
 
   while (true) {
     rounds++;
@@ -28,28 +28,42 @@ async function deleteAllMatching(entity, query) {
     try {
       records = await entity.filter(query, null, BATCH_SIZE);
     } catch (e) {
+      console.error(`[purge] erro ao buscar records:`, e?.message);
       throw e;
     }
 
-    if (!records || records.length === 0) break;
+    if (!records || records.length === 0) {
+      console.log(`[purge] round=${rounds} nenhum registro encontrado`);
+      break;
+    }
 
     // Processa tudo em paralelo com limite
+    let deletedInRound = 0;
     for (let i = 0; i < records.length; i += CONCURRENT) {
       const chunk = records.slice(i, i + CONCURRENT);
-      await Promise.all(chunk.map(rec => 
-        entity.delete(rec.id).catch(err => {
-          console.error(`[purge] erro ao deletar ${rec.id}:`, err?.message);
-        })
-      ));
+      const results = await Promise.allSettled(chunk.map(rec => entity.delete(rec.id)));
+      
+      results.forEach((r, idx) => {
+        if (r.status === 'fulfilled') {
+          deletedInRound++;
+        } else {
+          console.error(`[purge] erro ao deletar ${chunk[idx].id}:`, r.reason?.message);
+        }
+      });
+      
+      // Pausa pequena entre chunks pra não sobrecarregar
+      if (i + CONCURRENT < records.length) {
+        await sleep(100);
+      }
     }
     
-    total += records.length;
-    console.log(`[purge] round=${rounds} batch=${records.length} total=${total}`);
+    total += deletedInRound;
+    console.log(`[purge] round=${rounds} fetched=${records.length} deleted=${deletedInRound} total=${total}`);
 
     if (records.length < BATCH_SIZE) break;
 
-    // Pausa mínima entre batches
-    await sleep(50);
+    // Pausa entre batches
+    await sleep(200);
   }
 
   return total;
