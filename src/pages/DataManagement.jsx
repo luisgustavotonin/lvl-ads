@@ -271,89 +271,42 @@ export default function DataManagement() {
     setBulkDeleteOpen(false);
     setBulkDeleting(true);
     const tabLabels = TABS.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {});
-    setBulkProgress({ tableIndex: 0, totalTables: tabs.length, tableLabel: '...', tableDone: 0, tableTotal: 0 });
+    setBulkProgress({ tableIndex: 0, totalTables: tabs.length, tableLabel: 'Processando...', tableDone: 0, tableTotal: 0 });
 
     try {
-      // Call via fetch to read streaming NDJSON progress
-      const token = (await base44.auth.me())?.token;
-      const resp = await fetch(`/api/functions/bulkDeleteByUnit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          unit_id: selectedUnit,
-          account_id: accountId,
-          date_from: dateFrom || null,
-          date_to: dateTo || null,
-          tables: tabs,
-        }),
+      const response = await base44.functions.invoke('bulkDeleteByUnit', {
+        unit_id: selectedUnit,
+        account_id: accountId,
+        date_from: dateFrom || null,
+        date_to: dateTo || null,
+        tables: tabs,
       });
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let finalResult = null;
+      const data = response.data;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // keep incomplete line
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const msg = JSON.parse(line);
-            if (msg.type === 'table_start') {
-              setBulkProgress(p => ({
-                ...p,
-                tableIndex: msg.tableIndex,
-                totalTables: msg.total,
-                tableLabel: tabLabels[msg.tableId] || msg.tableId,
-                tableDone: 0,
-                tableTotal: 0,
-              }));
-            } else if (msg.type === 'table_count') {
-              setBulkProgress(p => ({ ...p, tableTotal: msg.count, tableCount: msg.count }));
-            } else if (msg.type === 'table_progress') {
-              setBulkProgress(p => ({ ...p, tableDone: msg.done, tableTotal: msg.total }));
-            } else if (msg.type === 'table_done') {
-              setBulkProgress(p => ({
-                ...p,
-                tableIndex: msg.tableIndex + 1,
-                totalTables: msg.total,
-                tableDone: msg.deleted,
-                tableTotal: msg.deleted,
-              }));
-            } else if (msg.type === 'done') {
-              finalResult = msg;
-            } else if (msg.type === 'fatal_error') {
-              throw new Error(msg.error);
-            }
-          } catch (e) {
-            // ignore parse errors on individual lines
-          }
-        }
+      if (!data.success) {
+        throw new Error(data.error || 'Erro desconhecido');
       }
 
-      if (finalResult) {
-        const lines = Object.entries(finalResult.deleted || {})
-          .map(([id, n]) => `${tabLabels[id] || id}: ${n} registros`)
+      const lines = Object.entries(data.deleted || {})
+        .map(([id, n]) => `${tabLabels[id] || id}: ${n} registros`)
+        .join('\n');
+
+      if (data.total > 0) {
+        toast.success(`✅ Total: ${data.total} excluídos\n${lines}`, { duration: 8000 });
+      } else {
+        toast('Nenhum registro encontrado para excluir.');
+      }
+
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        const errLines = Object.entries(data.errors)
+          .map(([id, msg]) => `${tabLabels[id] || id}: ${msg}`)
           .join('\n');
-        if (finalResult.total > 0) {
-          toast.success(`✅ Total: ${finalResult.total} excluídos\n${lines}`, { duration: 8000 });
-        } else {
-          toast('Nenhum registro encontrado para excluir.');
-        }
-        if (finalResult.errors && Object.keys(finalResult.errors).length > 0) {
-          const errLines = Object.entries(finalResult.errors)
-            .map(([id, msg]) => `${tabLabels[id] || id}: ${msg}`)
-            .join('\n');
-          toast.error(`⚠️ Erros:\n${errLines}`, { duration: 12000 });
-        }
+        toast.error(`⚠️ Erros:\n${errLines}`, { duration: 12000 });
       }
 
       tabs.forEach(tabId => queryClient.invalidateQueries({ queryKey: ['dm', tabId] }));
+      queryClient.invalidateQueries({ queryKey: ['dm'] });
       setSelectedTabsForBulk([]);
     } catch (err) {
       toast.error(`Erro: ${err.message}`);
