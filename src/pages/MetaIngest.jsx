@@ -473,7 +473,9 @@ export default function MetaIngest() {
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Play className="w-4 h-4 mr-2" />
-                {selectedTypes.length > 1 ? `Executar Fila (${selectedTypes.length})` : 'Executar'}
+                {form.unit_ids.length > 1 || selectedTypes.length > 1
+                  ? `Executar Fila (${form.unit_ids.length * selectedTypes.length} jobs)`
+                  : 'Executar'}
               </Button>
             )}
             <Button onClick={handleSyncCreatives} disabled={loadingCreatives} variant="outline">
