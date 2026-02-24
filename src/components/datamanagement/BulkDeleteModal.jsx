@@ -172,16 +172,33 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
                   {status.batch > 1 ? ` (lote ${status.batch})` : ''}
                 </p>
               )}
-              <p className="text-sm text-gray-500">{status.total} registros excluídos até agora</p>
+              <p className="text-sm text-blue-600 font-medium">
+                {status.total.toLocaleString('pt-BR')} registros excluídos no total
+              </p>
             </div>
+
+            {/* Barra da tabela atual com contagem de registros */}
+            {status.table && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Tabela atual: {tableName(status.table)}</span>
+                  <span>{status.tableTotal.toLocaleString('pt-BR')} registros</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div className="bg-red-400 h-2 rounded-full animate-pulse" style={{ width: '100%' }} />
+                </div>
+              </div>
+            )}
+
+            {/* Barra de progresso geral (tabelas) */}
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-gray-500">
                 <span>Progresso geral</span>
                 <span>{status.done.length} de {selected.length} tabelas ({pctDone}%)</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  className="bg-blue-500 h-3 rounded-full transition-all duration-300"
                   style={{ width: `${pctDone}%` }}
                 />
               </div>
