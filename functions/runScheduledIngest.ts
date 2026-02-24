@@ -166,6 +166,36 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Sync creatives if configured
+    if (schedule.sync_creatives) {
+      const creativeDOW = schedule.creatives_day_of_week;
+      const shouldSyncCreatives = force_all || schedule_id || (creativeDOW == null ? true : creativeDOW === todayDOW);
+
+      if (shouldSyncCreatives) {
+        for (const unit of units) {
+          if (!unit.account_id || !unit.secret_token) continue;
+          try {
+            const cRes = await base44.asServiceRole.functions.invoke('syncMetaCreatives', {
+              account_id: unit.account_id,
+              unit_id: unit.id,
+              meta_token: unit.secret_token,
+            });
+            const cData = cRes.data;
+            scheduleResult.jobs.push({
+              unit: unit.name,
+              mode: 'creatives',
+              status: cData?.success ? 'done' : 'error',
+              rows: cData?.rows_written || 0,
+              error: cData?.error || null,
+            });
+          } catch (e) {
+            scheduleResult.jobs.push({ unit: unit.name, mode: 'creatives', status: 'error', error: e.message });
+            hasError = true;
+          }
+        }
+      }
+    }
+
     const logSummary = scheduleResult.jobs.map(j =>
       `${j.unit}/${j.mode}: ${j.status}${j.rows ? ` (${j.rows} rows)` : ''}${j.error ? ` - ${j.error}` : ''}`
     ).join('\n');
