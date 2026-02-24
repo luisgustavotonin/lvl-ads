@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Trash2, Play, Clock, CheckCircle2, XCircle, Loader2, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Play, Clock, CheckCircle2, XCircle, Loader2, Edit2, ChevronDown, ChevronUp, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,16 @@ const MODES = [
   { id: 'platform',    label: 'Plataforma' },
   { id: 'device',      label: 'Dispositivos' },
   { id: 'demographic', label: 'Idade e Gênero' },
+];
+
+const DAYS_OF_WEEK = [
+  { value: 0, label: 'Domingo' },
+  { value: 1, label: 'Segunda' },
+  { value: 2, label: 'Terça' },
+  { value: 3, label: 'Quarta' },
+  { value: 4, label: 'Quinta' },
+  { value: 5, label: 'Sexta' },
+  { value: 6, label: 'Sábado' },
 ];
 
 const DATE_MODES = [
@@ -40,6 +50,8 @@ function emptyForm() {
     date_mode: 'yesterday',
     force: false,
     is_active: true,
+    sync_creatives: false,
+    creatives_day_of_week: 1, // Segunda por padrão
   };
 }
 
@@ -79,6 +91,8 @@ export default function IngestSchedules() {
       date_mode: s.date_mode || 'yesterday',
       force: s.force || false,
       is_active: s.is_active !== false,
+      sync_creatives: s.sync_creatives || false,
+      creatives_day_of_week: s.creatives_day_of_week ?? 1,
     });
     setEditingId(s.id);
     setShowForm(true);
