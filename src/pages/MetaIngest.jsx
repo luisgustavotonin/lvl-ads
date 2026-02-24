@@ -332,25 +332,52 @@ export default function MetaIngest() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Unit */}
-          <div className="space-y-1">
-            <Label>Unidade *</Label>
-            <Select value={form.unit_id} onValueChange={v => setForm(f => ({ ...f, unit_id: v }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a unidade" />
-              </SelectTrigger>
-              <SelectContent>
-                {units.map(u => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name} {u.account_id ? `— ${u.account_id}` : '⚠️ sem account_id'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedUnit && (
-              <p className="text-xs text-gray-400 mt-1">
-                Token: {selectedUnit.secret_token ? '••••••••' : <span className="text-red-500">não configurado</span>}
-              </p>
+          {/* Unit — multi-select */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Unidade(s) *</Label>
+              <div className="flex gap-2 text-xs">
+                <button
+                  onClick={() => setForm(f => ({ ...f, unit_ids: units.map(u => u.id) }))}
+                  className="text-blue-600 hover:underline"
+                >Todas</button>
+                <button
+                  onClick={() => setForm(f => ({ ...f, unit_ids: [] }))}
+                  className="text-gray-400 hover:underline"
+                >Limpar</button>
+              </div>
+            </div>
+            <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+              {units.map(u => {
+                const selected = form.unit_ids.includes(u.id);
+                return (
+                  <label
+                    key={u.id}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={checked => {
+                        setForm(f => ({
+                          ...f,
+                          unit_ids: checked
+                            ? [...f.unit_ids, u.id]
+                            : f.unit_ids.filter(id => id !== u.id)
+                        }));
+                      }}
+                    />
+                    <span className={`text-sm font-medium ${selected ? 'text-blue-800' : 'text-gray-800'}`}>{u.name}</span>
+                    {u.account_id
+                      ? <span className="text-xs text-gray-400 ml-auto">{u.account_id}</span>
+                      : <span className="text-xs text-red-400 ml-auto">⚠️ sem account_id</span>
+                    }
+                    {!u.secret_token && <span className="text-xs text-red-400">sem token</span>}
+                  </label>
+                );
+              })}
+            </div>
+            {form.unit_ids.length > 0 && (
+              <p className="text-xs text-blue-600">{form.unit_ids.length} unidade(s) selecionada(s)</p>
             )}
           </div>
 
