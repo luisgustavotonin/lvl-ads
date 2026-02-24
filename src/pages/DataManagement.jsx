@@ -282,7 +282,9 @@ export default function DataManagement() {
     setBulkProgress({ tableIndex: 0, totalTables: 1, tableLabel: tabDef?.label || activeTab, tableDone: 0, tableTotal: 0 });
 
     try {
-      const count = await deleteTableLoop(activeTab);
+      const count = await deleteTableLoop(activeTab, (batchTotal) => {
+        setBulkProgress(p => p ? { ...p, tableDone: batchTotal } : p);
+      });
       if (count > 0) {
         toast.success(`✅ ${count} registros excluídos`);
       } else {
