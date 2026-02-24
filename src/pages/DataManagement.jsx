@@ -245,7 +245,7 @@ export default function DataManagement() {
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   // Delete all records from ONE table by looping until hasMore=false
-  const deleteTableLoop = async (tableId) => {
+  const deleteTableLoop = async (tableId, onBatchDone) => {
     let totalDeleted = 0;
     let batchNum = 0;
     let hasMore = true;
@@ -265,9 +265,11 @@ export default function DataManagement() {
         console.error(`Batch ${batchNum} error for ${tableId}:`, e.message);
         break;
       }
-      totalDeleted += res?.deleted || 0;
+      const batchDeleted = res?.deleted || 0;
+      totalDeleted += batchDeleted;
       hasMore = res?.hasMore === true;
-      if (hasMore) await sleep(300);
+      if (onBatchDone) onBatchDone(totalDeleted);
+      if (hasMore) await sleep(200);
     }
     return totalDeleted;
   };
