@@ -11,7 +11,7 @@ const TABLE_MAP = {
 
 const HAS_DATE = {
   base: true, platform: true, device: true, demographic: true,
-  creatives: false, jobs: true,
+  creatives: false, jobs: false,
 };
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
