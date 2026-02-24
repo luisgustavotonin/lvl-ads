@@ -16,11 +16,14 @@ const HAS_DATE = {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// Deletes ONE batch of records (up to batchSize) and returns how many were deleted + whether there are more
-async function deleteOneBatch(entity, filters, batchSize = 100) {
+// Fetch a batch of IDs then delete them in parallel (5 concurrent)
+async function deleteOneBatch(entity, filters) {
+  const FETCH_SIZE = 200;
+  const CONCURRENCY = 5;
+
   let rows;
   try {
-    rows = await entity.filter(filters, null, batchSize);
+    rows = await entity.filter(filters, null, FETCH_SIZE);
   } catch (e) {
     console.error('Fetch error:', e?.message);
     return { deleted: 0, hasMore: false, error: e.message };
@@ -30,19 +33,17 @@ async function deleteOneBatch(entity, filters, batchSize = 100) {
     return { deleted: 0, hasMore: false };
   }
 
+  // Delete in parallel chunks of CONCURRENCY
   let deleted = 0;
-  for (const row of rows) {
-    try {
-      await entity.delete(row.id);
-      deleted++;
-      await sleep(200);
-    } catch (e) {
-      console.warn(`Failed to delete ${row.id}:`, e?.message);
-      await sleep(500);
-    }
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const chunk = rows.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(chunk.map(row => entity.delete(row.id)));
+    deleted += results.filter(r => r.status === 'fulfilled').length;
+    // Small pause between chunks to avoid rate limit
+    if (i + CONCURRENCY < rows.length) await sleep(100);
   }
 
-  return { deleted, hasMore: rows.length >= batchSize };
+  return { deleted, hasMore: rows.length >= FETCH_SIZE };
 }
 
 Deno.serve(async (req) => {
