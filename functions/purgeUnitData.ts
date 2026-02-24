@@ -86,12 +86,20 @@ Deno.serve(async (req) => {
     }
 
     const entity = base44.asServiceRole.entities[entityName];
-    const query = { unit_id };
+    let query = {};
 
-    if (HAS_DATE[table] && (date_from || date_to)) {
-      query.date = {};
-      if (date_from) query.date.$gte = date_from;
-      if (date_to)   query.date.$lte = date_to;
+    // Jobs usam account_id, outros usam unit_id
+    if (table === 'jobs') {
+      if (unit) query.account_id = unit.account_id;
+      if (date_from) query.date_from = { $gte: date_from };
+      if (date_to)   query.date_to = { ...(query.date_to || {}), $lte: date_to };
+    } else {
+      query.unit_id = unit_id;
+      if (HAS_DATE[table] && (date_from || date_to)) {
+        query.date = {};
+        if (date_from) query.date.$gte = date_from;
+        if (date_to)   query.date.$lte = date_to;
+      }
     }
 
     try {
