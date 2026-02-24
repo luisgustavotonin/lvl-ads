@@ -256,13 +256,32 @@ export default function DataManagement() {
     if (!selectedUnit || tabData.length === 0) return;
     setConfirmDelete(false);
     setDeleting(true);
+    setBulkDeleting(true);
     try {
-      await handleBulkDelete([activeTab]);
+      const res = await base44.functions.invoke('bulkDeleteByUnit', {
+        unit_id: selectedUnit,
+        account_id: accountId,
+        date_from: dateFrom || null,
+        date_to: dateTo || null,
+        tables: [activeTab],
+      });
+      const data = res.data;
+      const grandTotal = data?.total || 0;
+      if (grandTotal > 0) {
+        toast.success(`✅ ${grandTotal} registros excluídos`);
+      } else {
+        toast('Nenhum registro encontrado para excluir.');
+      }
+      if (data?.errors && Object.keys(data.errors).length > 0) {
+        toast.error(`Erros: ${JSON.stringify(data.errors)}`);
+      }
       setCurrentPage(1);
+      queryClient.invalidateQueries({ queryKey: ['dm'] });
     } catch (err) {
-      toast.error(`Erro: ${err.message}`);
+      toast.error(`Erro ao excluir: ${err.message || 'Network Error — tente novamente'}`);
     } finally {
       setDeleting(false);
+      setBulkDeleting(false);
       setBulkProgress(null);
     }
   };
