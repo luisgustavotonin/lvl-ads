@@ -76,6 +76,10 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'unit_id e tables[] são obrigatórios' }, { status: 400 });
   }
 
+  // Buscar unit pra pegar account_id (pra jobs)
+  const unit = await base44.asServiceRole.entities.Unit.get(unit_id).catch(() => null);
+  const accountId = unit?.account_id;
+
   const results = {};
 
   for (const table of tables) {
@@ -90,7 +94,7 @@ Deno.serve(async (req) => {
 
     // Jobs usam account_id, outros usam unit_id
     if (table === 'jobs') {
-      if (unit) query.account_id = unit.account_id;
+      if (accountId) query.account_id = accountId;
       if (date_from) query.date_from = { $gte: date_from };
       if (date_to)   query.date_to = { ...(query.date_to || {}), $lte: date_to };
     } else {
