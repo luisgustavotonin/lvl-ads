@@ -37,6 +37,7 @@ const navigation = [
   { name: 'Unidades', href: 'Units', icon: Building2 },
   { name: 'Integrações', href: 'Integrations', icon: Link2 },
   { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap },
+  { name: 'Dados Brutos', href: 'RawDataViewer', icon: Database },
   { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell },
 
   { name: 'Perfis', href: 'Profiles', icon: Shield },
