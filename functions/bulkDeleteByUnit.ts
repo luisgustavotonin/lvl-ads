@@ -17,24 +17,27 @@ const HAS_DATE = {
   insights: true, creatives_basic: false,
 };
 
-const BATCH = 100;
-const CONCURRENCY = 20;
+const BATCH = 500;
+const CONCURRENCY = 50;
 
 async function deleteAll(entity, filters) {
   let total = 0;
   while (true) {
-    const rows = await entity.filter(filters, null, 500);
+    const rows = await entity.filter(filters, null, BATCH);
     if (!rows || rows.length === 0) break;
 
-    // delete in parallel chunks
+    // delete in highly parallel chunks
     const ids = rows.map(r => r.id);
+    const chunks = [];
     for (let i = 0; i < ids.length; i += CONCURRENCY) {
-      const chunk = ids.slice(i, i + CONCURRENCY);
+      chunks.push(ids.slice(i, i + CONCURRENCY));
+    }
+    for (const chunk of chunks) {
       await Promise.all(chunk.map(id => entity.delete(id)));
       total += chunk.length;
     }
 
-    if (rows.length < 500) break;
+    if (rows.length < BATCH) break;
   }
   return total;
 }
@@ -53,11 +56,14 @@ Deno.serve(async (req) => {
   const errors = {};
   let total = 0;
 
-  for (const tableId of tables) {
+  // Run all tables in parallel for maximum speed
+  await Promise.all(tables.map(async (tableId) => {
     const entityName = TABLE_MAP[tableId];
-    if (!entityName) continue;
+    if (!entityName) return;
 
     const entity = base44.asServiceRole.entities[entityName];
+
+    // Always filter by unit_id (primary key for all tables)
     const filters = { unit_id };
 
     if (HAS_DATE[tableId]) {
@@ -75,7 +81,7 @@ Deno.serve(async (req) => {
     } catch (e) {
       errors[tableId] = e.message || String(e);
     }
-  }
+  }));
 
   return Response.json({ success: true, total, deleted, errors });
 });
