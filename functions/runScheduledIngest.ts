@@ -124,6 +124,8 @@ Deno.serve(async (req) => {
             meta_token: unit.secret_token,
             mode,
             job_key_override: job_key,
+            trigger_type: 'scheduled',
+            schedule_name: schedule.name,
           });
 
           const enqData = enqRes.data;
