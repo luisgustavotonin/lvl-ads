@@ -93,7 +93,7 @@ export default function BulkDeleteModal({ unitId, dateFrom, dateTo, onSuccess })
     if (!unitId || selected.length === 0) return;
 
     setRunning(true);
-    setStatus({ table: '', batch: 0, total: 0, done: [] });
+    setStatus({ table: '', batch: 0, total: 0, done: [], tableTotal: 0 });
 
     let grandTotal = 0;
 
