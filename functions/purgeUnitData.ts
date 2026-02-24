@@ -19,6 +19,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 async function deleteAllMatching(entity, query) {
   let total = 0;
   let rounds = 0;
+  const CONCURRENT = 5; // max 5 deletes simultâneos
 
   while (true) {
     rounds++;
@@ -31,15 +32,19 @@ async function deleteAllMatching(entity, query) {
 
     if (!records || records.length === 0) break;
 
-    // Deleta sequencialmente com pequenas pausas para evitar rate limit
-    for (const rec of records) {
-      try {
-        await entity.delete(rec.id);
-      } catch (err) {
-        console.error(`[purge] erro ao deletar ${rec.id}:`, err?.message);
+    // Processa em chunks de CONCURRENT deletions
+    for (let i = 0; i < records.length; i += CONCURRENT) {
+      const chunk = records.slice(i, i + CONCURRENT);
+      const promises = chunk.map(rec => 
+        entity.delete(rec.id).catch(err => {
+          console.error(`[purge] erro ao deletar ${rec.id}:`, err?.message);
+        })
+      );
+      await Promise.all(promises);
+      // Pausa entre chunks
+      if (i + CONCURRENT < records.length) {
+        await sleep(200);
       }
-      // Pequena pausa entre cada deleção
-      await sleep(10);
     }
     
     total += records.length;
@@ -47,8 +52,8 @@ async function deleteAllMatching(entity, query) {
 
     if (records.length < 200) break;
 
-    // Pausa entre batches
-    await sleep(500);
+    // Pausa maior entre batches
+    await sleep(300);
   }
 
   return total;
