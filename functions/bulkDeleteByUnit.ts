@@ -14,30 +14,6 @@ const HAS_DATE = {
   creatives: false, jobs: true,
 };
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-// Retry a single delete with backoff on 429
-async function deleteWithRetry(entity, id, maxRetries = 5) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      await entity.delete(id);
-      return true;
-    } catch (e) {
-      const msg = e?.message || '';
-      if (msg.includes('429') || msg.includes('Rate limit')) {
-        // Wait longer on rate limit: 2s, 4s, 8s...
-        const wait = 2000 * attempt;
-        console.warn(`429 on ${id}, waiting ${wait}ms (attempt ${attempt})`);
-        await sleep(wait);
-      } else {
-        console.warn(`Delete failed for ${id}:`, msg);
-        return false;
-      }
-    }
-  }
-  return false;
-}
-
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me();
@@ -55,38 +31,25 @@ Deno.serve(async (req) => {
   }
 
   const entity = base44.asServiceRole.entities[entityName];
-  const filters = { unit_id };
 
+  // Build query for deleteMany
+  const query = { unit_id };
   if (HAS_DATE[table] && (date_from || date_to)) {
-    filters.date = {};
-    if (date_from) filters.date.$gte = date_from;
-    if (date_to) filters.date.$lte = date_to;
+    query.date = {};
+    if (date_from) query.date.$gte = date_from;
+    if (date_to) query.date.$lte = date_to;
   }
 
-  console.log(`[bulkDelete] table=${table} unit=${unit_id} date=${date_from}→${date_to}`);
+  console.log(`[bulkDelete] deleteMany table=${table} entity=${entityName} unit=${unit_id} date=${date_from}→${date_to}`);
 
-  // Fetch a batch of 50
-  let rows;
-  try {
-    rows = await entity.filter(filters, null, 50);
-  } catch (e) {
-    return Response.json({ success: false, error: e.message }, { status: 500 });
-  }
+  const result = await entity.deleteMany(query);
 
-  if (!rows || rows.length === 0) {
-    return Response.json({ success: true, table, deleted: 0, hasMore: false });
-  }
+  console.log(`[bulkDelete] deleted=${result.deleted}`);
 
-  // Delete sequentially with 300ms pause between each to avoid 429
-  let deleted = 0;
-  for (const row of rows) {
-    const ok = await deleteWithRetry(entity, row.id);
-    if (ok) deleted++;
-    await sleep(300); // steady 300ms between deletes
-  }
-
-  const hasMore = rows.length >= 50;
-  console.log(`[bulkDelete] deleted=${deleted}/${rows.length} hasMore=${hasMore}`);
-
-  return Response.json({ success: true, table, deleted, hasMore });
+  return Response.json({
+    success: true,
+    table,
+    deleted: result.deleted || 0,
+    hasMore: false,
+  });
 });
