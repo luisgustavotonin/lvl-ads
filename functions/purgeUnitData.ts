@@ -68,11 +68,11 @@ Deno.serve(async (req) => {
 
   const results = {};
 
-  const promises = tables.map(async (table) => {
+  for (const table of tables) {
     const entityName = TABLE_MAP[table];
     if (!entityName) {
       results[table] = { error: `Tabela inválida: ${table}` };
-      return;
+      continue;
     }
 
     const entity = base44.asServiceRole.entities[entityName];
@@ -92,9 +92,7 @@ Deno.serve(async (req) => {
       console.error(`[purge] ERROR table=${table}:`, e?.message);
       results[table] = { error: e?.message || String(e) };
     }
-  });
-
-  await Promise.all(promises);
+  }
 
   return Response.json({ success: true, unit_id, date_from, date_to, results });
 });
