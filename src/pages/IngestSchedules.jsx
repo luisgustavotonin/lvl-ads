@@ -378,6 +378,12 @@ export default function IngestSchedules() {
                     {modeLabels.map(l => (
                       <span key={l} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{l}</span>
                     ))}
+                    {s.sync_creatives && (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Image className="w-3 h-3" />
+                        Criativos {s.creatives_day_of_week != null ? `(${DAYS_OF_WEEK.find(d => d.value === s.creatives_day_of_week)?.label || ''})` : '(sempre)'}
+                      </span>
+                    )}
                   </div>
 
                   {s.last_run && (
