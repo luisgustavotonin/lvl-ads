@@ -244,51 +244,6 @@ export default function DataManagement() {
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  // Delete all records from ONE table by calling the backend repeatedly with pauses
-  // to allow rate-limit bucket to refill between calls
-  const deleteTableLoop = async (tableId, onBatchDone) => {
-    let totalDeleted = 0;
-    let hasMore = true;
-    let emptyStreak = 0;
-
-    while (hasMore) {
-      let res;
-      try {
-        const response = await base44.functions.invoke('bulkDeleteByUnit', {
-          unit_id: selectedUnit,
-          date_from: dateFrom || null,
-          date_to: dateTo || null,
-          table: tableId,
-        });
-        res = response.data;
-      } catch (e) {
-        console.error(`Delete error for ${tableId}:`, e.message);
-        await sleep(5000);
-        emptyStreak++;
-        if (emptyStreak >= 3) break;
-        continue;
-      }
-
-      const batchDeleted = res?.deleted || 0;
-      totalDeleted += batchDeleted;
-      hasMore = res?.hasMore === true;
-      if (onBatchDone) onBatchDone(totalDeleted);
-
-      if (batchDeleted === 0) {
-        emptyStreak++;
-        if (emptyStreak >= 2) break;
-      } else {
-        emptyStreak = 0;
-      }
-
-      if (hasMore) {
-        // Wait 8 seconds between calls to let the rate limit window reset
-        await sleep(8000);
-      }
-    }
-    return totalDeleted;
-  };
-
   const handleDeleteAll = async () => {
     if (!selectedUnit || tabData.length === 0) return;
     setConfirmDelete(false);
