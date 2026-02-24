@@ -19,8 +19,8 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 async function deleteAllMatching(entity, query) {
   let total = 0;
   let rounds = 0;
-  const CONCURRENT = 150; // max 150 deletes simultâneos
-  const BATCH_SIZE = 1000; // fetch 1000 por vez
+  const CONCURRENT = 100; // max 100 deletes simultâneos
+  const BATCH_SIZE = 800; // fetch 800 por vez
 
   while (true) {
     rounds++;
