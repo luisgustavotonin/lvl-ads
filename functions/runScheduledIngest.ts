@@ -3,7 +3,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 // Brasília timezone offset: UTC-3
 function getBrasiliaDate(offsetDays = 0) {
   const now = new Date();
-  // Convert to Brasília (UTC-3)
   const brasiliaMs = now.getTime() - (3 * 60 * 60 * 1000);
   const brasilia = new Date(brasiliaMs);
   brasilia.setDate(brasilia.getDate() + offsetDays);
@@ -17,6 +16,12 @@ function getBrasiliaHHMM() {
   const hh = String(brasilia.getUTCHours()).padStart(2, '0');
   const mm = String(brasilia.getUTCMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
+}
+
+function getBrasiliaDayOfWeek() {
+  const now = new Date();
+  const brasiliaMs = now.getTime() - (3 * 60 * 60 * 1000);
+  return new Date(brasiliaMs).getUTCDay(); // 0=Sun, 6=Sat
 }
 
 function simpleHash(str) {
