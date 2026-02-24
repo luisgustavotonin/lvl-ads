@@ -1,98 +1,133 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const TABLE_MAP = {
-  base:        'MetaInsightBase',
-  platform:    'MetaInsightByPlatformPosition',
-  device:      'MetaInsightByDevice',
+  base: 'MetaInsightBase',
+  platform: 'MetaInsightByPlatformPosition',
+  device: 'MetaInsightByDevice',
   demographic: 'MetaInsightByDemographic',
-  creatives:   'MetaAdsCreative',
-  jobs:        'MetaIngestRun',
+  creatives: 'MetaAdsCreative',
+  jobs: 'MetaIngestRun',
 };
 
 const HAS_DATE = {
-  base: true, platform: true, device: true, demographic: true,
-  creatives: false, jobs: false,
+  base: true,
+  platform: true,
+  device: true,
+  demographic: true,
+  creatives: false,
+  jobs: false,
 };
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function deleteAllMatching(entity, query) {
-  let total = 0;
+function jitter(ms) {
+  return ms + Math.floor(Math.random() * 120);
+}
+
+function isTransientDeleteError(err) {
+  const msg = String(err?.message || err || '').toLowerCase();
+  return (
+    msg.includes('rate') ||
+    msg.includes('429') ||
+    msg.includes('timeout') ||
+    msg.includes('tempor') ||
+    msg.includes('network') ||
+    msg.includes('5') // cobre 5xx que às vezes vem em texto
+  );
+}
+
+async function deleteWithRetry(entity, id, maxRetries) {
+  let lastErr = null;
+  const retries = typeof maxRetries === 'number' ? maxRetries : 5;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await entity.delete(id);
+      return true;
+    } catch (e) {
+      lastErr = e;
+      if (!isTransientDeleteError(e) || attempt === retries) break;
+
+      const backoff = jitter(250 * Math.pow(2, attempt));
+      console.warn(
+        `[purge] transient delete error id=${id} attempt=${attempt + 1}/${retries + 1} -> retry in ${backoff}ms:`,
+        String(e?.message || e)
+      );
+      await sleep(backoff);
+    }
+  }
+
+  throw lastErr;
+}
+
+async function deleteAllMatching(entity, query, opts) {
+  const BATCH_SIZE = opts?.batchSize ?? 300; // menor e estável
+  const DELETE_CONCURRENCY = opts?.deleteConcurrency ?? 12; // menor e estável
+
+  let totalDeleted = 0;
   let rounds = 0;
-  const CONCURRENT = 30; // max 30 deletes simultâneos
-  const BATCH_SIZE = 300; // fetch 300 por vez
 
   while (true) {
     rounds++;
-    let records;
-    try {
-      records = await entity.filter(query, null, BATCH_SIZE);
-    } catch (e) {
-      console.error(`[purge] erro ao buscar records:`, e?.message);
-      throw e;
-    }
 
-    if (!records || records.length === 0) {
-      console.log(`[purge] round=${rounds} nenhum registro encontrado`);
-      break;
-    }
+    const records = await entity.filter(query, null, BATCH_SIZE);
+    if (!records || records.length === 0) break;
 
-    // Processa tudo em paralelo com limite
-    let deletedInRound = 0;
-    for (let i = 0; i < records.length; i += CONCURRENT) {
-      const chunk = records.slice(i, i + CONCURRENT);
-      const results = await Promise.allSettled(chunk.map(rec => entity.delete(rec.id)));
-      
-      results.forEach((r, idx) => {
-        if (r.status === 'fulfilled') {
-          deletedInRound++;
-        } else {
-          console.error(`[purge] erro ao deletar ${chunk[idx].id}:`, r.reason?.message);
+    // Fila de ids
+    const ids = records.map((r) => r.id);
+
+    // Concurrency fixa com "workers"
+    const workers = Array.from(
+      { length: Math.min(DELETE_CONCURRENCY, ids.length) },
+      () => (async () => {
+        while (ids.length) {
+          const id = ids.pop();
+          if (!id) return;
+          await deleteWithRetry(entity, id, 5);
         }
-      });
-      
-      // Pausa pequena entre chunks pra não sobrecarregar
-      if (i + CONCURRENT < records.length) {
-        await sleep(100);
-      }
+      })()
+    );
+
+    const settled = await Promise.allSettled(workers);
+    const rejected = settled.filter((s) => s.status === 'rejected');
+
+    if (rejected.length) {
+      const first = rejected[0].reason;
+      throw new Error(`Falha ao deletar (exemplo): ${String(first?.message || first)}`);
     }
-    
-    total += deletedInRound;
-    console.log(`[purge] round=${rounds} fetched=${records.length} deleted=${deletedInRound} total=${total}`);
+
+    totalDeleted += records.length;
+    console.log(`[purge] round=${rounds} batch=${records.length} totalDeleted=${totalDeleted}`);
 
     if (records.length < BATCH_SIZE) break;
 
-    // Pausa entre batches
-    await sleep(200);
+    await sleep(80);
   }
 
-  return total;
+  return totalDeleted;
 }
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
+
+  // IMPORTANTE: se isso for chamado via n8n, auth.me() pode vir null
+  const user = await base44.auth.me().catch(() => null);
 
   if (!user || user.role !== 'admin') {
     return Response.json({ error: 'Forbidden: admin only' }, { status: 403 });
   }
 
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const { unit_id, date_from, date_to, tables, list_units } = body;
 
-  // Se pedir listagem de unidades
   if (list_units) {
     const units = await base44.asServiceRole.entities.Unit.list();
-    return Response.json(units.map(u => ({ id: u.id, name: u.name, account_id: u.account_id })));
+    return Response.json(units.map((u) => ({ id: u.id, name: u.name, account_id: u.account_id })));
   }
 
-  if (!unit_id || !tables || !tables.length) {
+  if (!unit_id || !Array.isArray(tables) || tables.length === 0) {
     return Response.json({ error: 'unit_id e tables[] são obrigatórios' }, { status: 400 });
   }
-
-  // Buscar unit pra pegar account_id (pra jobs)
-  const unit = await base44.asServiceRole.entities.Unit.get(unit_id).catch(() => null);
-  const accountId = unit?.account_id;
 
   const results = {};
 
@@ -104,28 +139,24 @@ Deno.serve(async (req) => {
     }
 
     const entity = base44.asServiceRole.entities[entityName];
-    let query = {};
 
-    // Jobs usam account_id, outros usam unit_id
-    if (table === 'jobs') {
-      if (accountId) query.account_id = accountId;
-      if (date_from) query.date_from = { $gte: date_from };
-      if (date_to)   query.date_to = { ...(query.date_to || {}), $lte: date_to };
-    } else {
-      query.unit_id = unit_id;
-      if (HAS_DATE[table] && (date_from || date_to)) {
-        query.date = {};
-        if (date_from) query.date.$gte = date_from;
-        if (date_to)   query.date.$lte = date_to;
-      }
+    const query = { unit_id };
+
+    if (HAS_DATE[table] && (date_from || date_to)) {
+      query.date = {};
+      if (date_from) query.date.$gte = date_from;
+      if (date_to) query.date.$lte = date_to;
     }
 
     try {
-      const deleted = await deleteAllMatching(entity, query);
+      const deleted = await deleteAllMatching(entity, query, {
+        batchSize: 300,
+        deleteConcurrency: 12,
+      });
       results[table] = { deleted };
       console.log(`[purge] DONE table=${table} deleted=${deleted}`);
     } catch (e) {
-      console.error(`[purge] ERROR table=${table}:`, e?.message);
+      console.error(`[purge] ERROR table=${table}:`, e?.message || e);
       results[table] = { error: e?.message || String(e) };
     }
   }
