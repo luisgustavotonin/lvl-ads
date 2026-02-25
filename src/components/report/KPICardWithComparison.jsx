@@ -115,8 +115,13 @@ export default function KPICardWithComparison({
           )}
         </div>
         
-        <div className={`text-xl sm:text-3xl font-bold mb-1 sm:mb-2 ${valueColor}`}>
-          {formatValue(currentValue)}
+        <div className="flex items-center gap-2 mb-1 sm:mb-2">
+          <span className={`text-xl sm:text-3xl font-bold ${valueColor}`}>
+            {formatValue(currentValue)}
+          </span>
+          {thresholdStatus === 'green' && <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Bom ✓</span>}
+          {thresholdStatus === 'yellow' && <span className="text-xs font-semibold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Atenção ⚠</span>}
+          {thresholdStatus === 'red' && <span className="text-xs font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Ruim ✗</span>}
         </div>
         
         {previousValue > 0 && (
