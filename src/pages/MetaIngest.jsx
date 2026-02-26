@@ -158,7 +158,7 @@ export default function MetaIngest() {
     try {
       const res = await base44.functions.invoke('syncMetaCreatives', {
         account_id: selectedUnit.account_id,
-        unit_id: form.unit_id,
+        unit_id: selectedUnit.id,
         meta_token: selectedUnit.secret_token,
       });
       const data = res.data;
