@@ -66,8 +66,6 @@ export default function ReportExportModal({
               .no-print { display: none !important; }
             }
             body { font-family: 'Inter', system-ui, sans-serif; }
-            .pdf-header { page-break-after: avoid; }
-            .pdf-section { page-break-inside: avoid; }
           </style>
         </head>
         <body class="bg-white p-8">
@@ -272,14 +270,10 @@ export default function ReportExportModal({
                 </div>
 
                 {/* Report Content */}
-                {selectedSections.overview && (
+                {selectedSections.overview && children?.overview && (
                   <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-gray-900">Visão Geral</h2>
-                    {children && children.overview ? (
-                      children.overview
-                    ) : (
-                      <div className="text-gray-500">Seção em carregamento...</div>
-                    )}
+                    {children.overview}
                   </div>
                 )}
 
