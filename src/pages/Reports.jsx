@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
-import { Settings2, Globe, Monitor, Users, Image, TrendingUp } from 'lucide-react';
+import { Settings2, Globe, Monitor, Users, Image, TrendingUp, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Download } from 'lucide-react';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -149,7 +148,8 @@ export default function Reports() {
 
   const { data: preference } = useQuery({
     queryKey: ['reportPreference', selectedUnit],
-    queryFn: () => (selectedUnit ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then((d) => d[0]) : null),
+    queryFn: () =>
+      selectedUnit ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then((d) => d[0]) : null,
     enabled: !!selectedUnit,
   });
 
@@ -359,9 +359,35 @@ export default function Reports() {
     return Object.values(byDate).sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [enrichedMetrics]);
 
-  const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+  /** =========================================================
+   *  📌 FORMATAÇÃO DOS RÓTULOS / NÚMEROS DOS GRÁFICOS
+   *
+   *  - Se você quer vírgula, casas decimais, moeda etc, altere aqui.
+   *  - Esses helpers são usados em ticks (eixos) e nos rótulos (labels).
+   *
+   *  Exemplos:
+   *   - 2 casas: Number(v).toFixed(2)
+   *   - 0 casas: Number(v).toFixed(0)
+   *   - moeda sem centavos:
+   *       new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0,maximumFractionDigits:0}).format(v)
+   * ========================================================= */
+  const formatCurrency = (val) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+
+  const formatCurrency0 = (val) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(val || 0);
+
   const formatNumber = (val) => new Intl.NumberFormat('pt-BR').format(Math.round(val || 0));
-  const formatPercent = (val) => `${Number(val || 0).toFixed(2)}%`;
+
+  const formatCompact = (val) =>
+    new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(val || 0));
+
+  const formatPercent1 = (val) => `${Number(val || 0).toFixed(1)}%`;
 
   const formatDateString = (dateStr) => {
     const parts = String(dateStr).split('-');
@@ -422,6 +448,81 @@ export default function Reports() {
     );
   }
 
+  /** =========================================================
+   *  📌 CONTROLE DE TAMANHO/FONTE DOS GRÁFICOS (WEB)
+   *  - Ajuste rápido aqui:
+   *    chartHeight: altura do gráfico (ex: 208, 180...)
+   *    axisFont: fonte dos eixos
+   *    labelFont: fonte do rótulo (quando showLabels=true)
+   * ========================================================= */
+  const chartHeight = 220;
+  const axisFont = 11;
+  const labelFont = 11;
+
+  /** =========================================================
+   *  ✅ Rótulo limpo: mostra APENAS no último ponto
+   * ========================================================= */
+  const LastPointLabel = ({ x, y, index, value, color, total, formatter }) => {
+    if (index !== total - 1) return null;
+    const txt = formatter ? formatter(value) : String(value);
+    return (
+      <text x={x} y={y - 10} fontSize={labelFont} fontWeight="700" fill={color} textAnchor="middle">
+        {txt}
+      </text>
+    );
+  };
+
+  const chartsConfig = [
+    {
+      title: 'Investimento por Dia',
+      dataKey: 'spend',
+      color: '#3B82F6',
+      fmt: (v) => formatCurrency(v),
+      tickFmt: (v) => (Number(v) >= 1000 ? `R$${(Number(v) / 1000).toFixed(1)}k` : `R$${Number(v).toFixed(0)}`),
+      lblFmt: (v) => formatCurrency0(v),
+    },
+    {
+      title: 'Impressões por Dia',
+      dataKey: 'impressions',
+      color: '#10B981',
+      fmt: (v) => formatNumber(v),
+      tickFmt: (v) => formatCompact(v),
+      lblFmt: (v) => formatCompact(v),
+    },
+    {
+      title: 'Alcance por Dia',
+      dataKey: 'reach',
+      color: '#8B5CF6',
+      fmt: (v) => formatNumber(v),
+      tickFmt: (v) => formatCompact(v),
+      lblFmt: (v) => formatCompact(v),
+    },
+    {
+      title: 'CTR Link por Dia (%)',
+      dataKey: 'ctr_link',
+      color: '#F59E0B',
+      fmt: (v) => `${Number(v || 0).toFixed(2)}%`,
+      tickFmt: (v) => formatPercent1(v),
+      lblFmt: (v) => formatPercent1(v),
+    },
+    {
+      title: 'Conversas por Dia',
+      dataKey: 'conversations',
+      color: '#EC4899',
+      fmt: (v) => formatNumber(v),
+      tickFmt: (v) => formatNumber(v),
+      lblFmt: (v) => formatNumber(v),
+    },
+    {
+      title: 'Custo/Conversa por Dia',
+      dataKey: 'cost_per_conversation',
+      color: '#EF4444',
+      fmt: (v) => formatCurrency(v),
+      tickFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
+      lblFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
+    },
+  ];
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
@@ -445,15 +546,10 @@ export default function Reports() {
 
             <div className="flex gap-2 flex-wrap">
               {activeTab === 'overview' && (
-                <>
-                  <Button 
-                    onClick={() => setExportOpen(true)}
-                    className="gap-2 bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Download className="w-4 h-4" />
-                    Exportar PDF
-                  </Button>
-                </>
+                <Button onClick={() => setExportOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                  <Download className="w-4 h-4" />
+                  Exportar PDF
+                </Button>
               )}
 
               <Sheet>
@@ -515,7 +611,12 @@ export default function Reports() {
                 </SelectContent>
               </Select>
 
-              <PeriodFilter value={period} onChange={setPeriod} comparisonPeriod={customComparisonPeriod} onComparisonChange={setCustomComparisonPeriod} />
+              <PeriodFilter
+                value={period}
+                onChange={setPeriod}
+                comparisonPeriod={customComparisonPeriod}
+                onComparisonChange={setCustomComparisonPeriod}
+              />
             </div>
 
             <div>
@@ -547,7 +648,9 @@ export default function Reports() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-1 justify-center ${
-                  activeTab === tab.id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -588,22 +691,34 @@ export default function Reports() {
                 })}
               </div>
 
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-12" data-pdf-section>
-                <div className="flex items-center justify-between mb-6">
+              {/* =========================
+                  FUNIL (WEB) - CORRIGIDO
+                  - removido h-64 fixo
+                  - removido overflow-visible
+                  - adicionado overflow-hidden e espaçamento melhor
+                 ========================= */}
+              <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-6" data-pdf-section>
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
                   <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
                 </div>
-                <div className="h-64 overflow-visible">
+
+                <div className="overflow-hidden pb-2">
                   <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
                 </div>
               </Card>
 
-              <div className="flex items-center justify-between mb-2 mt-8">
+              {/* Espaço garantido antes dos gráficos */}
+              <div className="h-4" />
+
+              <div className="flex items-center justify-between mb-2 mt-2">
                 <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
                 <button
                   onClick={() => setShowLabels((v) => !v)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    showLabels ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    showLabels
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                   }`}
                 >
                   {showLabels ? '🏷️ Rótulos: On' : '🏷️ Rótulos: Off'}
@@ -611,76 +726,56 @@ export default function Reports() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {[
-                  {
-                    title: 'Investimento por Dia',
-                    dataKey: 'spend',
-                    color: '#3B82F6',
-                    fmt: (v) => formatCurrency(v),
-                    tickFmt: (v) => (Number(v) >= 1000 ? `R$${(Number(v) / 1000).toFixed(1)}k` : `R$${Number(v).toFixed(0)}`),
-                    lblFmt: (v) => formatCurrency(v),
-                  },
-                  {
-                    title: 'Impressões por Dia',
-                    dataKey: 'impressions',
-                    color: '#10B981',
-                    fmt: (v) => formatNumber(v),
-                    tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                    lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                  },
-                  {
-                    title: 'Alcance por Dia',
-                    dataKey: 'reach',
-                    color: '#8B5CF6',
-                    fmt: (v) => formatNumber(v),
-                    tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                    lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                  },
-                  {
-                    title: 'CTR Link por Dia (%)',
-                    dataKey: 'ctr_link',
-                    color: '#F59E0B',
-                    fmt: (v) => formatPercent(v),
-                    tickFmt: (v) => `${Number(v || 0).toFixed(1)}%`,
-                    lblFmt: (v) => `${Number(v || 0).toFixed(1)}%`,
-                  },
-                  {
-                    title: 'Conversas por Dia',
-                    dataKey: 'conversations',
-                    color: '#EC4899',
-                    fmt: (v) => formatNumber(v),
-                    tickFmt: (v) => formatNumber(v),
-                    lblFmt: (v) => String(Math.round(Number(v || 0))),
-                  },
-                  {
-                    title: 'Custo/Conversa por Dia',
-                    dataKey: 'cost_per_conversation',
-                    color: '#EF4444',
-                    fmt: (v) => formatCurrency(v),
-                    tickFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
-                    lblFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
-                  },
-                ].map((chart) => (
+                {chartsConfig.map((chart) => (
                   <Card key={chart.dataKey} className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
                     <CardTitle className="text-lg mb-4">{chart.title}</CardTitle>
-                    <div className="h-64">
+
+                    {/* ====== ALTURA DO GRÁFICO (WEB) ======
+                       Troque h-[${chartHeight}px] (ou chartHeight ali em cima) */}
+                    <div style={{ height: chartHeight }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={dailyCharts} margin={{ top: showLabels ? 24 : 10, right: 16, left: 0, bottom: 0 }}>
+                        <LineChart
+                          data={dailyCharts}
+                          margin={{
+                            top: showLabels ? 18 : 8,
+                            right: 16,
+                            left: 0,
+                            bottom: 0,
+                          }}
+                        >
                           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                          <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 13 }} />
-                          <YAxis tick={{ fontSize: 13 }} tickFormatter={chart.tickFmt} domain={['auto', 'auto']} />
+
+                          {/* ====== FONTE DO EIXO X (WEB) ====== */}
+                          <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: axisFont }} />
+
+                          {/* ====== FONTE DO EIXO Y (WEB) ====== */}
+                          <YAxis
+                            tick={{ fontSize: axisFont }}
+                            tickFormatter={chart.tickFmt}
+                            domain={['auto', 'auto']}
+                          />
+
                           <Tooltip formatter={(v) => chart.fmt(v)} />
+
                           <Line
                             type="monotone"
                             dataKey={chart.dataKey}
                             stroke={chart.color}
                             strokeWidth={2}
-                            dot={false}
-                            label={
+                            dot={
                               showLabels
-                                ? { position: 'top', fontSize: 14, fill: chart.color, formatter: chart.lblFmt, fontWeight: 'bold' }
+                                ? (props) => (
+                                    <LastPointLabel
+                                      {...props}
+                                      color={chart.color}
+                                      total={dailyCharts.length}
+                                      formatter={chart.lblFmt}
+                                    />
+                                  )
                                 : false
                             }
+                            label={false}
+                            isAnimationActive={false}
                           />
                         </LineChart>
                       </ResponsiveContainer>
@@ -690,15 +785,40 @@ export default function Reports() {
               </div>
 
               <div className="space-y-6">
-                <RankingTable title="Campanhas em Destaque" data={currentMetrics} groupKey="campaign_id" nameKey="campaign_name" showThumbnail={false} unitId={selectedUnit} />
-                <RankingTable title="Conjuntos de Anúncios em Destaque" data={currentMetrics} groupKey="adset_id" nameKey="adset_name" showThumbnail={false} unitId={selectedUnit} />
-                <RankingTable title="Anúncios em Destaque" data={enrichedMetrics} groupKey="ad_id" nameKey="ad_name" showThumbnail={true} unitId={selectedUnit} />
+                <RankingTable
+                  title="Campanhas em Destaque"
+                  data={currentMetrics}
+                  groupKey="campaign_id"
+                  nameKey="campaign_name"
+                  showThumbnail={false}
+                  unitId={selectedUnit}
+                />
+                <RankingTable
+                  title="Conjuntos de Anúncios em Destaque"
+                  data={currentMetrics}
+                  groupKey="adset_id"
+                  nameKey="adset_name"
+                  showThumbnail={false}
+                  unitId={selectedUnit}
+                />
+                <RankingTable
+                  title="Anúncios em Destaque"
+                  data={enrichedMetrics}
+                  groupKey="ad_id"
+                  nameKey="ad_name"
+                  showThumbnail={true}
+                  unitId={selectedUnit}
+                />
               </div>
             </>
           ))}
 
-          {/* Export Modal */}
-          <ReportExportModal
+        {/* =========================
+            EXPORT MODAL (PDF)
+            - Ajustado o funil também (sem h-64 / sem overflow-visible)
+            - Gráficos com altura menor + fontes menores
+           ========================= */}
+        <ReportExportModal
           open={exportOpen}
           onClose={() => setExportOpen(false)}
           unit={selectedUnitData}
@@ -730,90 +850,65 @@ export default function Reports() {
                   })}
                 </div>
 
-                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-8" data-pdf-section>
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
-                      <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
-                    </div>
-                    <div className="h-64 overflow-visible">
-                      <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
-                    </div>
-                  </Card>
+                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-8 break-inside-avoid" data-pdf-section>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
+                    <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
+                  </div>
 
-                 <div className="space-y-4 pt-8" data-pdf-element>
+                  <div className="overflow-hidden pb-2">
+                    <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
+                  </div>
+                </Card>
+
+                <div className="space-y-4 pt-4" data-pdf-element>
                   <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
+
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {[
-                      {
-                        title: 'Investimento por Dia',
-                        dataKey: 'spend',
-                        color: '#3B82F6',
-                        fmt: (v) => formatCurrency(v),
-                        tickFmt: (v) => (Number(v) >= 1000 ? `R$${(Number(v) / 1000).toFixed(1)}k` : `R$${Number(v).toFixed(0)}`),
-                        lblFmt: (v) => formatCurrency(v),
-                      },
-                      {
-                        title: 'Impressões por Dia',
-                        dataKey: 'impressions',
-                        color: '#10B981',
-                        fmt: (v) => formatNumber(v),
-                        tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                        lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                      },
-                      {
-                        title: 'Alcance por Dia',
-                        dataKey: 'reach',
-                        color: '#8B5CF6',
-                        fmt: (v) => formatNumber(v),
-                        tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                        lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
-                      },
-                      {
-                        title: 'CTR Link por Dia (%)',
-                        dataKey: 'ctr_link',
-                        color: '#F59E0B',
-                        fmt: (v) => formatPercent(v),
-                        tickFmt: (v) => `${Number(v || 0).toFixed(1)}%`,
-                        lblFmt: (v) => `${Number(v || 0).toFixed(1)}%`,
-                      },
-                      {
-                        title: 'Conversas por Dia',
-                        dataKey: 'conversations',
-                        color: '#EC4899',
-                        fmt: (v) => formatNumber(v),
-                        tickFmt: (v) => formatNumber(v),
-                        lblFmt: (v) => String(Math.round(Number(v || 0))),
-                      },
-                      {
-                        title: 'Custo/Conversa por Dia',
-                        dataKey: 'cost_per_conversation',
-                        color: '#EF4444',
-                        fmt: (v) => formatCurrency(v),
-                        tickFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
-                        lblFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
-                      },
-                    ].map((chart) => (
-                      <div key={chart.dataKey} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 break-inside-avoid">
+                    {chartsConfig.map((chart) => (
+                      <div
+                        key={chart.dataKey}
+                        className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 break-inside-avoid"
+                      >
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">{chart.title}</h4>
+
+                        {/* ====== ALTURA DO GRÁFICO (PDF) ====== */}
                         <div className="h-48">
                           <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={dailyCharts} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
+                            <LineChart data={dailyCharts} margin={{ top: 10, right: 8, left: -16, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+
+                              {/* ====== FONTE DO EIXO X (PDF) ====== */}
                               <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
+
+                              {/* ====== FONTE DO EIXO Y (PDF) ====== */}
                               <YAxis tick={{ fontSize: 11 }} tickFormatter={chart.tickFmt} />
+
                               <Tooltip formatter={(v) => chart.fmt(v)} />
+
                               <Line
                                 type="monotone"
                                 dataKey={chart.dataKey}
                                 stroke={chart.color}
                                 strokeWidth={2}
-                                dot={false}
-                                isAnimationActive={false}
-                                label={
+                                dot={
                                   showLabels
-                                    ? { position: 'top', fontSize: 12, fill: chart.color, formatter: chart.lblFmt, offset: 2, fontWeight: 'bold' }
+                                    ? (props) => (
+                                        <text
+                                          x={props.x}
+                                          y={props.y - 10}
+                                          fontSize={11}
+                                          fontWeight="700"
+                                          fill={chart.color}
+                                          textAnchor="middle"
+                                        >
+                                          {chart.lblFmt(props.value)}
+                                        </text>
+                                      )
                                     : false
                                 }
+                                label={false}
+                                isAnimationActive={false}
                               />
                             </LineChart>
                           </ResponsiveContainer>
@@ -823,17 +918,42 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <RankingTable title="Campanhas em Destaque" data={currentMetrics} groupKey="campaign_id" nameKey="campaign_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
-                <RankingTable title="Conjuntos de Anúncios em Destaque" data={currentMetrics} groupKey="adset_id" nameKey="adset_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
-                <RankingTable title="Anúncios em Destaque" data={enrichedMetrics} groupKey="ad_id" nameKey="ad_name" showThumbnail={true} unitId={selectedUnit} isPDF={true} />
+                <RankingTable
+                  title="Campanhas em Destaque"
+                  data={currentMetrics}
+                  groupKey="campaign_id"
+                  nameKey="campaign_name"
+                  showThumbnail={false}
+                  unitId={selectedUnit}
+                  isPDF={true}
+                />
+                <RankingTable
+                  title="Conjuntos de Anúncios em Destaque"
+                  data={currentMetrics}
+                  groupKey="adset_id"
+                  nameKey="adset_name"
+                  showThumbnail={false}
+                  unitId={selectedUnit}
+                  isPDF={true}
+                />
+                <RankingTable
+                  title="Anúncios em Destaque"
+                  data={enrichedMetrics}
+                  groupKey="ad_id"
+                  nameKey="ad_name"
+                  showThumbnail={true}
+                  unitId={selectedUnit}
+                  isPDF={true}
+                />
               </>
             ),
             platforms: <ReportPlatforms unit={units.find((u) => u.id === selectedUnit)} period={period} />,
             device: <ReportDevice unit={units.find((u) => u.id === selectedUnit)} period={period} />,
             demographic: <ReportDemographic unit={units.find((u) => u.id === selectedUnit)} period={period} />,
+            creatives: <ReportCreatives unit={units.find((u) => u.id === selectedUnit)} period={period} />,
           }}
-          />
-          </div>
-          </div>
-          );
-          }
+        />
+      </div>
+    </div>
+  );
+}
