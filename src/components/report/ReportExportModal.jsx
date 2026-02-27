@@ -44,6 +44,24 @@ export default function ReportExportModal({
     }));
   };
 
+  const selectAllSections = () => {
+    setSelectedSections({
+      overview: true,
+      platforms: true,
+      device: true,
+      demographic: true,
+    });
+  };
+
+  const deselectAllSections = () => {
+    setSelectedSections({
+      overview: false,
+      platforms: false,
+      device: false,
+      demographic: false,
+    });
+  };
+
   const handleNextStep = () => {
     setStep('preview');
     setIsGenerating(true);
@@ -209,22 +227,31 @@ export default function ReportExportModal({
                 <h3 className="text-lg font-semibold text-gray-900">Selecione as seções do relatório</h3>
                 <p className="text-sm text-gray-600">Escolha quais abas deseja incluir no PDF</p>
 
-                <div className="space-y-3">
-                  {sections.map((section) => (
-                    <label
-                      key={section.id}
-                      className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                    >
-                      <Checkbox checked={selectedSections[section.id]} onCheckedChange={() => toggleSection(section.id)} className="mt-1" />
-                      <div>
-                        <p className="font-medium text-gray-900">{section.label}</p>
-                        <p className="text-sm text-gray-500">{section.description}</p>
-                      </div>
-                    </label>
-                  ))}
+                <div className="flex gap-2 mb-3">
+                  <Button variant="outline" size="sm" onClick={selectAllSections} className="text-xs">
+                    Selecionar Todas
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={deselectAllSections} className="text-xs">
+                    Desselecionar Todas
+                  </Button>
                 </div>
 
-                <div className="pt-4 border-t border-gray-200 flex justify-end gap-2">
+                <div className="space-y-3">
+                   {sections.map((section) => (
+                     <label
+                       key={section.id}
+                       className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                     >
+                       <Checkbox checked={selectedSections[section.id]} onCheckedChange={() => toggleSection(section.id)} className="mt-1" />
+                       <div>
+                         <p className="font-medium text-gray-900">{section.label}</p>
+                         <p className="text-sm text-gray-500">{section.description}</p>
+                       </div>
+                     </label>
+                   ))}
+                 </div>
+
+                 <div className="pt-4 border-t border-gray-200 flex justify-end gap-2">
                   <Button variant="outline" onClick={onClose}>
                     Cancelar
                   </Button>
@@ -284,6 +311,10 @@ export default function ReportExportModal({
                     padding: 6px 8px;
                     text-align: left;
                     border-bottom: 1px solid #e5e7eb;
+                    word-break: break-word;
+                    word-wrap: break-word;
+                    white-space: normal;
+                    overflow-wrap: break-word;
                   }
 
                   .ranking-table-pdf th {
@@ -342,6 +373,18 @@ export default function ReportExportModal({
                   body {
                     font-size: 12px !important;
                     line-height: 1.4 !important;
+                  }
+
+                  /* Previne corte de texto em tabelas */
+                  table {
+                    table-layout: auto;
+                  }
+
+                  table td, table th {
+                    word-break: break-word;
+                    word-wrap: break-word;
+                    white-space: normal;
+                    overflow-wrap: break-word;
                   }
                 `}</style>
 
