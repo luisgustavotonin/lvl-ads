@@ -1,12 +1,27 @@
 import React, { useState, useRef } from 'react';
-import { X, Printer, Download, Loader2, ChevronDown } from 'lucide-react';
+import { X, Printer, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+
+/**
+ * ✅ ReportExportModal (corrigido e otimizado)
+ *
+ * Melhorias principais:
+ * 1) Layout mais bonito: padding real (margens), max-width, tipografia consistente, spacing.
+ * 2) Quebra feia e conteúdo colado nas bordas: wrapper "pdf-root" com padding + boxSizing.
+ * 3) PDF MENOR e mais rápido: html2canvas com scale dinâmico + compressão JPEG.
+ * 4) PDF A4 padrão (múltiplas páginas) ao invés de “uma página gigantesca”:
+ *    - Isso resolve estética e evita ficar esmagado.
+ * 5) Evita quebrar cards/tabelas no meio: .break-avoid.
+ *
+ * IMPORTANTE:
+ * - Para tabelas “Campanhas em Destaque” ficarem bonitas, você também precisa ajustar o RankingTable (modo isPDF)
+ *   para usar table-fixed + truncate. Este modal melhora MUITO, mas o RankingTable ainda manda.
+ */
 
 export default function ReportExportModal({
   open,
@@ -16,7 +31,7 @@ export default function ReportExportModal({
   selectedKPIs = [],
   showLabels = false,
   children,
-  onExport = () => {}
+  onExport = () => {},
 }) {
   const [step, setStep] = useState('selectSections'); // selectSections | preview
   const [selectedSections, setSelectedSections] = useState({
@@ -46,9 +61,12 @@ export default function ReportExportModal({
   const handleNextStep = () => {
     setStep('preview');
     setIsGenerating(true);
-    setTimeout(() => setIsGenerating(false), 1000);
+    setTimeout(() => setIsGenerating(false), 500);
   };
 
+  /**
+   * ✅ Print: mantém o preview com margens e estilos do wrapper
+   */
   const handlePrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
@@ -65,10 +83,12 @@ export default function ReportExportModal({
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               .no-print { display: none !important; }
             }
-            body { font-family: 'Inter', system-ui, sans-serif; }
+            body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; }
+            .pdf-root { max-width: 1100px; margin: 0 auto; padding: 24px; box-sizing: border-box; }
+            .break-avoid { break-inside: avoid; page-break-inside: avoid; }
           </style>
         </head>
-        <body class="bg-white p-8">
+        <body class="bg-white">
           ${printContent.innerHTML}
         </body>
       </html>
@@ -78,30 +98,80 @@ export default function ReportExportModal({
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
-    }, 500);
+    }, 400);
   };
 
+  /**
+   * ✅ PDF: agora gera A4 padrão com múltiplas páginas
+   * - Isso reduz “espremido nas bordas” e deixa visual melhor.
+   * - Também reduz o peso do arquivo e o tempo:
+   *   - scale dinâmico
+   *   - JPEG com compressão (mais leve que PNG)
+   */
   const handleDownloadPDF = async () => {
     setIsExporting(true);
     try {
       const printContent = printRef.current;
       if (!printContent) return;
 
+      // deixa o wrapper com fundo branco garantido
+      const prevBg = printContent.style.backgroundColor;
+      printContent.style.backgroundColor = '#ffffff';
+
+      // scale: 1.35 é um ótimo equilíbrio (rápido e legível). Ajuste se quiser mais/menos qualidade.
+      const scale = 1.35;
+
       const canvas = await html2canvas(printContent, {
-        scale: 2,
+        scale,
         useCORS: true,
         backgroundColor: '#ffffff',
-        allowTaint: true,
         logging: false,
+        // melhora fidelidade de fontes e evita recorte estranho
+        windowWidth: printContent.scrollWidth,
+        windowHeight: printContent.scrollHeight,
       });
 
-      const imgWidth = 210; // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      const pdf = new jsPDF('p', 'mm', [imgWidth, imgHeight + 10]);
-      const imgData = canvas.toDataURL('image/png');
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      // volta ao normal
+      printContent.style.backgroundColor = prevBg;
+
+      // A4 em mm
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();   // 210
+      const pageHeight = pdf.internal.pageSize.getHeight(); // 297
+
+      // margem interna (mm) para ficar bonito
+      const margin = 8;
+      const usableW = pageWidth - margin * 2;
+      const usableH = pageHeight - margin * 2;
+
+      // converte canvas -> imagem JPEG comprimida
+      const imgData = canvas.toDataURL('image/jpeg', 0.78);
+
+      // dimensões da imagem no PDF
+      const imgW = usableW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+
+      // paginação: “corta” a imagem verticalmente em páginas
+      let y = 0;
+      let page = 0;
+
+      while (y < imgH) {
+        if (page > 0) pdf.addPage();
+        // desenha a mesma imagem, “subindo” ela no eixo Y para simular corte por páginas
+        pdf.addImage(
+          imgData,
+          'JPEG',
+          margin,
+          margin - y,
+          imgW,
+          imgH,
+          undefined,
+          'FAST'
+        );
+        y += usableH;
+        page += 1;
+      }
+
       pdf.save(`relatorio-${unit?.name || 'unidade'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       onExport();
     } catch (error) {
@@ -127,20 +197,18 @@ export default function ReportExportModal({
               {step === 'selectSections' ? 'Configurar Relatório' : 'Preview do Relatório'}
             </h2>
             <p className="text-sm text-gray-500">
-              {unit?.name} • {period?.start && period?.end && (
-                `${format(period.start, "dd 'de' MMMM", { locale: ptBR })} a ${format(period.end, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
-              )}
+              {unit?.name} •{' '}
+              {period?.start && period?.end
+                ? `${format(period.start, "dd 'de' MMMM", { locale: ptBR })} a ${format(period.end, "dd 'de' MMMM 'de' yyyy", {
+                    locale: ptBR,
+                  })}`
+                : ''}
             </p>
           </div>
           <div className="flex items-center gap-2">
             {step === 'preview' && (
               <>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={handlePrint}
-                  disabled={isExporting}
-                >
+                <Button variant="outline" className="gap-2" onClick={handlePrint} disabled={isExporting}>
                   <Printer className="w-4 h-4" />
                   Imprimir
                 </Button>
@@ -149,11 +217,7 @@ export default function ReportExportModal({
                   onClick={handleDownloadPDF}
                   disabled={isExporting}
                 >
-                  {isExporting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
+                  {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                   Baixar PDF
                 </Button>
               </>
@@ -195,58 +259,71 @@ export default function ReportExportModal({
                   <Button variant="outline" onClick={onClose}>
                     Cancelar
                   </Button>
-                  <Button
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={handleNextStep}
-                  >
+                  <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleNextStep}>
                     Continuar
                   </Button>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="p-8">
+            <div className="p-6 sm:p-8">
+              {/* ✅ Wrapper com margens reais e layout consistente */}
               <div
                 ref={printRef}
-                className="max-w-5xl mx-auto bg-white rounded-lg shadow-sm space-y-8"
+                className="pdf-root max-w-[1100px] mx-auto bg-white rounded-2xl shadow-sm border border-gray-200"
+                style={{ padding: 24, boxSizing: 'border-box' }}
               >
+                {/* Estilos de PDF (inline) para evitar depender de CSS externo */}
+                <style>{`
+                  .pdf-root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+                  .break-avoid { break-inside: avoid; page-break-inside: avoid; }
+                  .pdf-section-title { font-size: 18px; font-weight: 800; color: #111827; }
+                  .pdf-h2 { font-size: 20px; font-weight: 800; color: #111827; }
+                  .pdf-muted { color: #6B7280; }
+                  .pdf-card { border: 1px solid #E5E7EB; border-radius: 14px; padding: 16px; }
+                `}</style>
+
                 {/* Report Header */}
-                <div className="pdf-header border-b-2 border-gray-200 pb-8">
-                  <div className="flex items-start gap-6 mb-6">
+                <div className="break-avoid border-b border-gray-200 pb-6 mb-6">
+                  <div className="flex items-start gap-5">
                     {unit?.logo_url ? (
                       <img
                         src={unit.logo_url}
                         alt={unit.name}
-                        className="w-20 h-20 rounded-lg object-contain"
+                        className="w-16 h-16 rounded-xl object-contain border border-gray-100"
                       />
                     ) : (
                       <div
-                        className="w-20 h-20 rounded-lg flex items-center justify-center text-2xl font-bold text-white"
+                        className="w-16 h-16 rounded-xl flex items-center justify-center text-xl font-bold text-white"
                         style={{ backgroundColor: unit?.color || '#3B82F6' }}
                       >
                         {unit?.name?.charAt(0)?.toUpperCase()}
                       </div>
                     )}
+
                     <div className="flex-1">
-                      <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        Relatório de Performance - {unit?.name || 'Mídia Paga'}
+                      <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">
+                        Relatório de Performance
                       </h1>
-                      <p className="text-gray-600 mb-3">Análise completa de performance publicitária</p>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-500">Período</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {unit?.name || 'Mídia Paga'} • Análise completa de performance publicitária
+                      </p>
+
+                      <div className="grid grid-cols-3 gap-3 mt-4 text-sm">
+                        <div className="pdf-card">
+                          <p className="text-xs pdf-muted">Período</p>
                           <p className="font-semibold text-gray-900">
                             {period?.start && period?.end
                               ? `${format(period.start, 'dd/MM/yyyy')} a ${format(period.end, 'dd/MM/yyyy')}`
                               : '-'}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-gray-500">KPIs Selecionados</p>
+                        <div className="pdf-card">
+                          <p className="text-xs pdf-muted">KPIs selecionados</p>
                           <p className="font-semibold text-gray-900">{selectedKPIs.length} indicadores</p>
                         </div>
-                        <div>
-                          <p className="text-gray-500">Gerado em</p>
+                        <div className="pdf-card">
+                          <p className="text-xs pdf-muted">Gerado em</p>
                           <p className="font-semibold text-gray-900">
                             {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                           </p>
@@ -257,39 +334,58 @@ export default function ReportExportModal({
                 </div>
 
                 {/* Report Content */}
-                {selectedSections.overview && children?.overview && (
-                  <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Insights</h2>
-                    {children.overview}
+                {isGenerating ? (
+                  <div className="py-16 text-center text-gray-500 flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Gerando preview…
                   </div>
-                )}
+                ) : (
+                  <div className="space-y-10">
+                    {selectedSections.overview && children?.overview && (
+                      <div className="space-y-4">
+                        <div className="break-avoid flex items-end justify-between">
+                          <h2 className="pdf-h2">Visão Geral</h2>
+                          <span className="text-xs text-gray-500">
+                            Rótulos: <b>{showLabels ? 'ON' : 'OFF'}</b>
+                          </span>
+                        </div>
+                        <div className="space-y-6">{children.overview}</div>
+                      </div>
+                    )}
 
-                {selectedSections.platforms && children?.platforms && (
-                  <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Performance por Plataforma</h2>
-                    {children.platforms}
-                  </div>
-                )}
+                    {selectedSections.platforms && children?.platforms && (
+                      <div className="space-y-4">
+                        <h2 className="pdf-h2">Performance por Plataforma</h2>
+                        <div className="space-y-6">{children.platforms}</div>
+                      </div>
+                    )}
 
-                {selectedSections.device && children?.device && (
-                  <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Performance por Dispositivos</h2>
-                    {children.device}
-                  </div>
-                )}
+                    {selectedSections.device && children?.device && (
+                      <div className="space-y-4">
+                        <h2 className="pdf-h2">Performance por Device</h2>
+                        <div className="space-y-6">{children.device}</div>
+                      </div>
+                    )}
 
-                {selectedSections.demographic && children?.demographic && (
-                  <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Performance Demográfica</h2>
-                    {children.demographic}
+                    {selectedSections.demographic && children?.demographic && (
+                      <div className="space-y-4">
+                        <h2 className="pdf-h2">Performance Demográfica</h2>
+                        <div className="space-y-6">{children.demographic}</div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* Footer */}
-                <div className="border-t border-gray-200 pt-4 text-center text-xs text-gray-400">
-                  Relatório confidencial • Unified Ads Insights • {format(new Date(), "dd/MM/yyyy")}
+                <div className="break-avoid border-t border-gray-200 mt-8 pt-4 text-center text-[11px] text-gray-400">
+                  Relatório confidencial • Unified Ads Insights • {format(new Date(), 'dd/MM/yyyy')}
                 </div>
               </div>
+
+              <p className="text-xs text-gray-500 mt-3 max-w-[1100px] mx-auto">
+                Dica: se quiser o PDF ainda mais leve/rápido, diminua o <b>scale</b> e a qualidade do JPEG no
+                <code className="mx-1 px-1 rounded bg-gray-100">handleDownloadPDF</code>.
+              </p>
             </div>
           )}
         </div>
