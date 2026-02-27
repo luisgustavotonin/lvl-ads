@@ -588,17 +588,17 @@ export default function Reports() {
                 })}
               </div>
 
-              <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-8" data-pdf-section>
+              <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-12" data-pdf-section>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
                   <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
                 </div>
-                <div className="min-h-96 overflow-visible">
+                <div className="h-64 overflow-visible">
                   <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
                 </div>
               </Card>
 
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 mt-8">
                 <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
                 <button
                   onClick={() => setShowLabels((v) => !v)}
@@ -675,10 +675,10 @@ export default function Reports() {
                             dataKey={chart.dataKey}
                             stroke={chart.color}
                             strokeWidth={2}
-                            dot={{ fill: chart.color, r: 4 }}
+                            dot={false}
                             label={
                               showLabels
-                                ? { position: 'top', fontSize: 11, fill: chart.color, formatter: chart.lblFmt }
+                                ? { position: 'top', fontSize: 14, fill: chart.color, formatter: chart.lblFmt, fontWeight: 'bold' }
                                 : false
                             }
                           />
@@ -731,16 +731,16 @@ export default function Reports() {
                 </div>
 
                 <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-8" data-pdf-section>
-                   <div className="flex items-center justify-between mb-6">
-                     <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
-                     <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
-                   </div>
-                   <div className="h-96 overflow-visible">
-                     <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
-                   </div>
-                 </Card>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
+                      <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
+                    </div>
+                    <div className="h-64 overflow-visible">
+                      <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
+                    </div>
+                  </Card>
 
-                <div className="space-y-4 pt-6" data-pdf-element>
+                 <div className="space-y-4 pt-8" data-pdf-element>
                   <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {[
@@ -807,11 +807,11 @@ export default function Reports() {
                                 dataKey={chart.dataKey}
                                 stroke={chart.color}
                                 strokeWidth={2}
-                                dot={{ fill: chart.color, r: 2 }}
+                                dot={false}
                                 isAnimationActive={false}
                                 label={
                                   showLabels
-                                    ? { position: 'top', fontSize: 9, fill: chart.color, formatter: chart.lblFmt, offset: 2 }
+                                    ? { position: 'top', fontSize: 12, fill: chart.color, formatter: chart.lblFmt, offset: 2, fontWeight: 'bold' }
                                     : false
                                 }
                               />
