@@ -823,10 +823,12 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div className="space-y-6 mt-8">
-                  <RankingTable title="Campanhas em Destaque (PDF)" data={currentMetrics} groupKey="campaign_id" nameKey="campaign_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
-                  <RankingTable title="Conjuntos de Anúncios em Destaque (PDF)" data={currentMetrics} groupKey="adset_id" nameKey="adset_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
-                  <RankingTable title="Anúncios em Destaque (PDF)" data={enrichedMetrics} groupKey="ad_id" nameKey="ad_name" showThumbnail={true} unitId={selectedUnit} isPDF={true} />
+                <div className="space-y-6 mt-8" data-pdf-element>
+                  <div className="hidden">
+                    <RankingTable title="Campanhas em Destaque" data={currentMetrics} groupKey="campaign_id" nameKey="campaign_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
+                    <RankingTable title="Conjuntos de Anúncios em Destaque" data={currentMetrics} groupKey="adset_id" nameKey="adset_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
+                    <RankingTable title="Anúncios em Destaque" data={enrichedMetrics} groupKey="ad_id" nameKey="ad_name" showThumbnail={true} unitId={selectedUnit} isPDF={true} />
+                  </div>
                 </div>
               </>
             ),
