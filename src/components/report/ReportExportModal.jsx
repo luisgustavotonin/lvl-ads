@@ -107,10 +107,10 @@ export default function ReportExportModal({
     content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
 
       // Aguarda recalcular layout (crítico para tabelas)
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 300));
 
-      // ✅ Scale equilibrado (1.2 = qualidade boa + arquivo menor)
-      const scale = 1.2;
+      // ✅ Scale maior para qualidade melhor (igual à tela)
+      const scale = 2;
 
       const canvas = await html2canvas(content, {
         scale,
@@ -118,17 +118,22 @@ export default function ReportExportModal({
         backgroundColor: '#ffffff',
         logging: false,
         windowWidth: TARGET_WIDTH_PX,
-        windowHeight: content.scrollHeight + 50,
+        windowHeight: content.scrollHeight,
         allowTaint: true,
         imageTimeout: 0,
+        onclone: (clonedDocument) => {
+          // Garante que as imagens carregassem
+          const images = clonedDocument.querySelectorAll('img');
+          images.forEach(img => img.style.maxWidth = '100%');
+        }
       });
 
       // Restaura estilos
       content.style.width = prevWidth;
       content.style.maxWidth = prevMaxW;
 
-      // ✅ JPEG com qualidade balanceada
-      const imgData = canvas.toDataURL('image/jpeg', 0.78);
+      // ✅ JPEG com qualidade alta (igual à tela)
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
 
     /**
      * ✅ AQUI É A CHAVE:
