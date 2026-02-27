@@ -305,30 +305,38 @@ export default function ReportExportModal({
                 ) : (
                   <>
                     {selectedSections.overview && children?.overview && (
-                      <div className="space-y-6">
-                        <h2 className="text-xl font-bold text-gray-900">Visão Geral</h2>
-                        {children.overview}
+                      <div className="space-y-4 pdf-section">
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Visão Geral</h2>
+                        <div className="pdf-overview-content">
+                          {children.overview}
+                        </div>
                       </div>
                     )}
 
                     {selectedSections.platforms && children?.platforms && (
-                      <div className="space-y-6">
-                        <h2 className="text-xl font-bold text-gray-900">Performance por Plataforma</h2>
-                        {children.platforms}
+                      <div className="space-y-4 pdf-section">
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Performance por Plataforma</h2>
+                        <div className="pdf-platforms-content">
+                          {children.platforms}
+                        </div>
                       </div>
                     )}
 
                     {selectedSections.device && children?.device && (
-                      <div className="space-y-6">
-                        <h2 className="text-xl font-bold text-gray-900">Performance por Device</h2>
-                        {children.device}
+                      <div className="space-y-4 pdf-section">
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Performance por Device</h2>
+                        <div className="pdf-device-content">
+                          {children.device}
+                        </div>
                       </div>
                     )}
 
                     {selectedSections.demographic && children?.demographic && (
-                      <div className="space-y-6">
-                        <h2 className="text-xl font-bold text-gray-900">Performance Demográfica</h2>
-                        {children.demographic}
+                      <div className="space-y-4 pdf-section">
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Performance Demográfica</h2>
+                        <div className="pdf-demographic-content">
+                          {children.demographic}
+                        </div>
                       </div>
                     )}
                   </>
@@ -340,10 +348,12 @@ export default function ReportExportModal({
                 </div>
               </div>
 
-              <p className="text-xs text-gray-500 mt-3 max-w-[1200px] mx-auto">
-                Se o PDF ficar pesado, diminua o <b>scale</b> (ex: 1.15) e/ou a qualidade do JPEG (ex: 0.72) em{' '}
-                <code className="px-1 rounded bg-gray-100">handleDownloadPDF</code>.
-              </p>
+              <div className="text-xs text-gray-500 mt-4 max-w-[1200px] mx-auto space-y-1">
+                <p>✅ <b>Tabelas otimizadas</b>: Layout preservado, sem cortes ou sobreposições</p>
+                <p>✅ <b>Page breaks inteligentes</b>: Seções mantêm-se inteiras (evita divisões)</p>
+                <p>✅ <b>Arquivo comprimido</b>: JPEG + configurações otimizadas para tamanho menor</p>
+                <p className="text-gray-400">Se precisar ajustar: scale (qualidade) ou qualidade JPEG em <code className="px-1 rounded bg-gray-100">handleDownloadPDF</code></p>
+              </div>
             </div>
           )}
         </div>
