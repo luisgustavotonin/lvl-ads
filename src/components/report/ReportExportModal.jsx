@@ -7,22 +7,6 @@ import { ptBR } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-/**
- * ✅ ReportExportModal (corrigido e otimizado)
- *
- * Melhorias principais:
- * 1) Layout mais bonito: padding real (margens), max-width, tipografia consistente, spacing.
- * 2) Quebra feia e conteúdo colado nas bordas: wrapper "pdf-root" com padding + boxSizing.
- * 3) PDF MENOR e mais rápido: html2canvas com scale dinâmico + compressão JPEG.
- * 4) PDF A4 padrão (múltiplas páginas) ao invés de “uma página gigantesca”:
- *    - Isso resolve estética e evita ficar esmagado.
- * 5) Evita quebrar cards/tabelas no meio: .break-avoid.
- *
- * IMPORTANTE:
- * - Para tabelas “Campanhas em Destaque” ficarem bonitas, você também precisa ajustar o RankingTable (modo isPDF)
- *   para usar table-fixed + truncate. Este modal melhora MUITO, mas o RankingTable ainda manda.
- */
-
 export default function ReportExportModal({
   open,
   onClose,
@@ -42,7 +26,9 @@ export default function ReportExportModal({
   });
   const [isExporting, setIsExporting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const printRef = useRef(null);
+
+  // Esse é o conteúdo que vamos CAPTURAR (1 página única)
+  const exportRef = useRef(null);
 
   const sections = [
     { id: 'overview', label: 'Visão Geral', description: 'KPIs, Funil e Gráficos Diários' },
@@ -61,18 +47,19 @@ export default function ReportExportModal({
   const handleNextStep = () => {
     setStep('preview');
     setIsGenerating(true);
-    setTimeout(() => setIsGenerating(false), 500);
+    setTimeout(() => setIsGenerating(false), 350);
   };
 
   /**
-   * ✅ Print: mantém o preview com margens e estilos do wrapper
+   * ✅ Print (opcional)
+   * Mantém o mesmo HTML de export, mas imprime pelo browser.
    */
   const handlePrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
+    const content = exportRef.current;
+    if (!content) return;
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
+    const win = window.open('', '_blank');
+    win.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
@@ -81,101 +68,84 @@ export default function ReportExportModal({
           <style>
             @media print {
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              .no-print { display: none !important; }
+              .no-print, [data-no-export="true"] { display: none !important; }
             }
             body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; }
-            .pdf-root { max-width: 1100px; margin: 0 auto; padding: 24px; box-sizing: border-box; }
-            .break-avoid { break-inside: avoid; page-break-inside: avoid; }
           </style>
         </head>
         <body class="bg-white">
-          ${printContent.innerHTML}
+          ${content.innerHTML}
         </body>
       </html>
     `);
-    printWindow.document.close();
-    printWindow.focus();
+    win.document.close();
+    win.focus();
     setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
+      win.print();
+      win.close();
     }, 400);
   };
 
   /**
-   * ✅ PDF: agora gera A4 padrão com múltiplas páginas
-   * - Isso reduz “espremido nas bordas” e deixa visual melhor.
-   * - Também reduz o peso do arquivo e o tempo:
-   *   - scale dinâmico
-   *   - JPEG com compressão (mais leve que PNG)
+   * ✅ PDF 1 PÁGINA ÚNICA (sem cortes)
+   * - fixa largura para não reflowar (igual tela)
+   * - html2canvas com scale controlado
+   * - exporta em UMA página com tamanho custom (mm)
    */
   const handleDownloadPDF = async () => {
     setIsExporting(true);
     try {
-      const printContent = printRef.current;
-      if (!printContent) return;
+      const content = exportRef.current;
+      if (!content) return;
 
-      // deixa o wrapper com fundo branco garantido
-      const prevBg = printContent.style.backgroundColor;
-      printContent.style.backgroundColor = '#ffffff';
+      // 1) trava a largura para ficar igual ao layout da tela
+      //    (ajuste esse valor para bater com seu wrapper do relatório)
+      const TARGET_WIDTH_PX = 1200; // mesma ideia do max-w do seu Reports
+      const prevWidth = content.style.width;
+      const prevMaxW = content.style.maxWidth;
 
-      // scale: 1.35 é um ótimo equilíbrio (rápido e legível). Ajuste se quiser mais/menos qualidade.
-      const scale = 1.35;
+      content.style.width = `${TARGET_WIDTH_PX}px`;
+      content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
 
-      const canvas = await html2canvas(printContent, {
+      // força layout recalcular antes do canvas
+      await new Promise((r) => requestAnimationFrame(() => r()));
+
+      // 2) captura (scale menor = mais rápido/leve)
+      const scale = 1.25;
+
+      const canvas = await html2canvas(content, {
         scale,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        // melhora fidelidade de fontes e evita recorte estranho
-        windowWidth: printContent.scrollWidth,
-        windowHeight: printContent.scrollHeight,
+        windowWidth: TARGET_WIDTH_PX,
+        // windowHeight ajuda a evitar cortes estranhos em alguns casos
+        windowHeight: content.scrollHeight,
       });
 
-      // volta ao normal
-      printContent.style.backgroundColor = prevBg;
+      // restaura width
+      content.style.width = prevWidth;
+      content.style.maxWidth = prevMaxW;
 
-      // A4 em mm
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();   // 210
-      const pageHeight = pdf.internal.pageSize.getHeight(); // 297
+      // 3) gera imagem mais leve (JPEG)
+      const imgData = canvas.toDataURL('image/jpeg', 0.80);
 
-      // margem interna (mm) para ficar bonito
-      const margin = 8;
-      const usableW = pageWidth - margin * 2;
-      const usableH = pageHeight - margin * 2;
+      /**
+       * 4) PDF com 1 página de tamanho custom:
+       * - vamos usar largura A4 (210mm) por padrão
+       * - e altura proporcional à imagem (pode ficar grande, mas 1 página)
+       */
+      const pageWmm = 210; // largura padrão A4 em mm
+      const pageHmm = (canvas.height * pageWmm) / canvas.width;
 
-      // converte canvas -> imagem JPEG comprimida
-      const imgData = canvas.toDataURL('image/jpeg', 0.78);
+      // cria PDF com altura custom
+      const pdf = new jsPDF('p', 'mm', [pageWmm, pageHmm]);
 
-      // dimensões da imagem no PDF
-      const imgW = usableW;
-      const imgH = (canvas.height * imgW) / canvas.width;
-
-      // paginação: “corta” a imagem verticalmente em páginas
-      let y = 0;
-      let page = 0;
-
-      while (y < imgH) {
-        if (page > 0) pdf.addPage();
-        // desenha a mesma imagem, “subindo” ela no eixo Y para simular corte por páginas
-        pdf.addImage(
-          imgData,
-          'JPEG',
-          margin,
-          margin - y,
-          imgW,
-          imgH,
-          undefined,
-          'FAST'
-        );
-        y += usableH;
-        page += 1;
-      }
-
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWmm, pageHmm, undefined, 'FAST');
       pdf.save(`relatorio-${unit?.name || 'unidade'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       onExport();
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
     } finally {
       setIsExporting(false);
     }
@@ -185,10 +155,8 @@ export default function ReportExportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-[95vw] h-[95vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
@@ -199,12 +167,15 @@ export default function ReportExportModal({
             <p className="text-sm text-gray-500">
               {unit?.name} •{' '}
               {period?.start && period?.end
-                ? `${format(period.start, "dd 'de' MMMM", { locale: ptBR })} a ${format(period.end, "dd 'de' MMMM 'de' yyyy", {
-                    locale: ptBR,
-                  })}`
+                ? `${format(period.start, "dd 'de' MMMM", { locale: ptBR })} a ${format(
+                    period.end,
+                    "dd 'de' MMMM 'de' yyyy",
+                    { locale: ptBR }
+                  )}`
                 : ''}
             </p>
           </div>
+
           <div className="flex items-center gap-2">
             {step === 'preview' && (
               <>
@@ -212,13 +183,9 @@ export default function ReportExportModal({
                   <Printer className="w-4 h-4" />
                   Imprimir
                 </Button>
-                <Button
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
-                  onClick={handleDownloadPDF}
-                  disabled={isExporting}
-                >
+                <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleDownloadPDF} disabled={isExporting}>
                   {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  Baixar PDF
+                  Baixar PDF (1 página)
                 </Button>
               </>
             )}
@@ -242,11 +209,7 @@ export default function ReportExportModal({
                       key={section.id}
                       className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                     >
-                      <Checkbox
-                        checked={selectedSections[section.id]}
-                        onCheckedChange={() => toggleSection(section.id)}
-                        className="mt-1"
-                      />
+                      <Checkbox checked={selectedSections[section.id]} onCheckedChange={() => toggleSection(section.id)} className="mt-1" />
                       <div>
                         <p className="font-medium text-gray-900">{section.label}</p>
                         <p className="text-sm text-gray-500">{section.description}</p>
@@ -266,35 +229,42 @@ export default function ReportExportModal({
               </div>
             </div>
           ) : (
-            <div className="p-6 sm:p-8">
-              {/* ✅ Wrapper com margens reais e layout consistente */}
+            <div className="p-8">
+              {/* =========================
+                  ✅ EXPORT STAGE (o que vira PDF)
+                  - mantém o visual limpo
+                  - remove coisas editáveis via CSS
+                  - mantém largura “como na tela”
+                 ========================= */}
               <div
-                ref={printRef}
-                className="pdf-root max-w-[1100px] mx-auto bg-white rounded-2xl shadow-sm border border-gray-200"
-                style={{ padding: 24, boxSizing: 'border-box' }}
+                ref={exportRef}
+                className="bg-white rounded-lg shadow-sm space-y-8 mx-auto"
+                style={{
+                  // maxWidth e padding iguais ao Reports (pra “replicar” o layout da tela)
+                  maxWidth: 1200,
+                  padding: 24,
+                  boxSizing: 'border-box',
+                }}
               >
-                {/* Estilos de PDF (inline) para evitar depender de CSS externo */}
+                {/* CSS que SOME com edição no export */}
                 <style>{`
-                  .pdf-root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-                  .break-avoid { break-inside: avoid; page-break-inside: avoid; }
-                  .pdf-section-title { font-size: 18px; font-weight: 800; color: #111827; }
-                  .pdf-h2 { font-size: 20px; font-weight: 800; color: #111827; }
-                  .pdf-muted { color: #6B7280; }
-                  .pdf-card { border: 1px solid #E5E7EB; border-radius: 14px; padding: 16px; }
+                  /* some com qualquer coisa marcada */
+                  [data-no-export="true"] { display:none !important; }
+                  /* some com botões/ícones de edição comuns */
+                  button[title*="Editar"], button[aria-label*="Editar"] { display:none !important; }
+                  .no-export { display:none !important; }
+                  /* esconde ícones de lápis dentro dos cards (quando tem) */
+                  svg.lucide-pencil, svg[data-lucide="pencil"] { display:none !important; }
                 `}</style>
 
-                {/* Report Header */}
-                <div className="break-avoid border-b border-gray-200 pb-6 mb-6">
-                  <div className="flex items-start gap-5">
+                {/* Header do relatório no PDF (sem botões de edição) */}
+                <div className="border-b-2 border-gray-200 pb-6">
+                  <div className="flex items-start gap-6">
                     {unit?.logo_url ? (
-                      <img
-                        src={unit.logo_url}
-                        alt={unit.name}
-                        className="w-16 h-16 rounded-xl object-contain border border-gray-100"
-                      />
+                      <img src={unit.logo_url} alt={unit.name} className="w-16 h-16 rounded-lg object-contain" />
                     ) : (
                       <div
-                        className="w-16 h-16 rounded-xl flex items-center justify-center text-xl font-bold text-white"
+                        className="w-16 h-16 rounded-lg flex items-center justify-center text-2xl font-bold text-white"
                         style={{ backgroundColor: unit?.color || '#3B82F6' }}
                       >
                         {unit?.name?.charAt(0)?.toUpperCase()}
@@ -302,89 +272,78 @@ export default function ReportExportModal({
                     )}
 
                     <div className="flex-1">
-                      <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">
-                        Relatório de Performance
-                      </h1>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {unit?.name || 'Mídia Paga'} • Análise completa de performance publicitária
-                      </p>
+                      <h1 className="text-2xl font-bold text-gray-900 mb-1">Relatório de Performance - {unit?.name || 'Mídia Paga'}</h1>
+                      <p className="text-gray-600 mb-3">Análise completa de performance publicitária</p>
 
-                      <div className="grid grid-cols-3 gap-3 mt-4 text-sm">
-                        <div className="pdf-card">
-                          <p className="text-xs pdf-muted">Período</p>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Período</p>
                           <p className="font-semibold text-gray-900">
                             {period?.start && period?.end
                               ? `${format(period.start, 'dd/MM/yyyy')} a ${format(period.end, 'dd/MM/yyyy')}`
                               : '-'}
                           </p>
                         </div>
-                        <div className="pdf-card">
-                          <p className="text-xs pdf-muted">KPIs selecionados</p>
+                        <div>
+                          <p className="text-gray-500">KPIs Selecionados</p>
                           <p className="font-semibold text-gray-900">{selectedKPIs.length} indicadores</p>
                         </div>
-                        <div className="pdf-card">
-                          <p className="text-xs pdf-muted">Gerado em</p>
-                          <p className="font-semibold text-gray-900">
-                            {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </p>
+                        <div>
+                          <p className="text-gray-500">Gerado em</p>
+                          <p className="font-semibold text-gray-900">{format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Report Content */}
+                {/* Conteúdo */}
                 {isGenerating ? (
-                  <div className="py-16 text-center text-gray-500 flex items-center justify-center gap-2">
+                  <div className="py-12 text-center text-gray-500 flex items-center justify-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Gerando preview…
                   </div>
                 ) : (
-                  <div className="space-y-10">
+                  <>
                     {selectedSections.overview && children?.overview && (
-                      <div className="space-y-4">
-                        <div className="break-avoid flex items-end justify-between">
-                          <h2 className="pdf-h2">Visão Geral</h2>
-                          <span className="text-xs text-gray-500">
-                            Rótulos: <b>{showLabels ? 'ON' : 'OFF'}</b>
-                          </span>
-                        </div>
-                        <div className="space-y-6">{children.overview}</div>
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-bold text-gray-900">Visão Geral</h2>
+                        {children.overview}
                       </div>
                     )}
 
                     {selectedSections.platforms && children?.platforms && (
-                      <div className="space-y-4">
-                        <h2 className="pdf-h2">Performance por Plataforma</h2>
-                        <div className="space-y-6">{children.platforms}</div>
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-bold text-gray-900">Performance por Plataforma</h2>
+                        {children.platforms}
                       </div>
                     )}
 
                     {selectedSections.device && children?.device && (
-                      <div className="space-y-4">
-                        <h2 className="pdf-h2">Performance por Device</h2>
-                        <div className="space-y-6">{children.device}</div>
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-bold text-gray-900">Performance por Device</h2>
+                        {children.device}
                       </div>
                     )}
 
                     {selectedSections.demographic && children?.demographic && (
-                      <div className="space-y-4">
-                        <h2 className="pdf-h2">Performance Demográfica</h2>
-                        <div className="space-y-6">{children.demographic}</div>
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-bold text-gray-900">Performance Demográfica</h2>
+                        {children.demographic}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
 
                 {/* Footer */}
-                <div className="break-avoid border-t border-gray-200 mt-8 pt-4 text-center text-[11px] text-gray-400">
+                <div className="border-t border-gray-200 pt-4 text-center text-xs text-gray-400">
                   Relatório confidencial • Unified Ads Insights • {format(new Date(), 'dd/MM/yyyy')}
                 </div>
               </div>
 
-              <p className="text-xs text-gray-500 mt-3 max-w-[1100px] mx-auto">
-                Dica: se quiser o PDF ainda mais leve/rápido, diminua o <b>scale</b> e a qualidade do JPEG no
-                <code className="mx-1 px-1 rounded bg-gray-100">handleDownloadPDF</code>.
+              <p className="text-xs text-gray-500 mt-3 max-w-[1200px] mx-auto">
+                Se o PDF ficar pesado, diminua o <b>scale</b> (ex: 1.15) e/ou a qualidade do JPEG (ex: 0.72) em{' '}
+                <code className="px-1 rounded bg-gray-100">handleDownloadPDF</code>.
               </p>
             </div>
           )}
