@@ -106,27 +106,29 @@ export default function ReportExportModal({
     content.style.width = `${TARGET_WIDTH_PX}px`;
     content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
 
-    // forçar layout recalcular antes de capturar
-    await new Promise((r) => requestAnimationFrame(r));
+      // Aguarda recalcular layout (crítico para tabelas)
+      await new Promise((r) => setTimeout(r, 200));
 
-    // ✅ mais fiel e rápido (equilíbrio)
-    const scale = 1.5; // se quiser mais nítido: 1.8 (fica mais pesado)
+      // ✅ Scale equilibrado (1.2 = qualidade boa + arquivo menor)
+      const scale = 1.2;
 
-    const canvas = await html2canvas(content, {
-      scale,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      windowWidth: TARGET_WIDTH_PX,
-      windowHeight: content.scrollHeight,
-    });
+      const canvas = await html2canvas(content, {
+        scale,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: TARGET_WIDTH_PX,
+        windowHeight: content.scrollHeight + 50,
+        allowTaint: true,
+        imageTimeout: 0,
+      });
 
-    // restaura
-    content.style.width = prevWidth;
-    content.style.maxWidth = prevMaxW;
+      // Restaura estilos
+      content.style.width = prevWidth;
+      content.style.maxWidth = prevMaxW;
 
-    // ✅ JPEG = MUITO menor que PNG
-    const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      // ✅ JPEG com qualidade balanceada
+      const imgData = canvas.toDataURL('image/jpeg', 0.78);
 
     /**
      * ✅ AQUI É A CHAVE:
