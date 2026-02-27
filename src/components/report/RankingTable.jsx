@@ -175,11 +175,12 @@ export default function RankingTable({
   const metricColumns = orderedColumns.filter((c) => c.key !== 'name' && c.key !== 'status');
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
-          <div className="flex flex-wrap gap-2" data-pdf-element={isPDF ? '' : undefined}>
+    <div data-pdf-element={isPDF ? '' : undefined}>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+            {!isPDF && <div className="flex flex-wrap gap-2">
             <Select value={limit} onValueChange={setLimit}>
               <SelectTrigger className="w-24 sm:w-32 h-8 text-xs sm:text-sm">
                 <SelectValue />
@@ -261,9 +262,9 @@ export default function RankingTable({
                 </div>
               </SheetContent>
             </Sheet>
-          </div>
-        </div>
-      </CardHeader>
+            </div>}
+            </div>
+            </CardHeader>
       <CardContent className="p-0 sm:p-6 sm:pt-0">
         {/* Mobile: card list */}
         <div className="sm:hidden divide-y divide-gray-100">
@@ -353,7 +354,8 @@ export default function RankingTable({
             </tbody>
           </table>
         </div>
-      </CardContent>
-    </Card>);
+        </CardContent>
+        </Card>
+        </div>);
 
-}
+        }
