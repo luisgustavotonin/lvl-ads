@@ -93,13 +93,13 @@ export default function ReportExportModal({
    * - exporta em UMA página com tamanho custom (mm)
    */
   const handleDownloadPDF = async () => {
-  setIsExporting(true);
-  try {
-    const content = exportRef.current;
-    if (!content) return;
+    setIsExporting(true);
+    try {
+      const content = exportRef.current;
+      if (!content) return;
 
-    // 🔒 trava a largura para NÃO reflowar (tem que ser a mesma do seu relatório na tela)
-    const TARGET_WIDTH_PX = 1600; // <- se seu relatório usa max-w-[1600px], deixa 1600
+      // 🔒 Trava largura (mesma do relatório na tela)
+      const TARGET_WIDTH_PX = 1200; // Otimizado para não estourar margem
     const prevWidth = content.style.width;
     const prevMaxW = content.style.maxWidth;
 
@@ -245,15 +245,97 @@ export default function ReportExportModal({
                   boxSizing: 'border-box',
                 }}
               >
-                {/* CSS que SOME com edição no export */}
+                {/* ===== CSS para PDF (otimizado) ===== */}
                 <style>{`
-                  /* some com qualquer coisa marcada */
+                  /* Esconde elementos não-necessários no PDF */
                   [data-no-export="true"] { display:none !important; }
-                  /* some com botões/ícones de edição comuns */
                   button[title*="Editar"], button[aria-label*="Editar"] { display:none !important; }
                   .no-export { display:none !important; }
-                  /* esconde ícones de lápis dentro dos cards (quando tem) */
                   svg.lucide-pencil, svg[data-lucide="pencil"] { display:none !important; }
+
+                  /* Otimização de tabelas no PDF */
+                  [data-pdf-section] {
+                    page-break-inside: avoid;
+                    break-inside: avoid;
+                  }
+
+                  /* RankingTable otimizado */
+                  .ranking-table-pdf {
+                    overflow: visible !important;
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
+
+                  .ranking-table-pdf table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11px;
+                  }
+
+                  .ranking-table-pdf th,
+                  .ranking-table-pdf td {
+                    padding: 6px 8px;
+                    text-align: left;
+                    border-bottom: 1px solid #e5e7eb;
+                  }
+
+                  .ranking-table-pdf th {
+                    background-color: #f3f4f6;
+                    font-weight: 600;
+                    color: #374151;
+                  }
+
+                  .ranking-table-pdf tr:last-child td {
+                    border-bottom: 2px solid #d1d5db;
+                  }
+
+                  /* Evita tabelas quebrarem de forma feia */
+                  .ranking-table-pdf .card {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
+
+                  /* Gráficos com melhor espaçamento no PDF */
+                  .pdf-chart {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                    margin-bottom: 12px !important;
+                  }
+
+                  /* Títulos de seção */
+                  h2 {
+                    page-break-after: avoid;
+                    break-after: avoid;
+                    margin-top: 0 !important;
+                  }
+
+                  h3 {
+                    page-break-after: avoid;
+                    break-after: avoid;
+                  }
+
+                  /* Remove sombras e otimiza bordas para PDF */
+                  [data-pdf-section] {
+                    box-shadow: none !important;
+                    border: 1px solid #e5e7eb !important;
+                  }
+
+                  /* Grid responsivo para PDF */
+                  .grid {
+                    page-break-inside: avoid;
+                    break-inside: avoid;
+                  }
+
+                  /* Espaçamento uniforme */
+                  .space-y-6 > * {
+                    margin-bottom: 16px !important;
+                  }
+
+                  /* Otimização de fonte para PDF */
+                  body {
+                    font-size: 12px !important;
+                    line-height: 1.4 !important;
+                  }
                 `}</style>
 
                 {/* Header do relatório no PDF (sem botões de edição) */}
