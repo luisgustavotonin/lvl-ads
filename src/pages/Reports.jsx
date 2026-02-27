@@ -27,7 +27,7 @@ import ReportDemographic from '@/components/report/ReportDemographic';
 import ReportCreatives from '@/components/report/ReportCreatives';
 
 const REPORT_TABS = [
-  { id: 'overview', label: 'Visão Geral', icon: TrendingUp },
+  { id: 'overview', label: 'Insights', icon: TrendingUp },
   { id: 'platforms', label: 'Plataformas', icon: Globe },
   { id: 'device', label: 'Dispositivos', icon: Monitor },
   { id: 'demographic', label: 'Idade e Gênero', icon: Users },
