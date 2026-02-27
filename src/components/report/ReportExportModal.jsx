@@ -93,63 +93,62 @@ export default function ReportExportModal({
    * - exporta em UMA página com tamanho custom (mm)
    */
   const handleDownloadPDF = async () => {
-    setIsExporting(true);
-    try {
-      const content = exportRef.current;
-      if (!content) return;
+  setIsExporting(true);
+  try {
+    const content = exportRef.current;
+    if (!content) return;
 
-      // 1) trava a largura para ficar igual ao layout da tela
-      //    (ajuste esse valor para bater com seu wrapper do relatório)
-      const TARGET_WIDTH_PX = 1200; // mesma ideia do max-w do seu Reports
-      const prevWidth = content.style.width;
-      const prevMaxW = content.style.maxWidth;
+    // 🔒 trava a largura para NÃO reflowar (tem que ser a mesma do seu relatório na tela)
+    const TARGET_WIDTH_PX = 1600; // <- se seu relatório usa max-w-[1600px], deixa 1600
+    const prevWidth = content.style.width;
+    const prevMaxW = content.style.maxWidth;
 
-      content.style.width = `${TARGET_WIDTH_PX}px`;
-      content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
+    content.style.width = `${TARGET_WIDTH_PX}px`;
+    content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
 
-      // força layout recalcular antes do canvas
-      await new Promise((r) => requestAnimationFrame(() => r()));
+    // forçar layout recalcular antes de capturar
+    await new Promise((r) => requestAnimationFrame(r));
 
-      // 2) captura (scale menor = mais rápido/leve)
-      const scale = 1.25;
+    // ✅ mais fiel e rápido (equilíbrio)
+    const scale = 1.5; // se quiser mais nítido: 1.8 (fica mais pesado)
 
-      const canvas = await html2canvas(content, {
-        scale,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: TARGET_WIDTH_PX,
-        // windowHeight ajuda a evitar cortes estranhos em alguns casos
-        windowHeight: content.scrollHeight,
-      });
+    const canvas = await html2canvas(content, {
+      scale,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: TARGET_WIDTH_PX,
+      windowHeight: content.scrollHeight,
+    });
 
-      // restaura width
-      content.style.width = prevWidth;
-      content.style.maxWidth = prevMaxW;
+    // restaura
+    content.style.width = prevWidth;
+    content.style.maxWidth = prevMaxW;
 
-      // 3) gera imagem mais leve (JPEG)
-      const imgData = canvas.toDataURL('image/jpeg', 0.80);
+    // ✅ JPEG = MUITO menor que PNG
+    const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
-      /**
-       * 4) PDF com 1 página de tamanho custom:
-       * - vamos usar largura A4 (210mm) por padrão
-       * - e altura proporcional à imagem (pode ficar grande, mas 1 página)
-       */
-      const pageWmm = 210; // largura padrão A4 em mm
-      const pageHmm = (canvas.height * pageWmm) / canvas.width;
+    /**
+     * ✅ AQUI É A CHAVE:
+     * 1 página única no tamanho EXATO do canvas (em px),
+     * sem converter pra mm/A4 (que é o que “achata” e deixa minúsculo).
+     */
+    const pdf = new jsPDF({
+      orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
+      unit: 'px',
+      format: [canvas.width, canvas.height],
+      compress: true,
+    });
 
-      // cria PDF com altura custom
-      const pdf = new jsPDF('p', 'mm', [pageWmm, pageHmm]);
-
-      pdf.addImage(imgData, 'JPEG', 0, 0, pageWmm, pageHmm, undefined, 'FAST');
-      pdf.save(`relatorio-${unit?.name || 'unidade'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      onExport();
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-    } finally {
-      setIsExporting(false);
-    }
-  };
+    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
+    pdf.save(`relatorio-${unit?.name || 'unidade'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    onExport();
+  } catch (error) {
+    console.error('Erro ao gerar PDF:', error);
+  } finally {
+    setIsExporting(false);
+  }
+};
 
   if (!open) return null;
 
