@@ -37,9 +37,10 @@ export default function RankingTable({
   groupKey,
   nameKey,
   showThumbnail = false,
-  unitId
+  unitId,
+  isPDF = false
 }) {
-  const [limit, setLimit] = useState('10');
+  const [limit, setLimit] = useState(isPDF ? '5' : '10');
   const [statusFilter, setStatusFilter] = useState('all');
   const [columnOrder, setColumnOrder] = useState(ALL_COLUMNS.map((c) => c.key));
   const [visibleColumns, setVisibleColumns] = useState(ALL_COLUMNS.map((c) => c.key));
