@@ -7,7 +7,8 @@ const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 // Tuning
 // -----------------------
 const PAGE_LIMIT = 500;
-const DELAY_BETWEEN_PAGES = 150; // mais estável p/ breakdowns
+const DELAY_BETWEEN_PAGES = 500; // aumentado para evitar rate limit da Meta
+const DELAY_BETWEEN_MODES = 1500; // delay entre cada breakdown (base -> platform -> device -> demographic)
 
 // Persistência
 const CHUNK_SIZE = 200;          // chunk para $in (seguro)
@@ -507,27 +508,29 @@ Deno.serve(async (req) => {
     let totalRows = 0;
 
     // BASE
-    if (!effectiveMode || effectiveMode === 'base') {
-      const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
-      const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
+     if (!effectiveMode || effectiveMode === 'base') {
+       const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
+       const rows = items.map((i) => baseRow(i, account_id, effectiveUnitId, job_key));
 
-      totalRows += await saveMode(base44.asServiceRole.entities.MetaInsightBase, rows, ctx, {
-        bulkChunkSize: BULK_CHUNK_BASE,
-      });
+       totalRows += await saveMode(base44.asServiceRole.entities.MetaInsightBase, rows, ctx, {
+         bulkChunkSize: BULK_CHUNK_BASE,
+       });
 
-      await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
-        progress: 1,
-        rows_written: totalRows,
-      }).catch(() => {});
+       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
+         progress: 1,
+         rows_written: totalRows,
+       }).catch(() => {});
 
-      if (effectiveMode === 'base') {
-        await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
-        return Response.json({ success: true, job_key, mode: 'base', rows_written: totalRows });
-      }
-    }
+       if (effectiveMode === 'base') {
+         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
+         return Response.json({ success: true, job_key, mode: 'base', rows_written: totalRows });
+       }
 
-    // PLATFORM
-    if (!effectiveMode || effectiveMode === 'platform') {
+       if (!effectiveMode) await sleep(DELAY_BETWEEN_MODES);
+     }
+
+     // PLATFORM
+     if (!effectiveMode || effectiveMode === 'platform') {
       const items = await fetchAllPagesInsights(actId, meta_token, {
         ...baseParams,
         breakdowns: 'publisher_platform,platform_position',
@@ -547,10 +550,12 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'platform', rows_written: totalRows });
       }
-    }
 
-    // DEVICE
-    if (!effectiveMode || effectiveMode === 'device') {
+      if (!effectiveMode) await sleep(DELAY_BETWEEN_MODES);
+      }
+
+      // DEVICE
+      if (!effectiveMode || effectiveMode === 'device') {
       const items = await fetchAllPagesInsights(actId, meta_token, {
         ...baseParams,
         breakdowns: 'impression_device',
@@ -570,10 +575,12 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.MetaIngestRun.update(job.id, { status: 'done', rows_written: totalRows });
         return Response.json({ success: true, job_key, mode: 'device', rows_written: totalRows });
       }
-    }
 
-    // DEMOGRAPHIC
-    if (!effectiveMode || effectiveMode === 'demographic') {
+      if (!effectiveMode) await sleep(DELAY_BETWEEN_MODES);
+      }
+
+      // DEMOGRAPHIC
+      if (!effectiveMode || effectiveMode === 'demographic') {
       const items = await fetchAllPagesInsights(actId, meta_token, {
         ...baseParams,
         breakdowns: 'age,gender',

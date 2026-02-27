@@ -2,6 +2,24 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const CONCURRENCY = 6;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const MAX_RETRIES = 3;
+
+async function fetchWithRetry(url, retries = MAX_RETRIES) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      return response;
+    } catch (error) {
+      if (attempt < retries) {
+        const backoff = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+        console.warn(`Retry ${attempt + 1}/${retries} in ${backoff}ms:`, error?.message);
+        await sleep(backoff);
+      } else {
+        throw error;
+      }
+    }
+  }
+}
 
 async function saveBatch(entity, rows) {
     if (!rows?.length) return 0;
@@ -81,14 +99,14 @@ Deno.serve(async (req) => {
         const allRows = [];
 
         while (url) {
-            console.log(`📊 Buscando insights - ${module}... (coletadas ${allRows.length})`);
-            const response = await fetch(url);
-            if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(`Meta API Error: ${response.status} - ${errorData}`);
-            }
-            const data = await response.json();
-            for (const insight of (data.data || [])) {
+             console.log(`📊 Buscando insights - ${module}... (coletadas ${allRows.length})`);
+             const response = await fetchWithRetry(url);
+             if (!response.ok) {
+                 const errorData = await response.text();
+                 throw new Error(`Meta API Error: ${response.status} - ${errorData}`);
+             }
+             const data = await response.json();
+             for (const insight of (data.data || [])) {
                 const adId = insight.ad_id;
                 const dateValue = insight.date_start;
                 let breakdownValue = 'all';
@@ -116,7 +134,7 @@ Deno.serve(async (req) => {
                 });
             }
             url = data.paging?.next || null;
-            if (url) await sleep(100);
+            if (url) await sleep(300);
         }
 
         console.log(`📦 Coletados ${allRows.length} registros, salvando em batch...`);

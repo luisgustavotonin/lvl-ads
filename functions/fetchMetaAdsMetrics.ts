@@ -151,43 +151,55 @@ Deno.serve(async (req) => {
     let dailyRecordsSaved = 0;
     let entityRecordsSaved = 0;
 
-    // Salvar métricas diárias
-    if (dailyMetrics.length > 0) {
-      for (const metric of dailyMetrics) {
-        const existing = await base44.asServiceRole.entities.MetricsDaily.filter({
-          unit_id: metric.unit_id,
-          platform_id: metric.platform_id,
-          date: metric.date
-        });
+    // Salvar métricas diárias (bulk)
+     if (dailyMetrics.length > 0) {
+       try {
+         await base44.asServiceRole.entities.MetricsDaily.bulkCreate(dailyMetrics);
+         dailyRecordsSaved = dailyMetrics.length;
+       } catch (e) {
+         console.warn('bulkCreate falhou em MetricsDaily, tentando com filter+update:', e?.message);
+         for (const metric of dailyMetrics) {
+           const existing = await base44.asServiceRole.entities.MetricsDaily.filter({
+             unit_id: metric.unit_id,
+             platform_id: metric.platform_id,
+             date: metric.date
+           });
 
-        if (existing.length > 0) {
-          await base44.asServiceRole.entities.MetricsDaily.update(existing[0].id, metric);
-        } else {
-          await base44.asServiceRole.entities.MetricsDaily.create(metric);
-        }
-        dailyRecordsSaved++;
-      }
-    }
+           if (existing.length > 0) {
+             await base44.asServiceRole.entities.MetricsDaily.update(existing[0].id, metric);
+           } else {
+             await base44.asServiceRole.entities.MetricsDaily.create(metric);
+           }
+           dailyRecordsSaved++;
+         }
+       }
+     }
 
-    // Salvar métricas por entidade (campanha/adset/ad)
-    if (entityMetrics.length > 0) {
-      for (const metric of entityMetrics) {
-        const existing = await base44.asServiceRole.entities.MetricsEntity.filter({
-          unit_id: metric.unit_id,
-          platform_id: metric.platform_id,
-          date: metric.date,
-          entity_level: metric.entity_level,
-          entity_id: metric.entity_id
-        });
+     // Salvar métricas por entidade (bulk)
+     if (entityMetrics.length > 0) {
+       try {
+         await base44.asServiceRole.entities.MetricsEntity.bulkCreate(entityMetrics);
+         entityRecordsSaved = entityMetrics.length;
+       } catch (e) {
+         console.warn('bulkCreate falhou em MetricsEntity, tentando com filter+update:', e?.message);
+         for (const metric of entityMetrics) {
+           const existing = await base44.asServiceRole.entities.MetricsEntity.filter({
+             unit_id: metric.unit_id,
+             platform_id: metric.platform_id,
+             date: metric.date,
+             entity_level: metric.entity_level,
+             entity_id: metric.entity_id
+           });
 
-        if (existing.length > 0) {
-          await base44.asServiceRole.entities.MetricsEntity.update(existing[0].id, metric);
-        } else {
-          await base44.asServiceRole.entities.MetricsEntity.create(metric);
-        }
-        entityRecordsSaved++;
-      }
-    }
+           if (existing.length > 0) {
+             await base44.asServiceRole.entities.MetricsEntity.update(existing[0].id, metric);
+           } else {
+             await base44.asServiceRole.entities.MetricsEntity.create(metric);
+           }
+           entityRecordsSaved++;
+         }
+       }
+     }
 
     return Response.json({
       success: true,
