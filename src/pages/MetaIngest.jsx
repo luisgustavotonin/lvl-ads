@@ -331,8 +331,6 @@ export default function MetaIngest() {
     toast('Fila interrompida', { icon: '⏹' });
   };
 
-  const selectedUnit = form.unit_ids.length > 0 ? units.find(u => u.id === form.unit_ids[0]) : null;
-
   return (
     <div className="space-y-6">
       <div className="max-w-6xl mx-auto">
@@ -706,6 +704,5 @@ export default function MetaIngest() {
         })}
       </div>
       </div>
-    </div>
-  );
-}
+      );
+      }
