@@ -730,9 +730,12 @@ export default function Reports() {
                   })}
                 </div>
 
-                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-6 break-inside-avoid" data-pdf-element>
-                   <h3 className="text-lg font-bold text-gray-900 mb-6">Funil de Conversão</h3>
-                   <div className="h-72 overflow-visible">
+                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-8" data-pdf-section>
+                   <div className="flex items-center justify-between mb-6">
+                     <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
+                     <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
+                   </div>
+                   <div className="h-96 overflow-visible">
                      <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
                    </div>
                  </Card>
@@ -820,79 +823,10 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div className="space-y-6 mt-8" data-pdf-element>
-                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 break-inside-avoid">
-                    <h4 className="text-base font-semibold text-gray-900 mb-4">Top Campanhas</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="text-left py-2 px-2">Campanha</th>
-                            <th className="text-right py-2 px-2">Investimento</th>
-                            <th className="text-right py-2 px-2">Impressões</th>
-                            <th className="text-right py-2 px-2">Cliques</th>
-                            <th className="text-right py-2 px-2">CPM</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentMetrics
-                            .reduce((acc, m) => {
-                              const existing = acc.find(a => a.campaign_id === m.campaign_id);
-                              if (existing) {
-                                existing.spend += m.spend || 0;
-                                existing.impressions += m.impressions || 0;
-                                existing.clicks += m.clicks || 0;
-                              } else {
-                                acc.push({ ...m, count: 1 });
-                              }
-                              return acc;
-                            }, [])
-                            .sort((a, b) => b.spend - a.spend)
-                            .slice(0, 5)
-                            .map((m, i) => (
-                              <tr key={i} className="border-b hover:bg-gray-50">
-                                <td className="py-2 px-2 text-gray-900 font-medium">{m.campaign_name || 'N/A'}</td>
-                                <td className="text-right py-2 px-2">{formatCurrency(m.spend)}</td>
-                                <td className="text-right py-2 px-2">{formatNumber(m.impressions)}</td>
-                                <td className="text-right py-2 px-2">{formatNumber(m.clicks)}</td>
-                                <td className="text-right py-2 px-2">{formatCurrency(m.cpm || 0)}</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 break-inside-avoid" data-pdf-element>
-                    <h4 className="text-base font-semibold text-gray-900 mb-4">Top Anúncios</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="text-left py-2 px-2">Anúncio</th>
-                            <th className="text-right py-2 px-2">Investimento</th>
-                            <th className="text-right py-2 px-2">Impressões</th>
-                            <th className="text-right py-2 px-2">CTR Link</th>
-                            <th className="text-right py-2 px-2">Conversas</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {enrichedMetrics
-                            .sort((a, b) => b.spend - a.spend)
-                            .slice(0, 8)
-                            .map((m, i) => (
-                              <tr key={i} className="border-b hover:bg-gray-50">
-                                <td className="py-2 px-2 text-gray-900 font-medium">{m.ad_name || 'N/A'}</td>
-                                <td className="text-right py-2 px-2">{formatCurrency(m.spend)}</td>
-                                <td className="text-right py-2 px-2">{formatNumber(m.impressions)}</td>
-                                <td className="text-right py-2 px-2">{Number(m.ctr_link || 0).toFixed(2)}%</td>
-                                <td className="text-right py-2 px-2">{formatNumber(m.messaging_conversations_started || 0)}</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                <div className="space-y-6 mt-8">
+                  <RankingTable title="Campanhas em Destaque (PDF)" data={currentMetrics} groupKey="campaign_id" nameKey="campaign_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
+                  <RankingTable title="Conjuntos de Anúncios em Destaque (PDF)" data={currentMetrics} groupKey="adset_id" nameKey="adset_name" showThumbnail={false} unitId={selectedUnit} isPDF={true} />
+                  <RankingTable title="Anúncios em Destaque (PDF)" data={enrichedMetrics} groupKey="ad_id" nameKey="ad_name" showThumbnail={true} unitId={selectedUnit} isPDF={true} />
                 </div>
               </>
             ),
