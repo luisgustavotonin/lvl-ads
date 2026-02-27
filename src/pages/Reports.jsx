@@ -730,11 +730,9 @@ export default function Reports() {
                   })}
                 </div>
 
-                <Card className="p-6 bg-white border border-gray-200 shadow-sm">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
-                  </div>
-                  <div className="h-80">
+                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">Funil de Conversão</h3>
+                  <div className="h-72 overflow-visible">
                     <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
                   </div>
                 </Card>
@@ -792,39 +790,109 @@ export default function Reports() {
                         lblFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
                       },
                     ].map((chart) => (
-                      <Card key={chart.dataKey} className="p-4 bg-white border border-gray-200 shadow-sm">
-                        <CardTitle className="text-base mb-3">{chart.title}</CardTitle>
-                        <div className="h-56">
+                      <div key={chart.dataKey} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 break-inside-avoid">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">{chart.title}</h4>
+                        <div className="h-48">
                           <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={dailyCharts} margin={{ top: showLabels ? 20 : 10, right: 12, left: 0, bottom: 0 }}>
+                            <LineChart data={dailyCharts} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                              <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 12 }} />
-                              <YAxis tick={{ fontSize: 12 }} tickFormatter={chart.tickFmt} domain={['auto', 'auto']} />
+                              <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 11 }} />
+                              <YAxis tick={{ fontSize: 11 }} tickFormatter={chart.tickFmt} />
                               <Tooltip formatter={(v) => chart.fmt(v)} />
                               <Line
                                 type="monotone"
                                 dataKey={chart.dataKey}
                                 stroke={chart.color}
                                 strokeWidth={2}
-                                dot={{ fill: chart.color, r: 3 }}
+                                dot={{ fill: chart.color, r: 2 }}
+                                isAnimationActive={false}
                                 label={
                                   showLabels
-                                    ? { position: 'top', fontSize: 10, fill: chart.color, formatter: chart.lblFmt }
+                                    ? { position: 'top', fontSize: 9, fill: chart.color, formatter: chart.lblFmt, offset: 2 }
                                     : false
                                 }
                               />
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
-                      </Card>
+                      </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <RankingTable title="Campanhas em Destaque" data={currentMetrics} groupKey="campaign_id" nameKey="campaign_name" showThumbnail={false} unitId={selectedUnit} />
-                  <RankingTable title="Conjuntos de Anúncios em Destaque" data={currentMetrics} groupKey="adset_id" nameKey="adset_name" showThumbnail={false} unitId={selectedUnit} />
-                  <RankingTable title="Anúncios em Destaque" data={enrichedMetrics} groupKey="ad_id" nameKey="ad_name" showThumbnail={true} unitId={selectedUnit} />
+                <div className="space-y-6 mt-8">
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                    <h4 className="text-base font-semibold text-gray-900 mb-4">Top Campanhas</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="text-left py-2 px-2">Campanha</th>
+                            <th className="text-right py-2 px-2">Investimento</th>
+                            <th className="text-right py-2 px-2">Impressões</th>
+                            <th className="text-right py-2 px-2">Cliques</th>
+                            <th className="text-right py-2 px-2">CPM</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentMetrics
+                            .reduce((acc, m) => {
+                              const existing = acc.find(a => a.campaign_id === m.campaign_id);
+                              if (existing) {
+                                existing.spend += m.spend || 0;
+                                existing.impressions += m.impressions || 0;
+                                existing.clicks += m.clicks || 0;
+                              } else {
+                                acc.push({ ...m, count: 1 });
+                              }
+                              return acc;
+                            }, [])
+                            .sort((a, b) => b.spend - a.spend)
+                            .slice(0, 5)
+                            .map((m, i) => (
+                              <tr key={i} className="border-b hover:bg-gray-50">
+                                <td className="py-2 px-2 text-gray-900 font-medium">{m.campaign_name || 'N/A'}</td>
+                                <td className="text-right py-2 px-2">{formatCurrency(m.spend)}</td>
+                                <td className="text-right py-2 px-2">{formatNumber(m.impressions)}</td>
+                                <td className="text-right py-2 px-2">{formatNumber(m.clicks)}</td>
+                                <td className="text-right py-2 px-2">{formatCurrency(m.cpm || 0)}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                    <h4 className="text-base font-semibold text-gray-900 mb-4">Top Anúncios</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="text-left py-2 px-2">Anúncio</th>
+                            <th className="text-right py-2 px-2">Investimento</th>
+                            <th className="text-right py-2 px-2">Impressões</th>
+                            <th className="text-right py-2 px-2">CTR Link</th>
+                            <th className="text-right py-2 px-2">Conversas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {enrichedMetrics
+                            .sort((a, b) => b.spend - a.spend)
+                            .slice(0, 8)
+                            .map((m, i) => (
+                              <tr key={i} className="border-b hover:bg-gray-50">
+                                <td className="py-2 px-2 text-gray-900 font-medium">{m.ad_name || 'N/A'}</td>
+                                <td className="text-right py-2 px-2">{formatCurrency(m.spend)}</td>
+                                <td className="text-right py-2 px-2">{formatNumber(m.impressions)}</td>
+                                <td className="text-right py-2 px-2">{Number(m.ctr_link || 0).toFixed(2)}%</td>
+                                <td className="text-right py-2 px-2">{formatNumber(m.messaging_conversations_started || 0)}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </>
             ),
