@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Download } from 'lucide-react';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 import PeriodFilter from '@/components/report/PeriodFilter';
-import MetaExportPDF from '@/components/meta/MetaExportPDF';
+import ReportExportModal from '@/components/report/ReportExportModal';
 import KPICardWithComparison from '@/components/report/KPICardWithComparison';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
 import RankingTable from '@/components/report/RankingTable';
@@ -134,6 +135,7 @@ export default function Reports() {
   const [selectedPlatforms, setSelectedPlatforms] = useState(['META']);
   const [showLabels, setShowLabels] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: user } = useQuery({
     queryKey: ['currentUser'],
@@ -442,7 +444,17 @@ export default function Reports() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {activeTab === 'overview' && <MetaExportPDF unitName={(selectedUnitData && selectedUnitData.name) || 'Unidade'} period={period} />}
+              {activeTab === 'overview' && (
+                <>
+                  <Button 
+                    onClick={() => setExportOpen(true)}
+                    className="gap-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Download className="w-4 h-4" />
+                    Exportar PDF
+                  </Button>
+                </>
+              )}
 
               <Sheet>
                 <SheetTrigger asChild>
@@ -578,10 +590,12 @@ export default function Reports() {
 
               <Card className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-gray-900">Funil de Conversão</h3>
+                  <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
                   <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
                 </div>
-                <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
+                <div className="h-80">
+                  <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
+                </div>
               </Card>
 
               <div className="flex items-center justify-between mb-2">
@@ -649,7 +663,7 @@ export default function Reports() {
                 ].map((chart) => (
                   <Card key={chart.dataKey} className="p-6 bg-white border border-gray-200 shadow-sm" data-pdf-section>
                     <CardTitle className="text-lg mb-4">{chart.title}</CardTitle>
-                    <div className="h-80">
+                    <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={dailyCharts} margin={{ top: showLabels ? 24 : 10, right: 16, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -682,7 +696,144 @@ export default function Reports() {
               </div>
             </>
           ))}
-      </div>
-    </div>
-  );
-}
+
+          {/* Export Modal */}
+          <ReportExportModal
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          unit={selectedUnitData}
+          period={period}
+          selectedKPIs={selectedKPIs}
+          showLabels={showLabels}
+          onExport={() => setExportOpen(false)}
+          children={{
+            overview: (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                  {selectedKPIs.map((kpiId) => {
+                    const kpi = ALL_KPIS.find((k) => k.id === kpiId);
+                    if (!kpi) return null;
+
+                    return (
+                      <KPICardWithComparison
+                        key={kpi.id}
+                        kpiKey={kpi.id}
+                        label={getKpiLabel(kpi)}
+                        currentValue={current[kpi.id]}
+                        previousValue={previous[kpi.id]}
+                        formatValue={kpi.format}
+                        unitId={selectedUnit}
+                        isAdmin={user && user.role === 'admin'}
+                        thresholdStatus={evaluateThreshold(kpi.id, current[kpi.id])}
+                      />
+                    );
+                  })}
+                </div>
+
+                <Card className="p-6 bg-white border border-gray-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
+                  </div>
+                  <div className="h-80">
+                    <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
+                  </div>
+                </Card>
+
+                <div className="space-y-4">
+                  <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {[
+                      {
+                        title: 'Investimento por Dia',
+                        dataKey: 'spend',
+                        color: '#3B82F6',
+                        fmt: (v) => formatCurrency(v),
+                        tickFmt: (v) => (Number(v) >= 1000 ? `R$${(Number(v) / 1000).toFixed(1)}k` : `R$${Number(v).toFixed(0)}`),
+                        lblFmt: (v) => formatCurrency(v),
+                      },
+                      {
+                        title: 'Impressões por Dia',
+                        dataKey: 'impressions',
+                        color: '#10B981',
+                        fmt: (v) => formatNumber(v),
+                        tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
+                        lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
+                      },
+                      {
+                        title: 'Alcance por Dia',
+                        dataKey: 'reach',
+                        color: '#8B5CF6',
+                        fmt: (v) => formatNumber(v),
+                        tickFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
+                        lblFmt: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(v || 0)),
+                      },
+                      {
+                        title: 'CTR Link por Dia (%)',
+                        dataKey: 'ctr_link',
+                        color: '#F59E0B',
+                        fmt: (v) => formatPercent(v),
+                        tickFmt: (v) => `${Number(v || 0).toFixed(1)}%`,
+                        lblFmt: (v) => `${Number(v || 0).toFixed(1)}%`,
+                      },
+                      {
+                        title: 'Conversas por Dia',
+                        dataKey: 'conversations',
+                        color: '#EC4899',
+                        fmt: (v) => formatNumber(v),
+                        tickFmt: (v) => formatNumber(v),
+                        lblFmt: (v) => String(Math.round(Number(v || 0))),
+                      },
+                      {
+                        title: 'Custo/Conversa por Dia',
+                        dataKey: 'cost_per_conversation',
+                        color: '#EF4444',
+                        fmt: (v) => formatCurrency(v),
+                        tickFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
+                        lblFmt: (v) => `R$${Number(v || 0).toFixed(0)}`,
+                      },
+                    ].map((chart) => (
+                      <Card key={chart.dataKey} className="p-4 bg-white border border-gray-200 shadow-sm">
+                        <CardTitle className="text-base mb-3">{chart.title}</CardTitle>
+                        <div className="h-56">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={dailyCharts} margin={{ top: showLabels ? 20 : 10, right: 12, left: 0, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                              <XAxis dataKey="date" tickFormatter={formatDateString} tick={{ fontSize: 12 }} />
+                              <YAxis tick={{ fontSize: 12 }} tickFormatter={chart.tickFmt} domain={['auto', 'auto']} />
+                              <Tooltip formatter={(v) => chart.fmt(v)} />
+                              <Line
+                                type="monotone"
+                                dataKey={chart.dataKey}
+                                stroke={chart.color}
+                                strokeWidth={2}
+                                dot={{ fill: chart.color, r: 3 }}
+                                label={
+                                  showLabels
+                                    ? { position: 'top', fontSize: 10, fill: chart.color, formatter: chart.lblFmt }
+                                    : false
+                                }
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <RankingTable title="Campanhas em Destaque" data={currentMetrics} groupKey="campaign_id" nameKey="campaign_name" showThumbnail={false} unitId={selectedUnit} />
+                  <RankingTable title="Conjuntos de Anúncios em Destaque" data={currentMetrics} groupKey="adset_id" nameKey="adset_name" showThumbnail={false} unitId={selectedUnit} />
+                  <RankingTable title="Anúncios em Destaque" data={enrichedMetrics} groupKey="ad_id" nameKey="ad_name" showThumbnail={true} unitId={selectedUnit} />
+                </div>
+              </>
+            ),
+            platforms: <ReportPlatforms unit={units.find((u) => u.id === selectedUnit)} period={period} />,
+            device: <ReportDevice unit={units.find((u) => u.id === selectedUnit)} period={period} />,
+            demographic: <ReportDemographic unit={units.find((u) => u.id === selectedUnit)} period={period} />,
+          }}
+          />
+          </div>
+          </div>
+          );
+          }
