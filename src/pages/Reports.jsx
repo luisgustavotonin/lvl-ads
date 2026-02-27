@@ -730,12 +730,12 @@ export default function Reports() {
                   })}
                 </div>
 
-                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-6">Funil de Conversão</h3>
-                  <div className="h-72 overflow-visible">
-                    <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
-                  </div>
-                </Card>
+                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-6 break-inside-avoid" data-pdf-element>
+                   <h3 className="text-lg font-bold text-gray-900 mb-6">Funil de Conversão</h3>
+                   <div className="h-72 overflow-visible">
+                     <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
+                   </div>
+                 </Card>
 
                 <div className="space-y-4 pt-6" data-pdf-element>
                   <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
@@ -863,7 +863,7 @@ export default function Reports() {
                     </div>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 break-inside-avoid" data-pdf-element>
                     <h4 className="text-base font-semibold text-gray-900 mb-4">Top Anúncios</h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
