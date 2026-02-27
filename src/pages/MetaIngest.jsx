@@ -13,6 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import toast from 'react-hot-toast';
+import MetaAdvancedFilters from '@/components/meta/MetaAdvancedFilters';
+import MetaIngestReport from '@/components/meta/MetaIngestReport';
+import { SpendVsImpressionsChart, ClicksPerDayChart, CPMTrendChart } from '@/components/meta/MetaInsightsCharts';
 
 const STATUS_CONFIG = {
   queued:  { label: 'Na fila',    color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock },
@@ -66,6 +69,14 @@ export default function MetaIngest() {
     force: false,
   });
 
+  const [advancedFilters, setAdvancedFilters] = useState({
+    date_from: '',
+    date_to: '',
+    campaign_id: '',
+    ad_type: '',
+    min_spend: '',
+  });
+
   // selected types — single by default, multi with "select all"
   const [selectedTypes, setSelectedTypes] = useState(['base']);
   const [multiMode, setMultiMode] = useState(false);
@@ -76,6 +87,7 @@ export default function MetaIngest() {
   const [loadingCreatives, setLoadingCreatives] = useState(false);
   const [creativesHistory, setCreativesHistory] = useState([]); // [{ts, unit, status, rows_written, error}]
   const [expandedJob, setExpandedJob] = useState(null);
+  const [showReports, setShowReports] = useState(false);
 
   const runningRef = useRef(false);
 
@@ -319,12 +331,57 @@ export default function MetaIngest() {
     toast('Fila interrompida', { icon: '⏹' });
   };
 
+  const selectedUnit = form.unit_ids.length > 0 ? units.find(u => u.id === form.unit_ids[0]) : null;
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Ingestão Meta Ads</h1>
-        <p className="text-gray-500 mt-1 text-sm">Busca dados diretamente da Meta Ads API por tipo de breakdown</p>
+    <div className="space-y-6">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-900">Ingestão Meta Ads</h1>
+        <p className="text-gray-500 mt-1 text-sm">Busca dados diretamente da Meta Ads API e análise de performance</p>
       </div>
+
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Relatório de Ingestão (quando há unidade selecionada) */}
+        {selectedUnit && (
+          <>
+            <MetaIngestReport 
+              unit={selectedUnit}
+              dateRange={{ from: form.date_from, to: form.date_to }}
+              metrics={{
+                total_spend: 0,
+                total_impressions: 0,
+                total_clicks: 0,
+                avg_cpm: 0,
+              }}
+            />
+
+            {/* Filtros Avançados */}
+            <MetaAdvancedFilters 
+              filters={advancedFilters}
+              onFiltersChange={setAdvancedFilters}
+              campaigns={[]}
+            />
+
+            {/* Gráficos */}
+            {showReports && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <SpendVsImpressionsChart data={[]} isLoading={false} />
+                <ClicksPerDayChart data={[]} isLoading={false} />
+                <CPMTrendChart data={[]} isLoading={false} />
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <Button 
+                onClick={() => setShowReports(!showReports)}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                {showReports ? 'Ocultar Relatórios' : 'Exibir Relatórios'}
+              </Button>
+            </div>
+          </>
+        )}
 
       {/* Form */}
       <Card>
@@ -487,8 +544,10 @@ export default function MetaIngest() {
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Creatives Sync History */}
+      <div className="max-w-6xl mx-auto">
       {creativesHistory.length > 0 && (
         <Card>
           <CardHeader>
@@ -521,7 +580,10 @@ export default function MetaIngest() {
         </Card>
       )}
 
+      </div>
+
       {/* Local Queue Status */}
+      <div className="max-w-6xl mx-auto">
       {localQueue.length > 0 && (
         <Card>
           <CardHeader>
@@ -550,8 +612,10 @@ export default function MetaIngest() {
         </Card>
       )}
 
+      </div>
+
       {/* Recent jobs */}
-      <div className="space-y-3">
+      <div className="max-w-6xl mx-auto space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-gray-800">Histórico Recente</h2>
@@ -640,6 +704,7 @@ export default function MetaIngest() {
             </Card>
           );
         })}
+      </div>
       </div>
     </div>
   );
