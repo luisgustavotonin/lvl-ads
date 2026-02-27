@@ -737,7 +737,7 @@ export default function Reports() {
                   </div>
                 </Card>
 
-                <div className="space-y-4">
+                <div className="space-y-4 pt-6" data-pdf-element>
                   <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {[
@@ -820,8 +820,8 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div className="space-y-6 mt-8">
-                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                <div className="space-y-6 mt-8" data-pdf-element>
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 break-inside-avoid">
                     <h4 className="text-base font-semibold text-gray-900 mb-4">Top Campanhas</h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
