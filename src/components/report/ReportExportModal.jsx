@@ -100,7 +100,7 @@ export default function ReportExportModal({
 
       // 🔒 Trava largura (mesma do relatório na tela)
       const TARGET_WIDTH_PX = 1200; // Otimizado para não estourar margem
-    const prevWidth = content.style.width;
+      const prevWidth = content.style.width;
     const prevMaxW = content.style.maxWidth;
 
     content.style.width = `${TARGET_WIDTH_PX}px`;
