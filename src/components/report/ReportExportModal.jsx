@@ -259,7 +259,7 @@ export default function ReportExportModal({
                 {/* Report Content */}
                 {selectedSections.overview && children?.overview && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Visão Geral</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Insights</h2>
                     {children.overview}
                   </div>
                 )}
@@ -273,7 +273,7 @@ export default function ReportExportModal({
 
                 {selectedSections.device && children?.device && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Performance por Device</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Performance por Dispositivos</h2>
                     {children.device}
                   </div>
                 )}
