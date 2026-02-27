@@ -87,32 +87,49 @@ export default function ReportExportModal({
       const printContent = printRef.current;
       if (!printContent) return;
 
-      const canvas = await html2canvas(printContent, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 10;
       const imgWidth = pageWidth - margin * 2;
+      
+      // Render each child element separately to avoid overlap
+      const elements = printContent.querySelectorAll('[data-pdf-element]');
+      let yPosition = margin;
 
-      const imgData = canvas.toDataURL('image/png');
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Add header
+      const header = printContent.querySelector('.pdf-header');
+      if (header) {
+        const headerCanvas = await html2canvas(header, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+        });
+        const headerHeight = (headerCanvas.height * imgWidth) / headerCanvas.width;
+        pdf.addImage(headerCanvas.toDataURL('image/png'), 'PNG', margin, yPosition, imgWidth, headerHeight);
+        yPosition += headerHeight + 5;
+      }
 
-      let position = margin;
-      let heightLeft = imgHeight;
+      // Process each section
+      for (const element of elements) {
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          allowTaint: true,
+        });
+        
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const imgData = canvas.toDataURL('image/png');
 
-      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight - margin * 2;
+        // Check if need new page
+        if (yPosition + imgHeight > pageHeight - margin) {
+          pdf.addPage();
+          yPosition = margin;
+        }
 
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight - margin * 2;
+        pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 8;
       }
 
       pdf.save(`relatorio-${unit?.name || 'unidade'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
