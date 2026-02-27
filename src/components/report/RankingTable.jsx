@@ -179,7 +179,7 @@ export default function RankingTable({
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-pdf-element={isPDF ? '' : undefined}>
             <Select value={limit} onValueChange={setLimit}>
               <SelectTrigger className="w-24 sm:w-32 h-8 text-xs sm:text-sm">
                 <SelectValue />
