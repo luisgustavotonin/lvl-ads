@@ -16,6 +16,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 import PeriodFilter from '@/components/report/PeriodFilter';
 import ReportExportModal from '@/components/report/ReportExportModal';
+import PDFExportFunnel from '@/components/report/PDFExportFunnel';
 import KPICardWithComparison from '@/components/report/KPICardWithComparison';
 import FunnelChartNew from '@/components/report/FunnelChartNew';
 import RankingTable from '@/components/report/RankingTable';
