@@ -52,9 +52,7 @@ const FunnelCard = ({
   type = 'number',
   index,
   color,
-  onColorChange
 }) => {
-  const [showPicker, setShowPicker] = useState(false);
   const variation = previousValue > 0 ? ((value - previousValue) / previousValue * 100) : 0;
   const isPositive = variation > 0;
   
@@ -85,39 +83,11 @@ const FunnelCard = ({
 
       {/* Percentual do funil */}
       {percentage !== undefined && percentage !== 100 && (
-        <div className="mb-3">
+        <div className="mt-auto">
           <span className="text-base font-bold" style={{ color }}>{percentage.toFixed(1)}%</span>
           <span className="text-[9px] text-gray-400 ml-1">conversão</span>
         </div>
       )}
-
-      {/* Seletor de cor no rodapé do card */}
-      <div className="mt-auto pt-3 border-t border-gray-100">
-        {!showPicker ? (
-          <button
-            onClick={() => setShowPicker(true)}
-            className="flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <span className="w-3 h-3 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: color }} />
-            Cor do card
-          </button>
-        ) : (
-          <div>
-            <div className="grid grid-cols-5 gap-1 mb-1.5">
-              {COLOR_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  title={opt.label}
-                  onClick={() => { onColorChange(opt.value); setShowPicker(false); }}
-                  className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
-                  style={{ backgroundColor: opt.value, borderColor: color === opt.value ? '#000' : 'transparent' }}
-                />
-              ))}
-            </div>
-            <button onClick={() => setShowPicker(false)} className="text-[10px] text-gray-400 hover:text-gray-600">fechar</button>
-          </div>
-        )}
-      </div>
     </div>
   );
 };
