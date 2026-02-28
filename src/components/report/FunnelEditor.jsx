@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Settings2, GripVertical, X } from 'lucide-react';
+import { Settings2, GripVertical, X, Save } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 const STAGE_COLORS = [
@@ -31,12 +32,21 @@ const AVAILABLE_METRICS = [
 
 export default function FunnelEditor({ unitId, currentStages, onSave }) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState('editor'); // 'editor' ou 'templates'
   const [stages, setStages] = useState(() =>
     (currentStages || []).map((s, i) => ({ ...s, color: s.color || STAGE_COLORS[i % STAGE_COLORS.length] }))
   );
   const [newMetric, setNewMetric] = useState('');
   const [openColorPicker, setOpenColorPicker] = useState(null);
+  const [templateName, setTemplateName] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const queryClient = useQueryClient();
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ['funnelTemplates', unitId],
+    queryFn: () => base44.entities.FunnelTemplate.filter({ unit_id: unitId }),
+    enabled: !!unitId,
+  });
 
   const saveFunnelMutation = useMutation({
     mutationFn: async (funnelConfig) => {
@@ -56,6 +66,46 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
       toast.success('Funil atualizado');
       onSave(stages);
       setOpen(false);
+    }
+  });
+
+  const saveTemplateMutation = useMutation({
+    mutationFn: async () => {
+      if (!templateName) {
+        toast.error('Digite um nome para o template');
+        return;
+      }
+      return base44.entities.FunnelTemplate.create({
+        name: templateName,
+        unit_id: unitId,
+        stages
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['funnelTemplates', unitId] });
+      toast.success('Template salvo');
+      setTemplateName('');
+    }
+  });
+
+  const applyTemplateMutation = useMutation({
+    mutationFn: async (templateId) => {
+      const template = templates.find(t => t.id === templateId);
+      if (template) {
+        setStages(template.stages);
+        setSelectedTemplateId(templateId);
+      }
+    },
+    onSuccess: () => {
+      toast.success('Template aplicado');
+    }
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (templateId) => base44.entities.FunnelTemplate.delete(templateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['funnelTemplates', unitId] });
+      toast.success('Template deletado');
     }
   });
 
