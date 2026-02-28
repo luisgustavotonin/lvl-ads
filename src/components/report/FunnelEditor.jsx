@@ -52,6 +52,7 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['units'] });
+      queryClient.invalidateQueries({ queryKey: ['unitFunnelConfig', unitId] });
       toast.success('Funil atualizado');
       onSave(stages);
       setOpen(false);
