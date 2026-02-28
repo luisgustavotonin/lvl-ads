@@ -70,9 +70,15 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
     if (!newMetric) return;
     const metric = AVAILABLE_METRICS.find(m => m.key === newMetric);
     if (metric && !stages.find(s => s.key === metric.key)) {
-      setStages([...stages, metric]);
+      const color = STAGE_COLORS[stages.length % STAGE_COLORS.length];
+      setStages([...stages, { ...metric, color }]);
       setNewMetric('');
     }
+  };
+
+  const setStageColor = (key, color) => {
+    setStages(prev => prev.map(s => s.key === key ? { ...s, color } : s));
+    setOpenColorPicker(null);
   };
 
   const removeStage = (key) => {
