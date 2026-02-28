@@ -71,12 +71,14 @@ export default function Layout({ children, currentPageName }) {
     queryKey: ['myUserProfile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const profiles = await base44.entities.UserProfile.filter({ user_id: user.id });
-      if (!profiles || profiles.length === 0) return null;
-      const up = profiles[0];
+      // Busca o UserProfile do usuário atual
+      const userProfiles = await base44.entities.UserProfile.filter({ user_id: user.id });
+      if (!userProfiles || userProfiles.length === 0) return null;
+      const up = userProfiles[0];
       if (!up.profile_id) return null;
-      const profile = await base44.entities.Profile.filter({ id: up.profile_id });
-      return profile?.[0] || null;
+      // Busca todos os perfis e encontra o correto pelo id
+      const allProfiles = await base44.entities.Profile.list();
+      return allProfiles.find(p => p.id === up.profile_id) || null;
     },
     enabled: !!user?.id,
   });
