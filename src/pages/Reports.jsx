@@ -462,7 +462,8 @@ export default function Reports() {
   /** =========================================================
    *  ✅ Rótulo limpo: mostra APENAS no último ponto
    * ========================================================= */
-  const LastPointLabel = ({ x, y, index, value, color, total, formatter }) => {
+  const makeLabel = (color, formatter, total) => ({ x, y, value, index }) => {
+    if (!showLabels) return null;
     if (index !== total - 1) return null;
     const txt = formatter ? formatter(value) : String(value);
     return (
@@ -762,19 +763,8 @@ export default function Reports() {
                             dataKey={chart.dataKey}
                             stroke={chart.color}
                             strokeWidth={2}
-                            dot={
-                              showLabels
-                                ? (props) => (
-                                    <LastPointLabel
-                                      {...props}
-                                      color={chart.color}
-                                      total={dailyCharts.length}
-                                      formatter={chart.lblFmt}
-                                    />
-                                  )
-                                : false
-                            }
-                            label={false}
+                            dot={false}
+                            label={makeLabel(chart.color, chart.lblFmt, dailyCharts.length)}
                             isAnimationActive={false}
                           />
                         </LineChart>

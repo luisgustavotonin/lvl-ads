@@ -56,11 +56,11 @@ import ParametersAlerts from './pages/ParametersAlerts';
 import Profiles from './pages/Profiles';
 import QueueManagement from './pages/QueueManagement';
 import ReportModel from './pages/ReportModel';
-import Reports from './pages/Reports';
 import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
+import Reports from './pages/Reports';
 import __Layout from './Layout.jsx';
 
 
@@ -74,11 +74,11 @@ export const PAGES = {
     "Profiles": Profiles,
     "QueueManagement": QueueManagement,
     "ReportModel": ReportModel,
-    "Reports": Reports,
     "Schedules": Schedules,
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
+    "Reports": Reports,
 }
 
 export const pagesConfig = {
