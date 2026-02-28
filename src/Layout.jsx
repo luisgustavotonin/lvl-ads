@@ -47,17 +47,50 @@ const navigation = [
 
 export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState(null); // null = loading, {} = loaded
   const location = useLocation();
 
-  const { data: user } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: () => base44.auth.me(),
-  });
+  useEffect(() => {
+    async function loadUserAndPermissions() {
+      try {
+        const me = await base44.auth.me();
+        setUser(me);
 
-  // Aplicar modo escuro e sidebar compacta com base nas settings salvas
+        // Se admin, permissões ilimitadas
+        if (me?.role === 'admin') {
+          setUserPermissions('admin');
+          return;
+        }
+
+        // Busca UserProfile do usuário
+        const userProfiles = await base44.entities.UserProfile.filter({ user_id: me.id });
+        if (!userProfiles || userProfiles.length === 0) {
+          setUserPermissions({});
+          return;
+        }
+
+        const up = userProfiles[0];
+        if (!up.profile_id) {
+          setUserPermissions({});
+          return;
+        }
+
+        // Busca o Profile pelo id
+        const allProfiles = await base44.entities.Profile.list();
+        const profile = allProfiles.find(p => p.id === up.profile_id);
+        setUserPermissions(profile?.permissions || {});
+      } catch (e) {
+        console.error('Erro ao carregar usuário/perfil:', e);
+        setUserPermissions({});
+      }
+    }
+    loadUserAndPermissions();
+  }, []);
+
+  // Aplicar modo escuro com base nas settings salvas
   const userSettings = user?.settings || {};
   const darkMode = userSettings.darkMode || false;
-  const compactSidebar = userSettings.compactSidebar || false;
 
   React.useEffect(() => {
     if (darkMode) {
@@ -67,35 +100,15 @@ export default function Layout({ children, currentPageName }) {
     }
   }, [darkMode]);
 
-  const { data: userProfile, isLoading: profileLoading } = useQuery({
-    queryKey: ['myUserProfile', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const userProfiles = await base44.entities.UserProfile.filter({ user_id: user.id });
-      if (!userProfiles || userProfiles.length === 0) return null;
-      const up = userProfiles[0];
-      if (!up.profile_id) return null;
-      const allProfiles = await base44.entities.Profile.list();
-      const found = allProfiles.find(p => p.id === up.profile_id) || null;
-      return found;
-    },
-    enabled: !!user?.id,
-    staleTime: 0,
-  });
-
   const canAccess = (permission) => {
-    // Enquanto carrega o usuário, não mostra nada
-    if (!user) return false;
-    // admins (role === 'admin') têm acesso a tudo
-    if (user.role === 'admin') return true;
-    // itens admin_only: só admin
+    // Ainda carregando
+    if (userPermissions === null) return false;
+    // Admin tem tudo
+    if (userPermissions === 'admin') return true;
+    // admin_only: só admin
     if (permission === 'admin_only') return false;
-    // Enquanto carrega o perfil, esconde tudo
-    if (profileLoading) return false;
-    // Sem perfil cadastrado, sem acesso
-    if (!userProfile) return false;
-    // Verifica a permissão no objeto permissions do perfil
-    return userProfile.permissions?.[permission] === true;
+    // Verifica permissão no perfil
+    return userPermissions[permission] === true;
   };
 
   const getInitials = (name) => {
