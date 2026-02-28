@@ -369,7 +369,7 @@ export default function RankingTable({
                     </td>
                   }
                   {orderedColumns.map((col) =>
-                <td key={col.key} className="py-3 px-2">
+                <td key={col.key} className="py-3 px-2 overflow-hidden" style={{ maxWidth: colWidths[col.key] || (col.key === 'name' ? 200 : 120) }}>
                       {col.key === 'name' ?
                   <span className="font-medium text-gray-900 max-w-xs truncate">{item.name}</span> :
                   col.key === 'status' ?
