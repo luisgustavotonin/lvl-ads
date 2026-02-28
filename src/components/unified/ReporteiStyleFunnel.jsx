@@ -69,39 +69,23 @@ const FunnelCard = ({
   );
 };
 
-const STORAGE_KEY = 'funnel_colors';
-
-const loadColors = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_COLORS; } catch (e) { return [...DEFAULT_COLORS]; }
-};
-
 export default function ReporteiStyleFunnel({ 
   currentMetrics, 
-  previousMetrics = {}
+  previousMetrics = {},
+  stageColors = {}
 }) {
-  const [colors, setColors] = useState(loadColors);
-
   if (!currentMetrics || !currentMetrics.totals) return null;
 
   const { totals, funnelPercentages } = currentMetrics;
   const prevTotals = previousMetrics.totals || {};
 
-  const handleColorChange = (index, newColor) => {
-    setColors(prev => {
-      const next = [...prev];
-      next[index] = newColor;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
-
   const cards = [
-    { title: 'Valor investido',                    value: totals.spend,                             prevValue: prevTotals.spend,                             type: 'currency', pct: undefined },
-    { title: 'Impressões Totais',                   value: totals.impressions,                        prevValue: prevTotals.impressions,                        pct: funnelPercentages?.impressions },
-    { title: 'Alcance Total',                       value: totals.reach,                              prevValue: prevTotals.reach,                              pct: funnelPercentages?.reach },
-    { title: 'Total de Cliques',                    value: totals.clicks,                             prevValue: prevTotals.clicks,                             pct: funnelPercentages?.clicks },
-    { title: 'Total de cliques no link',            value: totals.link_clicks,                        prevValue: prevTotals.link_clicks,                        pct: funnelPercentages?.link_clicks },
-    { title: 'Conversas iniciadas por mensagem',    value: totals.whatsapp_conversations_started,     prevValue: prevTotals.whatsapp_conversations_started,     pct: funnelPercentages?.whatsapp },
+    { key: 'spend',       title: 'Valor investido',                 value: totals.spend,                         prevValue: prevTotals.spend,                         type: 'currency', pct: undefined },
+    { key: 'impressions', title: 'Impressões Totais',                value: totals.impressions,                    prevValue: prevTotals.impressions,                    pct: funnelPercentages?.impressions },
+    { key: 'reach',       title: 'Alcance Total',                   value: totals.reach,                          prevValue: prevTotals.reach,                          pct: funnelPercentages?.reach },
+    { key: 'clicks',      title: 'Total de Cliques',                value: totals.clicks,                         prevValue: prevTotals.clicks,                         pct: funnelPercentages?.clicks },
+    { key: 'linkClicks',  title: 'Total de cliques no link',        value: totals.link_clicks,                    prevValue: prevTotals.link_clicks,                    pct: funnelPercentages?.link_clicks },
+    { key: 'conversations', title: 'Conversas iniciadas',           value: totals.whatsapp_conversations_started, prevValue: prevTotals.whatsapp_conversations_started, pct: funnelPercentages?.whatsapp },
   ];
 
   return (
@@ -117,8 +101,7 @@ export default function ReporteiStyleFunnel({
             previousValue={card.prevValue}
             type={card.type}
             percentage={card.pct}
-            color={colors[i] || DEFAULT_COLORS[i]}
-            onColorChange={(c) => handleColorChange(i, c)}
+            color={stageColors[card.key] || DEFAULT_COLORS[i]}
           />
         ))}
       </div>
