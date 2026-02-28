@@ -109,15 +109,20 @@ export default function ReportExportModal({
       const content = exportRef.current;
       if (!content) return;
 
-      // 🔒 Trava largura (mesma do relatório na tela)
-      const TARGET_WIDTH_PX = 1200; // Otimizado para não estourar margem
+      // 🔒 Trava largura e garante que todo conteúdo está visível
+      const TARGET_WIDTH_PX = 1400;
       const prevWidth = content.style.width;
-    const prevMaxW = content.style.maxWidth;
+      const prevMaxW = content.style.maxWidth;
+      const prevOverflow = content.style.overflow;
 
-    content.style.width = `${TARGET_WIDTH_PX}px`;
-    content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
+      content.style.width = `${TARGET_WIDTH_PX}px`;
+      content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
+      content.style.overflow = 'visible';
 
-      // Aguarda renderizar todo o conteúdo (crítico para tabelas longas)
+      // Rola para o topo e aguarda renderizar todo o conteúdo
+      const scrollContainer = content.closest('.overflow-auto');
+      if (scrollContainer) scrollContainer.scrollTop = 0;
+
       await new Promise((r) => setTimeout(r, 800));
 
       // ✅ Scale maior para qualidade melhor (igual à tela)
@@ -147,6 +152,7 @@ export default function ReportExportModal({
       // Restaura estilos
       content.style.width = prevWidth;
       content.style.maxWidth = prevMaxW;
+      content.style.overflow = prevOverflow;
 
       // ✅ JPEG com qualidade alta (igual à tela)
       const imgData = canvas.toDataURL('image/jpeg', 0.92);
