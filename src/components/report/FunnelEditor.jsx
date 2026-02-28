@@ -123,18 +123,47 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId="funnel-stages">
                 {(provided) => (
-                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 min-h-[40px]">
                     {stages.map((stage, index) => (
                       <Draggable key={stage.key} draggableId={stage.key} index={index}>
-                        {(provided) => (
+                        {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className="flex items-center gap-2 bg-gray-50 p-2 rounded"
+                            style={{
+                              ...provided.draggableProps.style,
+                              opacity: snapshot.isDragging ? 0.85 : 1,
+                            }}
+                            className="flex items-center gap-2 bg-white border border-gray-200 p-2 rounded shadow-sm"
                           >
-                            <div {...provided.dragHandleProps}>
+                            <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
                               <GripVertical className="w-4 h-4 text-gray-400" />
                             </div>
+
+                            {/* Cor inline */}
+                            <div className="relative">
+                              <button
+                                onClick={() => setOpenColorPicker(openColorPicker === stage.key ? null : stage.key)}
+                                className="w-4 h-4 rounded-sm border border-gray-300 flex-shrink-0"
+                                style={{ backgroundColor: stage.color || '#3B82F6' }}
+                                title="Editar cor"
+                              />
+                              {openColorPicker === stage.key && (
+                                <div className="absolute left-0 top-6 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-2">
+                                  <div className="grid grid-cols-6 gap-1">
+                                    {COLOR_OPTIONS.map(c => (
+                                      <button
+                                        key={c}
+                                        onClick={() => setStageColor(stage.key, c)}
+                                        className="w-5 h-5 rounded-full border-2 hover:scale-110 transition-transform"
+                                        style={{ backgroundColor: c, borderColor: stage.color === c ? '#000' : 'transparent' }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
                             <span className="flex-1 text-sm">{stage.label}</span>
                             <button
                               onClick={() => removeStage(stage.key)}
