@@ -154,38 +154,41 @@ export default function Dashboard() {
             <div className="h-72">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorSpendDash" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey="date" 
+                  <LineChart
+                    data={chartData}
+                    margin={{ top: 18, right: 16, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis
+                      dataKey="date"
                       tickFormatter={(d) => format(new Date(d), 'dd/MM')}
-                      tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                      axisLine={false}
-                      tickLine={false}
+                      tick={{ fontSize: 11, fill: '#9CA3AF' }}
                     />
-                    <YAxis 
+                    <YAxis
                       tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(1)}k` : `R$${v.toFixed(0)}`}
-                      tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                      axisLine={false}
-                      tickLine={false}
+                      tick={{ fontSize: 11, fill: '#9CA3AF' }}
                     />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value) => [formatCurrency(value), 'Investimento']}
                       labelFormatter={(date) => format(new Date(date), "dd 'de' MMMM", { locale: ptBR })}
                     />
-                    <Area 
-                    type="monotone" 
-                    dataKey="spend" 
-                    stroke="#3B82F6" 
-                    strokeWidth={2}
-                    fill="url(#colorSpendDash)"
+                    <Line
+                      type="monotone"
+                      dataKey="spend"
+                      stroke="#3B82F6"
+                      strokeWidth={2}
+                      dot={false}
+                      label={({ x, y, value, index }) => {
+                        const anchor = index === 0 ? 'start' : index === chartData.length - 1 ? 'end' : 'middle';
+                        return (
+                          <text x={x} y={y - 6} fontSize={11} fontWeight="400" fill="#9CA3AF" textAnchor={anchor}>
+                            {value >= 1000 ? `R$${(value/1000).toFixed(1)}k` : `R$${value.toFixed(0)}`}
+                          </text>
+                        );
+                      }}
+                      isAnimationActive={false}
                     />
-                  </AreaChart>
+                  </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex items-center justify-center text-gray-400">
