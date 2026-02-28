@@ -51,6 +51,10 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
+  const [inviteProfileId, setInviteProfileId] = useState('');
+  const [inviteUnitIds, setInviteUnitIds] = useState([]);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [formData, setFormData] = useState({
     profile_id: '',
     unit_ids: [],
@@ -133,10 +137,37 @@ export default function Users() {
 
   const handleInviteUser = async () => {
     if (!inviteEmail) return;
-    await base44.users.inviteUser(inviteEmail, inviteRole);
-    setInviteEmail('');
-    setInviteRole('user');
-    queryClient.invalidateQueries({ queryKey: ['users'] });
+    setInviteLoading(true);
+    try {
+      await base44.users.inviteUser(inviteEmail, inviteRole);
+      // Aguarda o usuário ser criado antes de salvar o perfil
+      await new Promise((r) => setTimeout(r, 1500));
+      const freshUsers = await base44.entities.User.list();
+      const newUser = freshUsers.find((u) => u.email === inviteEmail);
+      if (newUser && (inviteProfileId || inviteUnitIds.length > 0)) {
+        await base44.entities.UserProfile.create({
+          user_id: newUser.id,
+          profile_id: inviteProfileId || undefined,
+          unit_ids: inviteUnitIds,
+        });
+      }
+      setInviteEmail('');
+      setInviteRole('user');
+      setInviteProfileId('');
+      setInviteUnitIds([]);
+      setInviteSuccess(true);
+      setTimeout(() => setInviteSuccess(false), 4000);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['userProfiles'] });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const toggleInviteUnit = (unitId) => {
+    setInviteUnitIds((prev) =>
+      prev.includes(unitId) ? prev.filter((id) => id !== unitId) : [...prev, unitId]
+    );
   };
 
   const toggleUnit = (unitId) => {
@@ -188,32 +219,97 @@ export default function Users() {
       <Card className="border-gray-100">
         <CardContent className="p-4 sm:p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Convidar Usuário</h3>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <Input
-                type="email"
-                placeholder="email@exemplo.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <Select value={inviteRole} onValueChange={setInviteRole}>
-              <SelectTrigger className="w-full sm:w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Usuário</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              className="gap-2 bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-              onClick={handleInviteUser}
-              disabled={!inviteEmail}
-            >
+
+          {inviteSuccess && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
               <Mail className="w-4 h-4" />
-              Convidar
-            </Button>
+              Convite enviado com sucesso! O usuário receberá um e-mail para acessar o sistema.
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {/* Email + Role */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Label className="text-xs text-gray-500 mb-1 block">E-mail</Label>
+                <Input
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500 mb-1 block">Função no sistema</Label>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Usuário</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Perfil + Unidades */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Label className="text-xs text-gray-500 mb-1 block">Perfil de acesso</Label>
+                <Select value={inviteProfileId} onValueChange={setInviteProfileId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um perfil" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {profiles.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+                          {p.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <Label className="text-xs text-gray-500 mb-1 block">Unidades de acesso</Label>
+                <div className="border border-gray-200 rounded-lg p-3 max-h-32 overflow-y-auto space-y-1">
+                  {units.map((unit) => (
+                    <div
+                      key={unit.id}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                      onClick={() => toggleInviteUnit(unit.id)}
+                    >
+                      <Checkbox
+                        checked={inviteUnitIds.includes(unit.id)}
+                        onCheckedChange={() => toggleInviteUnit(unit.id)}
+                      />
+                      <div
+                        className="w-4 h-4 rounded text-white text-xs flex items-center justify-center font-bold"
+                        style={{ backgroundColor: unit.color || '#3B82F6' }}
+                      >
+                        {unit.name?.charAt(0)?.toUpperCase()}
+                      </div>
+                      <span className="text-sm text-gray-800">{unit.name}</span>
+                    </div>
+                  ))}
+                  {units.length === 0 && <p className="text-xs text-gray-400">Nenhuma unidade cadastrada</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+                onClick={handleInviteUser}
+                disabled={!inviteEmail || inviteLoading}
+              >
+                <Mail className="w-4 h-4" />
+                {inviteLoading ? 'Enviando...' : 'Enviar Convite'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
