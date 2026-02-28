@@ -62,71 +62,59 @@ const FunnelCard = ({
   const displayPrevious = type === 'currency' ? formatCurrency(previousValue) : formatNumber(previousValue);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-5 min-h-[200px] flex flex-col">
-      {/* Título com botão de cor inline */}
-      <div className="flex items-center gap-1 mb-3 relative">
-        <div className="w-3 h-3 rounded-full flex-shrink-0 cursor-pointer" style={{ backgroundColor: color }} onClick={() => setShowPicker(v => !v)} title="Editar cor" />
-        <h3 className="text-xs font-medium text-gray-600 flex-1 leading-tight">{title}</h3>
-
-        {/* Color picker dropdown */}
-        {showPicker && (
-          <div className="absolute top-5 left-0 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-3 w-48">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Escolher cor</p>
-            <div className="grid grid-cols-5 gap-1.5">
-              {COLOR_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  title={opt.label}
-                  onClick={() => { onColorChange(opt.value); setShowPicker(false); }}
-                  className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                  style={{ backgroundColor: opt.value, borderColor: color === opt.value ? '#000' : 'transparent' }}
-                />
-              ))}
-            </div>
-            <button onClick={() => setShowPicker(false)} className="mt-2 text-xs text-gray-400 hover:text-gray-600 w-full text-right">fechar</button>
-          </div>
-        )}
-      </div>
+    <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col" style={{ borderTop: `3px solid ${color}` }}>
+      {/* Título */}
+      <h3 className="text-xs font-medium text-gray-500 mb-3 leading-tight">{title}</h3>
       
       {/* Valor principal */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-2xl font-bold text-gray-900">{displayValue}</span>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl font-bold text-gray-900">{displayValue}</span>
         {variation !== 0 && (
-          <span className={`inline-flex items-center gap-1 text-xs font-semibold ${
+          <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
             isPositive ? 'text-green-600' : 'text-red-600'
           }`}>
-            {isPositive ? '▲' : '▼'} {Math.abs(variation).toFixed(2)}%
+            {isPositive ? '▲' : '▼'} {Math.abs(variation).toFixed(1)}%
           </span>
         )}
       </div>
       
       {/* Período anterior */}
-      <div className="text-[10px] text-gray-500 mb-4">
-        {displayPrevious} no período anterior
+      <div className="text-[10px] text-gray-400 mb-3">
+        {displayPrevious} período anterior
       </div>
 
-      {/* Mini linha do funil dentro do card */}
-      <div className="mt-auto">
-        <svg width="100%" height="40" className="overflow-visible">
-          <defs>
-            <linearGradient id={`gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.2 }} />
-              <stop offset="100%" style={{ stopColor: color, stopOpacity: 0.8 }} />
-            </linearGradient>
-          </defs>
-          <path
-            d="M 0,20 Q 25,10 50,20 T 100,20"
-            fill="none"
-            stroke={`url(#gradient-${index})`}
-            strokeWidth="2"
-            opacity="0.6"
-          />
-        </svg>
-        
-        {percentage !== undefined && percentage !== 100 && (
-          <div className="text-center mt-1">
-            <span className="text-lg font-bold" style={{ color }}>{percentage.toFixed(2)}%</span>
-            <span className="text-[9px] text-gray-500 ml-1">de {title.toLowerCase().substring(0, 20)}</span>
+      {/* Percentual do funil */}
+      {percentage !== undefined && percentage !== 100 && (
+        <div className="mb-3">
+          <span className="text-base font-bold" style={{ color }}>{percentage.toFixed(1)}%</span>
+          <span className="text-[9px] text-gray-400 ml-1">conversão</span>
+        </div>
+      )}
+
+      {/* Seletor de cor no rodapé do card */}
+      <div className="mt-auto pt-3 border-t border-gray-100">
+        {!showPicker ? (
+          <button
+            onClick={() => setShowPicker(true)}
+            className="flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <span className="w-3 h-3 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: color }} />
+            Cor do card
+          </button>
+        ) : (
+          <div>
+            <div className="grid grid-cols-5 gap-1 mb-1.5">
+              {COLOR_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  title={opt.label}
+                  onClick={() => { onColorChange(opt.value); setShowPicker(false); }}
+                  className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                  style={{ backgroundColor: opt.value, borderColor: color === opt.value ? '#000' : 'transparent' }}
+                />
+              ))}
+            </div>
+            <button onClick={() => setShowPicker(false)} className="text-[10px] text-gray-400 hover:text-gray-600">fechar</button>
           </div>
         )}
       </div>
