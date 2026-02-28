@@ -32,18 +32,17 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navigation = [
-  { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard },
-  { name: 'Relatórios', href: 'Reports', icon: FileText },
-  { name: 'Unidades', href: 'Units', icon: Building2 },
-  { name: 'Integrações', href: 'Integrations', icon: Link2 },
-  { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap },
-  { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell },
-
-  { name: 'Perfis', href: 'Profiles', icon: Shield },
-  { name: 'Usuários', href: 'Users', icon: Users },
-  { name: 'Agendamentos', href: 'IngestSchedules', icon: Clock },
-  { name: 'Gestão de Dados', href: 'DataManagement', icon: Database },
-  { name: 'Configurações', href: 'Settings', icon: Settings },
+  { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard, permission: 'view_dashboard' },
+  { name: 'Relatórios', href: 'Reports', icon: FileText, permission: 'view_reports' },
+  { name: 'Unidades', href: 'Units', icon: Building2, permission: 'manage_units' },
+  { name: 'Integrações', href: 'Integrations', icon: Link2, permission: 'manage_integrations' },
+  { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap, permission: 'manage_data' },
+  { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell, permission: 'manage_permissions' },
+  { name: 'Perfis', href: 'Profiles', icon: Shield, permission: 'manage_profiles' },
+  { name: 'Usuários', href: 'Users', icon: Users, permission: 'manage_users' },
+  { name: 'Agendamentos', href: 'IngestSchedules', icon: Clock, permission: 'manage_schedules' },
+  { name: 'Gestão de Dados', href: 'DataManagement', icon: Database, permission: 'manage_data' },
+  { name: 'Configurações', href: 'Settings', icon: Settings, permission: 'admin_only' },
 ];
 
 export default function Layout({ children, currentPageName }) {
@@ -68,10 +67,30 @@ export default function Layout({ children, currentPageName }) {
     }
   }, [darkMode]);
 
-  const { data: units = [] } = useQuery({
-    queryKey: ['units'],
-    queryFn: () => base44.entities.Unit.list(),
+  const { data: userProfile } = useQuery({
+    queryKey: ['myUserProfile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const profiles = await base44.entities.UserProfile.filter({ user_id: user.id });
+      if (!profiles || profiles.length === 0) return null;
+      const up = profiles[0];
+      if (!up.profile_id) return null;
+      const profile = await base44.entities.Profile.filter({ id: up.profile_id });
+      return profile?.[0] || null;
+    },
+    enabled: !!user?.id,
   });
+
+  const canAccess = (permission) => {
+    // admins têm acesso a tudo
+    if (user?.role === 'admin') return true;
+    // itens admin_only: só admin
+    if (permission === 'admin_only') return false;
+    // se não tem perfil carregado ainda, não mostra nada (aguarda)
+    if (!userProfile) return false;
+    // verifica a permissão no perfil
+    return userProfile.permissions?.[permission] === true;
+  };
 
   const getInitials = (name) => {
     if (!name) return 'U';
@@ -114,7 +133,7 @@ export default function Layout({ children, currentPageName }) {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
+            {navigation.filter(item => canAccess(item.permission)).map((item) => {
               const isActive = currentPageName === item.href;
               return (
                 <Link
