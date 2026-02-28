@@ -377,7 +377,7 @@ export default function RankingTable({
                           {item.status}
                         </Badge> :
 
-                  <span className="text-gray-700">{col.format(item[col.key])}</span>
+                  <span className="text-gray-700 block truncate">{col.format(item[col.key])}</span>
                   }
                     </td>
                 )}
