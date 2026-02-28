@@ -62,13 +62,34 @@ export default function ReportExportModal({
     setTimeout(() => { win.focus(); win.print(); win.close(); }, 400);
   };
 
+  // Converts an image URL to a base64 data URL via a canvas (frontend-only)
+  const urlToBase64 = (url) =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve(c.toDataURL('image/jpeg', 0.9));
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      // Add cache-busting only for external URLs to avoid CORS cache issues
+      img.src = url.includes('?') ? url + '&_t=' + Date.now() : url + '?_t=' + Date.now();
+    });
+
   const handleDownloadPDF = async () => {
     setIsExporting(true);
     try {
       const content = exportRef.current;
       if (!content) return;
 
-      // — Collect ALL images and proxy them to base64 —
+      // — Pre-convert ALL images to base64 (so html2canvas can render them) —
       const imgElements = Array.from(content.querySelectorAll('img[src]'));
       const uniqueUrls = [...new Set(
         imgElements.map((img) => img.getAttribute('src'))
@@ -76,16 +97,12 @@ export default function ReportExportModal({
       )];
 
       const imgMap = {};
-      if (uniqueUrls.length > 0) {
-        await Promise.allSettled(
-          uniqueUrls.map(async (url) => {
-            try {
-              const res = await base44.functions.invoke('proxyImage', { url });
-              if (res?.data?.dataUrl) imgMap[url] = res.data.dataUrl;
-            } catch {}
-          })
-        );
-      }
+      await Promise.allSettled(
+        uniqueUrls.map(async (url) => {
+          const b64 = await urlToBase64(url);
+          if (b64) imgMap[url] = b64;
+        })
+      );
 
       // — Fix layout for full capture —
       const TARGET_W = 1400;
@@ -115,12 +132,14 @@ export default function ReportExportModal({
         height: totalHeight,
         imageTimeout: 0,
         onclone: (clonedDoc) => {
-          // Replace img src with base64
+          // Replace img src with base64 so canvas can render them without CORS issues
           clonedDoc.querySelectorAll('img[src]').forEach((img) => {
             const orig = img.getAttribute('src');
-            if (imgMap[orig]) {
-              img.src = imgMap[orig];
-              img.crossOrigin = undefined;
+            const clean = orig ? orig.split('?')[0] : null;
+            const dataUrl = imgMap[orig] || (clean && Object.keys(imgMap).find(k => k.startsWith(clean)) ? imgMap[Object.keys(imgMap).find(k => k.startsWith(clean))] : null);
+            if (dataUrl) {
+              img.src = dataUrl;
+              img.removeAttribute('crossorigin');
             }
           });
           // Fix table cells: no wrap
