@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { base44 } from '@/api/base44Client';
+
 
 export default function ReportExportModal({
   open,
