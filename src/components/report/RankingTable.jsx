@@ -45,6 +45,28 @@ export default function RankingTable({
   const [columnOrder, setColumnOrder] = useState(ALL_COLUMNS.map((c) => c.key));
   const [visibleColumns, setVisibleColumns] = useState(ALL_COLUMNS.map((c) => c.key));
   const [sortConfig, setSortConfig] = useState({ key: 'conversations', direction: 'desc' });
+  const [colWidths, setColWidths] = useState({});
+  const resizingRef = useRef(null);
+
+  const startResize = useCallback((e, colKey) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = resizingRef.current?.startWidth || (colWidths[colKey] || 150);
+    resizingRef.current = { colKey, startX, startWidth };
+
+    const onMouseMove = (moveEvt) => {
+      const diff = moveEvt.clientX - startX;
+      const newWidth = Math.max(60, startWidth + diff);
+      setColWidths(prev => ({ ...prev, [colKey]: newWidth }));
+    };
+    const onMouseUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [colWidths]);
 
   // Carregar configurações salvas
   const { data: config } = useQuery({
