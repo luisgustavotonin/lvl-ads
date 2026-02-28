@@ -32,6 +32,26 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
     };
   }, [period, customStartDate, customEndDate]);
 
+  // Buscar configuração de cores da Unit
+  const { data: unit } = useQuery({
+    queryKey: ['unitFunnelConfig', unitId],
+    queryFn: async () => {
+      if (!unitId) return null;
+      const result = await base44.entities.Unit.filter({ id: unitId });
+      return result?.[0] || null;
+    },
+    enabled: !!unitId
+  });
+
+  const stageColors = useMemo(() => {
+    const stages = unit?.settings?.funnel_stages || [];
+    const colors = {};
+    stages.forEach(stage => {
+      colors[stage.key] = stage.color;
+    });
+    return colors;
+  }, [unit]);
+
   // Buscar métricas unificadas (usa computeUnifiedMetrics)
   const { data: unifiedMetrics } = useQuery({
     queryKey: ['unifiedMetricsMeta', unitId, currentPeriod],
