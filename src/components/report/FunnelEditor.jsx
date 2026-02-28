@@ -8,6 +8,16 @@ import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+const STAGE_COLORS = [
+  '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#EF4444', '#6366F1'
+];
+
+const COLOR_OPTIONS = [
+  '#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#06B6D4',
+  '#EF4444','#6366F1','#EAB308','#84CC16','#14B8A6','#D946EF',
+  '#F97316','#1D4ED8','#7C3AED','#059669','#D97706','#6B7280',
+];
+
 const AVAILABLE_METRICS = [
   { key: 'spend', label: 'Investimento' },
   { key: 'impressions', label: 'Impressões' },
