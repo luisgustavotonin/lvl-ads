@@ -44,13 +44,15 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
   });
 
   const stageColors = useMemo(() => {
-    const stages = unit?.settings?.funnel_stages || [];
+    if (!unit?.settings?.funnel_stages) return {};
     const colors = {};
-    stages.forEach(stage => {
-      colors[stage.key] = stage.color;
+    unit.settings.funnel_stages.forEach(stage => {
+      if (stage.key && stage.color) {
+        colors[stage.key] = stage.color;
+      }
     });
     return colors;
-  }, [unit]);
+  }, [unit?.settings?.funnel_stages, unit?.id]);
 
   // Buscar métricas unificadas (usa computeUnifiedMetrics)
   const { data: unifiedMetrics } = useQuery({
