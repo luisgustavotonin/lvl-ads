@@ -371,7 +371,7 @@ export default function RankingTable({
                   {orderedColumns.map((col) =>
                 <td key={col.key} className="py-3 px-2 overflow-hidden" style={{ maxWidth: colWidths[col.key] || (col.key === 'name' ? 200 : 120) }}>
                       {col.key === 'name' ?
-                  <span className="font-medium text-gray-900 max-w-xs truncate">{item.name}</span> :
+                  <span className="font-medium text-gray-900 block truncate">{item.name}</span> :
                   col.key === 'status' ?
                   <Badge className="bg-slate-600 text-primary-foreground px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent shadow hover:bg-primary/80">
                           {item.status}
