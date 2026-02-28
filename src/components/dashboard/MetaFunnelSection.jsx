@@ -90,8 +90,19 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
       {/* Header com logo */}
       <div className="flex items-center justify-between">
         <BrandLogo platform="META" />
-        <div className="text-sm text-gray-500">
-          {format(currentPeriod.start, 'dd/MM/yyyy')} - {format(currentPeriod.end, 'dd/MM/yyyy')}
+        <div className="flex items-center gap-4 text-sm text-gray-500">
+          <div>
+            {format(currentPeriod.start, 'dd/MM/yyyy')} - {format(currentPeriod.end, 'dd/MM/yyyy')}
+          </div>
+          {unitId && (
+            <FunnelEditor
+              unitId={unitId}
+              currentStages={unit?.settings?.funnel_stages || []}
+              onSave={() => {
+                // Revalidate unit query to refresh colors
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -99,6 +110,7 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
       <ReporteiStyleFunnel 
         currentMetrics={unifiedMetrics}
         previousMetrics={unifiedMetricsPrevious}
+        stageColors={stageColors}
       />
 
       {/* Cards de WhatsApp */}
