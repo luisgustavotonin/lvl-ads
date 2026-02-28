@@ -67,30 +67,34 @@ export default function Layout({ children, currentPageName }) {
     }
   }, [darkMode]);
 
-  const { data: userProfile } = useQuery({
+  const { data: userProfile, isLoading: profileLoading } = useQuery({
     queryKey: ['myUserProfile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      // Busca o UserProfile do usuário atual
       const userProfiles = await base44.entities.UserProfile.filter({ user_id: user.id });
       if (!userProfiles || userProfiles.length === 0) return null;
       const up = userProfiles[0];
       if (!up.profile_id) return null;
-      // Busca todos os perfis e encontra o correto pelo id
       const allProfiles = await base44.entities.Profile.list();
-      return allProfiles.find(p => p.id === up.profile_id) || null;
+      const found = allProfiles.find(p => p.id === up.profile_id) || null;
+      return found;
     },
     enabled: !!user?.id,
+    staleTime: 0,
   });
 
   const canAccess = (permission) => {
-    // admins têm acesso a tudo
-    if (user?.role === 'admin') return true;
+    // Enquanto carrega o usuário, não mostra nada
+    if (!user) return false;
+    // admins (role === 'admin') têm acesso a tudo
+    if (user.role === 'admin') return true;
     // itens admin_only: só admin
     if (permission === 'admin_only') return false;
-    // se não tem perfil carregado ainda, não mostra nada (aguarda)
+    // Enquanto carrega o perfil, esconde tudo
+    if (profileLoading) return false;
+    // Sem perfil cadastrado, sem acesso
     if (!userProfile) return false;
-    // verifica a permissão no perfil
+    // Verifica a permissão no objeto permissions do perfil
     return userProfile.permissions?.[permission] === true;
   };
 
