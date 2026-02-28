@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import FunnelEditor from '../report/FunnelEditor';
 import { base44 } from '@/api/base44Client';
 import ReporteiStyleFunnel from '../unified/ReporteiStyleFunnel';
 import UnifiedWhatsAppCards from '../unified/UnifiedWhatsAppCards';
