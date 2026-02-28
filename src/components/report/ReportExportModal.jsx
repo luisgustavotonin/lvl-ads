@@ -53,14 +53,7 @@ export default function ReportExportModal({
     });
   };
 
-  const deselectAllSections = () => {
-    setSelectedSections({
-      overview: false,
-      platforms: false,
-      device: false,
-      demographic: false,
-    });
-  };
+
 
   const handleNextStep = () => {
     setStep('preview');
@@ -124,11 +117,13 @@ export default function ReportExportModal({
     content.style.width = `${TARGET_WIDTH_PX}px`;
     content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
 
-      // Aguarda recalcular layout (crítico para tabelas)
-      await new Promise((r) => setTimeout(r, 300));
+      // Aguarda renderizar todo o conteúdo (crítico para tabelas longas)
+      await new Promise((r) => setTimeout(r, 800));
 
       // ✅ Scale maior para qualidade melhor (igual à tela)
       const scale = 2;
+
+      const totalHeight = content.scrollHeight + 100;
 
       const canvas = await html2canvas(content, {
         scale,
@@ -136,13 +131,16 @@ export default function ReportExportModal({
         backgroundColor: '#ffffff',
         logging: false,
         windowWidth: TARGET_WIDTH_PX,
-        windowHeight: content.scrollHeight,
+        windowHeight: totalHeight,
+        height: totalHeight,
         allowTaint: true,
         imageTimeout: 0,
         onclone: (clonedDocument) => {
-          // Garante que as imagens carregassem
           const images = clonedDocument.querySelectorAll('img');
-          images.forEach(img => img.style.maxWidth = '100%');
+          images.forEach(img => { img.style.maxWidth = '100%'; img.crossOrigin = 'anonymous'; });
+          // Força nowrap em todas as células de tabela no clone
+          const cells = clonedDocument.querySelectorAll('th, td');
+          cells.forEach(cell => { cell.style.whiteSpace = 'nowrap'; });
         }
       });
 
@@ -231,9 +229,6 @@ export default function ReportExportModal({
                   <Button variant="outline" size="sm" onClick={selectAllSections} className="text-xs">
                     Selecionar Todas
                   </Button>
-                  <Button variant="outline" size="sm" onClick={deselectAllSections} className="text-xs">
-                    Desselecionar Todas
-                  </Button>
                 </div>
 
                 <div className="space-y-3">
@@ -311,10 +306,7 @@ export default function ReportExportModal({
                     padding: 6px 8px;
                     text-align: left;
                     border-bottom: 1px solid #e5e7eb;
-                    word-break: break-word;
-                    word-wrap: break-word;
-                    white-space: normal;
-                    overflow-wrap: break-word;
+                    white-space: nowrap;
                   }
 
                   .ranking-table-pdf th {
@@ -375,16 +367,23 @@ export default function ReportExportModal({
                     line-height: 1.4 !important;
                   }
 
-                  /* Previne corte de texto em tabelas */
+                  /* Tabelas: nunca quebrar palavras */
                   table {
                     table-layout: auto;
+                    width: 100%;
                   }
 
                   table td, table th {
-                    word-break: break-word;
-                    word-wrap: break-word;
+                    white-space: nowrap;
+                    overflow: visible;
+                    text-overflow: clip;
+                  }
+
+                  /* Nome pode quebrar em linha nova, mas não no meio da palavra */
+                  table td:first-child {
                     white-space: normal;
-                    overflow-wrap: break-word;
+                    word-break: keep-all;
+                    max-width: 250px;
                   }
                 `}</style>
 
