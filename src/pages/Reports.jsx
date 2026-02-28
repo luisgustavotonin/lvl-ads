@@ -852,14 +852,8 @@ export default function Reports() {
                 </div>
 
                 <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-8 break-inside-avoid" data-pdf-section>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
-                    <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
-                  </div>
-
-                  <div className="overflow-hidden pb-2">
-                    <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
-                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Funil de Conversão</h3>
+                  <PDFExportFunnel current={current} previous={previous} stages={funnelStages} />
                 </Card>
 
                 <div className="space-y-4 pt-4" data-pdf-element>
