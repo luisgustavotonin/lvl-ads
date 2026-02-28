@@ -326,24 +326,34 @@ export default function RankingTable({
 
         {/* Desktop: table */}
         <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
             <thead>
               <tr className="border-b">
-                {showThumbnail && <th className="text-left py-3 px-2 font-medium text-gray-700 w-24">Criativo</th>}
-                {orderedColumns.map((col) =>
-                <th
-                  key={col.key}
-                  className={`text-left py-3 px-2 font-medium text-gray-700 ${col.sortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-                  onClick={() => col.sortable && handleSort(col.key)}>
-
-                    <div className="flex items-center gap-1">
-                      {col.label}
-                      {col.sortable && sortConfig.key === col.key && (
-                    sortConfig.direction === 'desc' ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />)
-                    }
-                    </div>
-                  </th>
-                )}
+                {showThumbnail && <th className="text-left py-3 px-2 font-medium text-gray-700" style={{ width: 96, minWidth: 96 }}>Criativo</th>}
+                {orderedColumns.map((col) => {
+                  const w = colWidths[col.key] || (col.key === 'name' ? 200 : 120);
+                  return (
+                    <th
+                      key={col.key}
+                      className={`text-left py-3 px-2 font-medium text-gray-700 relative select-none ${col.sortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                      style={{ width: w, minWidth: 60 }}
+                      onClick={() => col.sortable && handleSort(col.key)}
+                    >
+                      <div className="flex items-center gap-1 overflow-hidden">
+                        <span className="truncate">{col.label}</span>
+                        {col.sortable && sortConfig.key === col.key && (
+                          sortConfig.direction === 'desc' ? <ChevronDown className="w-4 h-4 flex-shrink-0" /> : <ChevronUp className="w-4 h-4 flex-shrink-0" />
+                        )}
+                      </div>
+                      {/* Resize handle */}
+                      <div
+                        className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-300 opacity-0 hover:opacity-100 transition-opacity"
+                        onMouseDown={(e) => { e.stopPropagation(); startResize(e, col.key); }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
