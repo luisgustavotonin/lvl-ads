@@ -139,6 +139,7 @@ const FunnelCard = ({
         )}
       </div>
     </div>
+    </div>
   );
 };
 
