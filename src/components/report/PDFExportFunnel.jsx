@@ -1,83 +1,80 @@
 import React from 'react';
 
-const formatCompact = (val) =>
-  new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(val || 0));
-
-const formatCurrency = (val) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0);
-
 const CURRENCY_KEYS = ['spend', 'costPerConversation', 'costPerTotalContact', 'costPerFirstReply', 'cpcLink', 'cpm'];
 
-function formatValue(key, val) {
-  if (CURRENCY_KEYS.includes(key)) return formatCurrency(val);
-  return formatCompact(val);
+function formatValue(key, value) {
+  if (CURRENCY_KEYS.includes(key)) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+  }
+  if (key === 'ctrLink') return `${Number(value || 0).toFixed(2)}%`;
+  if (key === 'frequency') return Number(value || 0).toFixed(2);
+  return new Intl.NumberFormat('pt-BR').format(Math.round(value || 0));
 }
 
-function pctChange(curr, prev) {
-  if (!prev || prev === 0) return null;
-  return ((curr - prev) / prev) * 100;
-}
+export default function PDFExportFunnel({ current = {}, stages = [] }) {
+  if (!stages || stages.length === 0) return null;
 
-export default function PDFExportFunnel({ current = {}, previous = {}, stages = [] }) {
-  if (!stages.length) return null;
+  const values = stages.map((s) => current[s.key] || 0);
+  const maxVal = Math.max(...values, 1);
 
-  const COLORS = ['#3B82F6', '#2563EB', '#1D4ED8', '#1E40AF', '#1E3A8A'];
+  const W = 600;
+  const STAGE_H = 52;
+  const GAP = 4;
+  const totalH = stages.length * (STAGE_H + GAP);
+  const MIN_W = 120;
 
-  const maxVal = Math.max(...stages.map((s) => Number(current[s.key] || 0)), 1);
+  const COLORS = ['#3B82F6', '#6366F1', '#8B5CF6', '#A855F7', '#EC4899', '#EF4444'];
 
   return (
-    <div style={{ width: '100%', fontFamily: 'system-ui, Arial, sans-serif' }}>
-      {stages.map((stage, i) => {
-        const val = current[stage.key] || 0;
-        const prevVal = previous[stage.key] || 0;
-        const pct = (val / maxVal) * 100;
-        const change = pctChange(val, prevVal);
-        const color = COLORS[i % COLORS.length];
-        const width = Math.max(pct, 20);
+    <div style={{ width: '100%', overflowX: 'auto' }}>
+      <svg width={W} height={totalH} viewBox={`0 0 ${W} ${totalH}`} style={{ maxWidth: '100%' }}>
+        {stages.map((stage, i) => {
+          const val = values[i];
+          const barW = Math.max(MIN_W, (val / maxVal) * W);
+          const x = (W - barW) / 2;
+          const y = i * (STAGE_H + GAP);
+          const color = COLORS[i % COLORS.length];
 
-        return (
-          <div key={stage.key} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-            {/* Bar */}
-            <div
-              style={{
-                flex: 1,
-                background: '#F3F4F6',
-                borderRadius: 6,
-                height: 36,
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  width: `${width}%`,
-                  background: color,
-                  height: '100%',
-                  borderRadius: 6,
-                  display: 'flex',
-                  alignItems: 'center',
-                  paddingLeft: 12,
-                  boxSizing: 'border-box',
-                }}
+          // Trapezoid points: wider on top if first, narrower than previous otherwise
+          const prevW = i === 0 ? barW : Math.max(MIN_W, (values[i - 1] / maxVal) * W);
+          const prevX = (W - prevW) / 2;
+
+          const points = [
+            `${prevX},${y}`,
+            `${prevX + prevW},${y}`,
+            `${x + barW},${y + STAGE_H}`,
+            `${x},${y + STAGE_H}`,
+          ].join(' ');
+
+          return (
+            <g key={stage.key}>
+              <polygon points={points} fill={color} opacity={0.85} />
+              <text
+                x={W / 2}
+                y={y + STAGE_H / 2 - 6}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="white"
+                fontSize={12}
+                fontWeight="600"
               >
-                <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {stage.label}
-                </span>
-              </div>
-            </div>
-
-            {/* Value */}
-            <div style={{ width: 110, textAlign: 'right', paddingLeft: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{formatValue(stage.key, val)}</div>
-              {change !== null && (
-                <div style={{ fontSize: 11, color: change >= 0 ? '#10B981' : '#EF4444' }}>
-                  {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+                {stage.label}
+              </text>
+              <text
+                x={W / 2}
+                y={y + STAGE_H / 2 + 10}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="white"
+                fontSize={13}
+                fontWeight="700"
+              >
+                {formatValue(stage.key, val)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
