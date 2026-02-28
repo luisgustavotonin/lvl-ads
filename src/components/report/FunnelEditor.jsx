@@ -141,22 +141,26 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
                             </div>
 
                             {/* Cor inline */}
-                            <div className="relative">
+                            <div className="relative flex-shrink-0">
                               <button
                                 onClick={() => setOpenColorPicker(openColorPicker === stage.key ? null : stage.key)}
-                                className="w-4 h-4 rounded-sm border border-gray-300 flex-shrink-0"
+                                className="w-5 h-5 rounded border border-gray-300 flex-shrink-0 block"
                                 style={{ backgroundColor: stage.color || '#3B82F6' }}
                                 title="Editar cor"
                               />
                               {openColorPicker === stage.key && (
-                                <div className="absolute left-0 top-6 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-2">
-                                  <div className="grid grid-cols-6 gap-1">
+                                <div
+                                  className="absolute left-0 top-7 z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl p-3"
+                                  style={{ minWidth: 160 }}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <div className="grid grid-cols-6 gap-2">
                                     {COLOR_OPTIONS.map(c => (
                                       <button
                                         key={c}
                                         onClick={() => setStageColor(stage.key, c)}
-                                        className="w-5 h-5 rounded-full border-2 hover:scale-110 transition-transform"
-                                        style={{ backgroundColor: c, borderColor: stage.color === c ? '#000' : 'transparent' }}
+                                        className="w-6 h-6 rounded-full border-2 hover:scale-125 transition-transform flex-shrink-0"
+                                        style={{ backgroundColor: c, borderColor: stage.color === c ? '#111' : 'transparent' }}
                                       />
                                     ))}
                                   </div>
