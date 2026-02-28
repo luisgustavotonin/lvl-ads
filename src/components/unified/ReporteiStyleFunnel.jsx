@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Pencil } from 'lucide-react';
 
 const COLOR_OPTIONS = [
   { label: 'Azul',       value: '#3B82F6' },
