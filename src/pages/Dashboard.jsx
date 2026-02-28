@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import MetaFunnelSection from '@/components/dashboard/MetaFunnelSection';
 import PeriodFilter from '@/components/report/PeriodFilter';
 
