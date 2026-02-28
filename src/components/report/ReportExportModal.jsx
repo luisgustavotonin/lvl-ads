@@ -23,6 +23,7 @@ export default function ReportExportModal({
     platforms: true,
     device: true,
     demographic: true,
+    creatives: true,
   });
   const [isExporting, setIsExporting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -33,8 +34,9 @@ export default function ReportExportModal({
   const sections = [
     { id: 'overview', label: 'Visão Geral', description: 'KPIs, Funil e Gráficos Diários' },
     { id: 'platforms', label: 'Plataformas', description: 'Performance por Plataforma' },
-    { id: 'device', label: 'Device', description: 'Performance por Dispositivo' },
-    { id: 'demographic', label: 'Demográfico', description: 'Performance por Demográfico' },
+    { id: 'device', label: 'Dispositivos', description: 'Performance por Dispositivo' },
+    { id: 'demographic', label: 'Idade e Gênero', description: 'Performance Demográfica' },
+    { id: 'creatives', label: 'Criativos', description: 'Galeria de Criativos e Performance' },
   ];
 
   const toggleSection = (sectionId) => {
@@ -50,6 +52,7 @@ export default function ReportExportModal({
       platforms: true,
       device: true,
       demographic: true,
+      creatives: true,
     });
   };
 
@@ -474,6 +477,15 @@ export default function ReportExportModal({
                         <h2 className="text-lg font-bold text-gray-900 mb-4">Performance Demográfica</h2>
                         <div className="pdf-demographic-content">
                           {children.demographic}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSections.creatives && children?.creatives && (
+                      <div className="space-y-4 pdf-section">
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Criativos</h2>
+                        <div className="pdf-creatives-content">
+                          {children.creatives}
                         </div>
                       </div>
                     )}
