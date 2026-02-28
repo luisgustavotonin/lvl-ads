@@ -146,7 +146,7 @@ const FunnelCard = ({
 const STORAGE_KEY = 'funnel_colors';
 
 const loadColors = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_COLORS; } catch { return [...DEFAULT_COLORS]; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_COLORS; } catch (e) { return [...DEFAULT_COLORS]; }
 };
 
 export default function ReporteiStyleFunnel({ 
