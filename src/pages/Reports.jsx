@@ -464,10 +464,11 @@ export default function Reports() {
    * ========================================================= */
   const makeLabel = (color, formatter, total) => ({ x, y, value, index }) => {
     if (!showLabels) return null;
-    if (index !== total - 1) return null;
     const txt = formatter ? formatter(value) : String(value);
+    // Ajusta âncora para evitar corte nas bordas
+    const anchor = index === 0 ? 'start' : index === total - 1 ? 'end' : 'middle';
     return (
-      <text x={x} y={y - 10} fontSize={labelFont} fontWeight="700" fill={color} textAnchor="middle">
+      <text x={x} y={y - 6} fontSize={labelFont} fontWeight="400" fill="#9CA3AF" textAnchor={anchor}>
         {txt}
       </text>
     );
