@@ -63,11 +63,11 @@ const FunnelCard = ({
   const displayPrevious = type === 'currency' ? formatCurrency(previousValue) : formatNumber(previousValue);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-5 min-h-[200px] flex flex-col relative">
-      {/* Botão editar cor - sempre visível */}
+    <div className="relative">
+      {/* Botão editar cor - acima do card */}
       <button
         onClick={() => setShowPicker(v => !v)}
-        className="absolute top-2 right-2 p-1 rounded hover:bg-gray-100"
+        className="absolute -top-5 right-0 p-1 rounded hover:bg-gray-100 z-10"
         title="Editar cor"
       >
         <Pencil className="w-3 h-3 text-gray-400" />
@@ -75,7 +75,7 @@ const FunnelCard = ({
 
       {/* Color picker dropdown */}
       {showPicker && (
-        <div className="absolute top-8 right-2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-48">
+        <div className="absolute -top-5 right-6 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-3 w-48">
           <p className="text-xs font-semibold text-gray-600 mb-2">Escolher cor</p>
           <div className="grid grid-cols-5 gap-1.5">
             {COLOR_OPTIONS.map(opt => (
@@ -92,8 +92,9 @@ const FunnelCard = ({
         </div>
       )}
 
+    <div className="bg-white rounded-lg border border-gray-200 p-5 min-h-[200px] flex flex-col">
       {/* Título */}
-      <h3 className="text-xs font-medium text-gray-600 mb-3 pr-6">{title}</h3>
+      <h3 className="text-xs font-medium text-gray-600 mb-3">{title}</h3>
       
       {/* Valor principal */}
       <div className="flex items-center gap-2 mb-2">
