@@ -226,6 +226,7 @@ export default function ReportExportModal({
         {/* Content */}
         <div className="flex-1 overflow-auto bg-gray-50">
           {step === 'selectSections' ? (
+
             <div className="p-8 max-w-2xl mx-auto">
               <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Selecione as seções do relatório</h3>
