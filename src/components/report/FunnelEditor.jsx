@@ -31,8 +31,11 @@ const AVAILABLE_METRICS = [
 
 export default function FunnelEditor({ unitId, currentStages, onSave }) {
   const [open, setOpen] = useState(false);
-  const [stages, setStages] = useState(currentStages || []);
+  const [stages, setStages] = useState(() =>
+    (currentStages || []).map((s, i) => ({ ...s, color: s.color || STAGE_COLORS[i % STAGE_COLORS.length] }))
+  );
   const [newMetric, setNewMetric] = useState('');
+  const [openColorPicker, setOpenColorPicker] = useState(null);
   const queryClient = useQueryClient();
 
   const saveFunnelMutation = useMutation({
