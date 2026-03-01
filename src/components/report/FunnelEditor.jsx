@@ -32,10 +32,20 @@ const AVAILABLE_METRICS = [
 
 export default function FunnelEditor({ unitId, currentStages, onSave }) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState('editor'); // 'editor' ou 'templates'
-  const [stages, setStages] = useState(() =>
+  const [tab, setTab] = useState('editor');
+  const [stages, setStages] = useState(
     (currentStages || []).map((s, i) => ({ ...s, color: s.color || STAGE_COLORS[i % STAGE_COLORS.length] }))
   );
+
+  // Sincroniza stages internos quando o dialog abre (pega as cores salvas)
+  React.useEffect(() => {
+    if (open) {
+      setStages(
+        (currentStages || []).map((s, i) => ({ ...s, color: s.color || STAGE_COLORS[i % STAGE_COLORS.length] }))
+      );
+      setTab('editor');
+    }
+  }, [open]);
   const [newMetric, setNewMetric] = useState('');
   const [openColorPicker, setOpenColorPicker] = useState(null);
   const [templateName, setTemplateName] = useState('');
@@ -91,13 +101,24 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
   const applyTemplateMutation = useMutation({
     mutationFn: async (templateId) => {
       const template = templates.find(t => t.id === templateId);
-      if (template) {
-        setStages(template.stages);
-        setSelectedTemplateId(templateId);
+      if (!template) return;
+      // Aplica e salva imediatamente na unidade
+      const existing = await base44.entities.Unit.filter({ id: unitId });
+      if (existing.length > 0) {
+        await base44.entities.Unit.update(unitId, {
+          settings: { ...existing[0].settings, funnel_stages: template.stages }
+        });
       }
+      return template.stages;
     },
-    onSuccess: () => {
-      toast.success('Template aplicado');
+    onSuccess: (appliedStages) => {
+      if (!appliedStages) return;
+      setStages(appliedStages);
+      queryClient.invalidateQueries({ queryKey: ['units'] });
+      queryClient.invalidateQueries({ queryKey: ['unitFunnelConfig', unitId] });
+      onSave(appliedStages);
+      toast.success('Template aplicado e salvo');
+      setOpen(false);
     }
   });
 
