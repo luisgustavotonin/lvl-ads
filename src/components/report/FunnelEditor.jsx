@@ -52,10 +52,10 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const queryClient = useQueryClient();
 
+  // Templates são globais (sem filtro por unit_id)
   const { data: templates = [] } = useQuery({
-    queryKey: ['funnelTemplates', unitId],
-    queryFn: () => base44.entities.FunnelTemplate.filter({ unit_id: unitId }),
-    enabled: !!unitId,
+    queryKey: ['funnelTemplates'],
+    queryFn: () => base44.entities.FunnelTemplate.list(),
   });
 
   const saveFunnelMutation = useMutation({
