@@ -85,14 +85,15 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
         toast.error('Digite um nome para o template');
         return;
       }
+      // Templates globais: unit_id = 'global'
       return base44.entities.FunnelTemplate.create({
         name: templateName,
-        unit_id: unitId,
+        unit_id: 'global',
         stages
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['funnelTemplates', unitId] });
+      queryClient.invalidateQueries({ queryKey: ['funnelTemplates'] });
       toast.success('Template salvo');
       setTemplateName('');
     }
