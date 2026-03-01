@@ -79,8 +79,14 @@ export default function RankingTable({
     enabled: !!unitId
   });
 
+  // Carregar configurações salvas (apenas uma vez por unitId/groupKey)
   useEffect(() => {
-    if (config?.ranking_table_configs?.[groupKey]) {
+    configLoadedRef.current = false;
+  }, [unitId, groupKey]);
+
+  useEffect(() => {
+    if (config?.ranking_table_configs?.[groupKey] && !configLoadedRef.current) {
+      configLoadedRef.current = true;
       const saved = config.ranking_table_configs[groupKey];
       if (saved.columnOrder) setColumnOrder(saved.columnOrder);
       if (saved.visibleColumns) setVisibleColumns(saved.visibleColumns);
@@ -88,9 +94,9 @@ export default function RankingTable({
     }
   }, [config, groupKey]);
 
-  // Salvar configurações quando mudam
+  // Salvar configurações quando mudam (só após o carregamento inicial)
   useEffect(() => {
-    if (!unitId) return;
+    if (!unitId || !configLoadedRef.current) return;
     const saveConfig = async () => {
       try {
         const existing = await base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
@@ -107,7 +113,7 @@ export default function RankingTable({
         console.error('Erro ao salvar config de ranking table:', err);
       }
     };
-    const timeoutId = setTimeout(saveConfig, 500);
+    const timeoutId = setTimeout(saveConfig, 800);
     return () => clearTimeout(timeoutId);
   }, [columnOrder, visibleColumns, limit, unitId, groupKey]);
 
