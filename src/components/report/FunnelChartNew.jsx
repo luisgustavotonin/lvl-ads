@@ -26,25 +26,14 @@ function variationPct(curr, prev) {
   return ((curr - prev) / prev) * 100;
 }
 
-function compactLabel(label) {
-  if (!label) return '';
-  return String(label)
-    .replace(/no\s+link/gi, 'Link')
-    .replace(/conversas\s+iniciadas/gi, 'Conversas')
-    .replace(/impressões/gi, 'Impr.')
-    .replace(/investimento/gi, 'Inv.');
-}
-
-export default function FunnelChartNew({ current, previous, stages: configStages = [], unitId }) {
+export default function FunnelChartNew({ current, previous, stages: configStages = [] }) {
   const stages = useMemo(() => {
     return (configStages || []).map((stage, idx) => {
       const color = stage.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length];
       const isCurrency = CURRENCY_KEYS.includes(stage.key);
-
       return {
         key: stage.key,
         label: stage.label,
-        shortLabel: compactLabel(stage.label),
         value: current?.[stage.key] || 0,
         prevValue: previous?.[stage.key] || 0,
         color,
@@ -53,54 +42,74 @@ export default function FunnelChartNew({ current, previous, stages: configStages
     });
   }, [configStages, current, previous]);
 
+  if (!stages.length) return null;
+
+  const total = stages.length;
+  // Larguras: de 100% (topo) até ~55% (base), lineares
+  const topPct = 100;
+  const bottomPct = 55;
+  const step = total > 1 ? (topPct - bottomPct) / (total - 1) : 0;
+
   return (
-    <div className="w-full flex justify-center">
-      <div className="w-full max-w-[560px] px-2">
-        <div className="flex flex-col items-center gap-2 py-4">
-          {stages.map((stage, idx) => {
-            const varPct = variationPct(stage.value, stage.prevValue);
-            const isPositive = varPct !== null && varPct > 0;
-            const isNegative = varPct !== null && varPct < 0;
-            const widthPct = Math.max(52, 92 - idx * 8);
+    <div className="w-full flex justify-center py-4">
+      <div className="w-full max-w-[580px]">
+        {stages.map((stage, idx) => {
+          const varPct = variationPct(stage.value, stage.prevValue);
+          const isPositive = varPct !== null && varPct > 0;
+          const isNegative = varPct !== null && varPct < 0;
 
-            return (
-              <div key={stage.key} className="w-full flex flex-col items-center">
-                <div
-                  className="relative text-center shadow-sm"
-                  style={{
-                    width: `${widthPct}%`,
-                    backgroundColor: stage.color,
-                    clipPath: 'polygon(6% 0%, 94% 0%, 88% 100%, 12% 100%)',
-                    borderRadius: 12,
-                    padding: '8px 12px',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <div className="text-white/90 text-[11px] font-medium leading-tight">
-                    {stage.shortLabel || stage.label}
-                  </div>
+          // Largura do topo e da base de cada fatia (trapézio)
+          const wTop = topPct - idx * step;        // largura superior desta fatia
+          const wBot = topPct - (idx + 1) * step;  // largura inferior desta fatia
 
-                  <div className="text-white text-[16px] font-semibold leading-tight mt-0.5">
-                    {fmtCompact(stage.value, stage.isCurrency)}
-                  </div>
+          // clip-path em percentuais: recuo nas laterais para criar o trapézio
+          const leftTop  = ((100 - wTop) / 2);
+          const rightTop = 100 - leftTop;
+          const leftBot  = ((100 - wBot) / 2);
+          const rightBot = 100 - leftBot;
 
-                  {varPct !== null && Math.abs(varPct) >= 0.1 && (
-                    <div className={`mt-1 flex items-center justify-center gap-1 text-[11px] font-medium ${
-                      isPositive ? 'text-green-200' : isNegative ? 'text-red-200' : 'text-white/90'
-                    }`}>
-                      {isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : isNegative ? <TrendingDown className="w-3.5 h-3.5" /> : null}
-                      <span>{isPositive ? '+' : ''}{varPct.toFixed(1)}%</span>
-                    </div>
-                  )}
+          const clipPath = `polygon(${leftTop}% 0%, ${rightTop}% 0%, ${rightBot}% 100%, ${leftBot}% 100%)`;
+
+          // Texto claro/escuro dependendo da cor de fundo
+          const isLight = ['#93C5FD','#60A5FA'].includes(stage.color);
+          const textColor = isLight ? 'text-gray-800' : 'text-white';
+          const subTextColor = isLight ? 'text-gray-600' : 'text-white/80';
+
+          return (
+            <div
+              key={stage.key}
+              className="relative text-center"
+              style={{
+                height: 72,
+                backgroundColor: stage.color,
+                clipPath,
+                marginTop: idx === 0 ? 0 : -1, // sem gap entre fatias
+              }}
+            >
+              {/* Conteúdo centralizado verticalmente */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className={`text-[12px] font-semibold leading-tight ${textColor}`}>
+                  {stage.label}
                 </div>
-
-                {idx < stages.length - 1 && (
-                  <div className="h-1 w-0.5 bg-gray-200" />
+                <div className={`text-[17px] font-bold leading-tight mt-0.5 ${textColor}`}>
+                  {fmtCompact(stage.value, stage.isCurrency)}
+                </div>
+                {varPct !== null && Math.abs(varPct) >= 0.1 && (
+                  <div className={`flex items-center gap-1 text-[11px] font-medium mt-0.5 ${
+                    isPositive ? (isLight ? 'text-green-700' : 'text-green-200')
+                               : isNegative ? (isLight ? 'text-red-600' : 'text-red-200')
+                               : subTextColor
+                  }`}>
+                    {isPositive
+                      ? <TrendingUp className="w-3 h-3" />
+                      : isNegative ? <TrendingDown className="w-3 h-3" /> : null}
+                    <span>{isPositive ? '+' : ''}{varPct.toFixed(1)}%</span>
+                  </div>
                 )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
