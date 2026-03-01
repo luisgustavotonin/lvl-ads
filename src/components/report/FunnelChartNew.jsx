@@ -83,7 +83,7 @@ export default function FunnelChartNew({ current, previous, stages: configStages
                 height: 72,
                 backgroundColor: stage.color,
                 clipPath,
-                marginTop: idx === 0 ? 0 : -1, // sem gap entre fatias
+                marginTop: idx === 0 ? 0 : 4,
               }}
             >
               {/* Conteúdo centralizado verticalmente */}
