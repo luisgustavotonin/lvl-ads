@@ -126,7 +126,7 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
   const deleteTemplateMutation = useMutation({
     mutationFn: (templateId) => base44.entities.FunnelTemplate.delete(templateId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['funnelTemplates', unitId] });
+      queryClient.invalidateQueries({ queryKey: ['funnelTemplates'] });
       toast.success('Template deletado');
     }
   });
