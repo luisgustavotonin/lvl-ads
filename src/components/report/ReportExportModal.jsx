@@ -84,70 +84,148 @@ export default function ReportExportModal({
     }, 400);
   };
 
-  const handleDownloadPDF = async () => {
-    setIsExporting(true);
-    try {
-      const content = exportRef.current;
-      if (!content) return;
+  const waitForFonts = async () => {
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+  } catch {}
+};
 
-      const TARGET_WIDTH_PX = 1200;
-      const prevWidth = content.style.width;
-      const prevMaxW = content.style.maxWidth;
+const waitForImages = async (root) => {
+  try {
+    const imgs = Array.from(root.querySelectorAll('img'));
+    await Promise.allSettled(
+      imgs.map(async (img) => {
+        if (img.complete) return;
+        await new Promise((res, rej) => {
+          img.onload = res;
+          img.onerror = rej;
+        });
+      })
+    );
+  } catch {}
+};
 
-      content.style.width = `${TARGET_WIDTH_PX}px`;
-      content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
+const handleDownloadPDF = async () => {
+  setIsExporting(true);
 
-      await new Promise((r) => setTimeout(r, 400));
+  try {
+    const content = exportRef.current;
+    if (!content) return;
+
+    // ===== Config PDF (A4 landscape + ~1cm margem)
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+
+    const pageW = pdf.internal.pageSize.getWidth();   // 297mm
+    const pageH = pdf.internal.pageSize.getHeight();  // 210mm
+    const margin = 10; // 10mm ~ 1cm
+    const innerW = pageW - margin * 2;
+    const innerH = pageH - margin * 2;
+
+    // ===== Trava o layout para não “reflowar”
+    const TARGET_WIDTH_PX = 1200;
+
+    const prevWidth = content.style.width;
+    const prevMaxW = content.style.maxWidth;
+    const prevOverflow = content.style.overflow;
+
+    content.style.width = `${TARGET_WIDTH_PX}px`;
+    content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
+    content.style.overflow = 'visible';
+
+    await waitForFonts();
+    await waitForImages(content);
+    await new Promise((r) => setTimeout(r, 250));
+
+    // ===== A “altura” de cada fatia em CSS px (pra caber no A4)
+    // Relação de aspecto do retângulo imprimível (innerW x innerH)
+    const sliceCssHeight = Math.floor((innerH / innerW) * TARGET_WIDTH_PX);
+
+    const totalHeight = Math.max(content.scrollHeight, content.offsetHeight);
+
+    // quality scale (sem exagerar para não travar)
+    const scale = 2;
+
+    let y = 0;
+    let pageIndex = 0;
+
+    while (y < totalHeight) {
+      const currentSliceHeight = Math.min(sliceCssHeight, totalHeight - y);
 
       const canvas = await html2canvas(content, {
-        scale: 2,
+        scale,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
-        windowWidth: TARGET_WIDTH_PX,
-        windowHeight: content.scrollHeight,
-        allowTaint: true,
-        imageTimeout: 0,
+
+        // recorta em “fatias” do conteúdo (evita canvas gigante)
+        width: TARGET_WIDTH_PX,
+        height: currentSliceHeight,
+        y,
+
         onclone: (clonedDocument) => {
-          const images = clonedDocument.querySelectorAll('img');
-          images.forEach(img => img.style.maxWidth = '100%');
-          // Remove truncate nas células de tabela
-          const cells = clonedDocument.querySelectorAll('td, th');
-          cells.forEach(cell => {
-            cell.style.whiteSpace = 'normal';
-            cell.style.overflow = 'visible';
-            cell.style.textOverflow = 'unset';
+          // remove itens que não devem exportar
+          clonedDocument
+            .querySelectorAll('[data-no-export="true"], .no-export, .no-print, [data-no-print="true"]')
+            .forEach((el) => (el.style.display = 'none'));
+
+          // evita cortes por overflow hidden
+          clonedDocument.querySelectorAll('[style*="overflow: hidden"], .overflow-hidden').forEach((el) => {
+            el.style.overflow = 'visible';
           });
-          const spans = clonedDocument.querySelectorAll('td span, td a');
-          spans.forEach(s => {
-            s.style.overflow = 'visible';
-            s.style.textOverflow = 'unset';
-            s.style.whiteSpace = 'normal';
+
+          // desliga animações/transições
+          clonedDocument.querySelectorAll('*').forEach((el) => {
+            el.style.animation = 'none';
+            el.style.transition = 'none';
           });
-        }
+
+          // tabelas sem truncate
+          clonedDocument.querySelectorAll('td, th, td span, td a').forEach((el) => {
+            el.style.whiteSpace = 'normal';
+            el.style.overflow = 'visible';
+            el.style.textOverflow = 'unset';
+            el.style.wordBreak = 'break-word';
+            el.style.maxWidth = 'none';
+          });
+        },
       });
 
-      content.style.width = prevWidth;
-      content.style.maxWidth = prevMaxW;
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.93);
+      // adiciona nova página (exceto a primeira)
+      if (pageIndex > 0) pdf.addPage();
 
-      const pdf = new jsPDF({
-        orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height],
-        compress: true,
-      });
+      // desenha a imagem dentro do retângulo imprimível com margens
+      // (mantém proporção: largura fixa no innerW)
+      const imgW = innerW;
+      const imgH = (canvas.height / canvas.width) * imgW;
 
-      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
-      pdf.save(`relatorio-${unit?.name || 'unidade'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      onExport();
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-    } finally {
-      setIsExporting(false);
+      pdf.addImage(imgData, 'JPEG', margin, margin, imgW, imgH, undefined, 'FAST');
+
+      // próximo slice
+      y += currentSliceHeight;
+      pageIndex += 1;
+
+      // pequeno respiro para não “engasgar” browser
+      await new Promise((r) => setTimeout(r, 30));
     }
-  };
+
+    // restaura estilos do container
+    content.style.width = prevWidth;
+    content.style.maxWidth = prevMaxW;
+    content.style.overflow = prevOverflow;
+
+    const safeUnit = (unit?.name || 'unidade').replace(/[^\w\- ]+/g, '').replace(/\s+/g, '-').trim();
+    pdf.save(`relatorio-${safeUnit}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+
+    onExport();
+  } catch (err) {
+    console.error('Erro ao gerar PDF:', err);
+  } finally {
+    setIsExporting(false);
+  }
+};
 
   if (!open) return null;
 
