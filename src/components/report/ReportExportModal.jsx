@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { X, Printer, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,196 +36,266 @@ export default function ReportExportModal({
     { id: 'demographic', label: 'Demográfico', description: 'Performance por Demográfico' },
   ];
 
-  const toggleSection = (sectionId) => {
-    setSelectedSections((prev) => ({
-      ...prev,
-      [sectionId]: !prev[sectionId],
-    }));
-  };
+  const toggleSection = useCallback((sectionId) => {
+    setSelectedSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  }, []);
 
-  const handleNextStep = () => {
+  const handleNextStep = useCallback(() => {
     setStep('preview');
     setIsGenerating(true);
     setTimeout(() => setIsGenerating(false), 350);
+  }, []);
+
+  // -----------------------------
+  // Helpers
+  // -----------------------------
+  const safeFileName = (name) =>
+    String(name || 'unidade')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\- ]+/g, '')
+      .replace(/\s+/g, '-')
+      .trim();
+
+  const waitForFonts = async () => {
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+    } catch {}
   };
 
-  const handlePrint = () => {
+  const waitForImages = async (root) => {
+    try {
+      const imgs = Array.from(root.querySelectorAll('img'));
+      await Promise.allSettled(
+        imgs.map(async (img) => {
+          if (img.complete) return;
+          await new Promise((res, rej) => {
+            img.onload = res;
+            img.onerror = rej;
+          });
+        })
+      );
+    } catch {}
+  };
+
+  const copyStylesTo = (targetDoc) => {
+    // Copia os estilos reais do app (Tailwind v3 + css do Base44 etc.)
+    const nodes = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'));
+    nodes.forEach((n) => targetDoc.head.appendChild(n.cloneNode(true)));
+  };
+
+  // Cria um “palco” offscreen (wrapper com overflow hidden) e clona o conteúdo dentro,
+  // movendo o clone para cima (translateY), para capturar em páginas sem depender de recorte nativo do html2canvas.
+  const renderSliceCanvas = async ({
+    sourceEl,
+    pageWidthPx,
+    sliceHeightPx,
+    offsetYPx,
+    scale,
+  }) => {
+    const stage = document.createElement('div');
+    stage.style.position = 'fixed';
+    stage.style.left = '-100000px';
+    stage.style.top = '0';
+    stage.style.width = `${pageWidthPx}px`;
+    stage.style.height = `${sliceHeightPx}px`;
+    stage.style.overflow = 'hidden';
+    stage.style.background = '#ffffff';
+    stage.style.zIndex = '2147483647';
+
+    // clone
+    const clone = sourceEl.cloneNode(true);
+
+    // garante que o clone respeite a largura que você vê no preview
+    clone.style.width = `${pageWidthPx}px`;
+    clone.style.maxWidth = `${pageWidthPx}px`;
+    clone.style.overflow = 'visible';
+
+    // move para mostrar a “fatia” correta
+    clone.style.transform = `translateY(-${offsetYPx}px)`;
+    clone.style.transformOrigin = 'top left';
+
+    stage.appendChild(clone);
+    document.body.appendChild(stage);
+
+    // Espera um “tick” pro browser aplicar layout
+    await new Promise((r) => setTimeout(r, 0));
+
+    const canvas = await html2canvas(stage, {
+      scale,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      imageTimeout: 0,
+      onclone: (clonedDocument) => {
+        // remove itens que não devem exportar
+        clonedDocument
+          .querySelectorAll('[data-no-export="true"], .no-export, .no-print, [data-no-print="true"]')
+          .forEach((el) => (el.style.display = 'none'));
+
+        // evita cortes por overflow hidden
+        clonedDocument.querySelectorAll('[style*="overflow: hidden"], .overflow-hidden').forEach((el) => {
+          el.style.overflow = 'visible';
+        });
+
+        // desliga animações/transições
+        clonedDocument.querySelectorAll('*').forEach((el) => {
+          el.style.animation = 'none';
+          el.style.transition = 'none';
+        });
+
+        // tabelas sem truncate
+        clonedDocument.querySelectorAll('td, th, td span, td a').forEach((el) => {
+          el.style.whiteSpace = 'normal';
+          el.style.overflow = 'visible';
+          el.style.textOverflow = 'unset';
+          el.style.wordBreak = 'break-word';
+          el.style.maxWidth = 'none';
+        });
+
+        // alguns charts/SVGs cortam com overflow hidden
+        clonedDocument.querySelectorAll('svg, canvas, .recharts-wrapper, .recharts-surface').forEach((el) => {
+          el.style.overflow = 'visible';
+        });
+      },
+    });
+
+    document.body.removeChild(stage);
+    return canvas;
+  };
+
+  // -----------------------------
+  // PRINT (corrigido: sem Tailwind CDN)
+  // -----------------------------
+  const handlePrint = useCallback(async () => {
     const content = exportRef.current;
     if (!content) return;
 
     const win = window.open('', '_blank');
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Relatório - ${unit?.name || 'Unified Ads'}</title>
-          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-          <style>
-            @media print {
-              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              .no-print, [data-no-export="true"] { display: none !important; }
-            }
-            body { font-family: Inter, system-ui, -apple-system, sans-serif; margin:0; }
-            /* Remove bordas dos cards de KPI no print */
-            .kpi-pdf-card { border: none !important; box-shadow: none !important; background: #f9fafb !important; }
-            td, th { white-space: normal !important; word-break: break-word !important; }
-          </style>
-        </head>
-        <body class="bg-white">
-          ${content.innerHTML}
-        </body>
-      </html>
-    `);
+    if (!win) return;
+
+    win.document.open();
+    win.document.write(`<!DOCTYPE html><html><head><title>Relatório - ${unit?.name || 'Unified Ads'}</title></head><body></body></html>`);
     win.document.close();
-    win.focus();
-    setTimeout(() => {
-      win.print();
-      win.close();
-    }, 400);
-  };
 
-  const waitForFonts = async () => {
-  try {
-    if (document.fonts?.ready) await document.fonts.ready;
-  } catch {}
-};
+    copyStylesTo(win.document);
 
-const waitForImages = async (root) => {
-  try {
-    const imgs = Array.from(root.querySelectorAll('img'));
-    await Promise.allSettled(
-      imgs.map(async (img) => {
-        if (img.complete) return;
-        await new Promise((res, rej) => {
-          img.onload = res;
-          img.onerror = rej;
-        });
-      })
-    );
-  } catch {}
-};
+    const extra = win.document.createElement('style');
+    extra.textContent = `
+      @page { size: A4 landscape; margin: 10mm; }
+      @media print {
+        body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .no-print, [data-no-export="true"], [data-no-print="true"] { display: none !important; }
+        * { animation: none !important; transition: none !important; }
+        .pdf-section, .card, .chart, .funnel, table { break-inside: avoid; page-break-inside: avoid; }
+      }
+      body { margin: 0; background: #fff; font-family: Inter, system-ui, -apple-system, sans-serif; }
+    `;
+    win.document.head.appendChild(extra);
 
-const handleDownloadPDF = async () => {
-  setIsExporting(true);
-
-  try {
-    const content = exportRef.current;
-    if (!content) return;
-
-    // ===== Config PDF (A4 landscape + ~1cm margem)
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
-
-    const pageW = pdf.internal.pageSize.getWidth();   // 297mm
-    const pageH = pdf.internal.pageSize.getHeight();  // 210mm
-    const margin = 10; // 10mm ~ 1cm
-    const innerW = pageW - margin * 2;
-    const innerH = pageH - margin * 2;
-
-    // ===== Trava o layout para não “reflowar”
-    const TARGET_WIDTH_PX = 1200;
-
-    const prevWidth = content.style.width;
-    const prevMaxW = content.style.maxWidth;
-    const prevOverflow = content.style.overflow;
-
-    content.style.width = `${TARGET_WIDTH_PX}px`;
-    content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
-    content.style.overflow = 'visible';
+    const clone = content.cloneNode(true);
+    win.document.body.appendChild(clone);
 
     await waitForFonts();
-    await waitForImages(content);
-    await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, 350));
 
-    // ===== A “altura” de cada fatia em CSS px (pra caber no A4)
-    // Relação de aspecto do retângulo imprimível (innerW x innerH)
-    const sliceCssHeight = Math.floor((innerH / innerW) * TARGET_WIDTH_PX);
+    win.focus();
+    win.print();
+    win.close();
+  }, [unit?.name]);
 
-    const totalHeight = Math.max(content.scrollHeight, content.offsetHeight);
+  // -----------------------------
+  // PDF (A4 landscape, margem 1cm, paginado, sem travar)
+  // -----------------------------
+  const handleDownloadPDF = useCallback(async () => {
+    setIsExporting(true);
 
-    // quality scale (sem exagerar para não travar)
-    const scale = 2;
+    try {
+      const content = exportRef.current;
+      if (!content) return;
 
-    let y = 0;
-    let pageIndex = 0;
+      // PDF A4 landscape com ~1cm de margem
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+      const pageWmm = pdf.internal.pageSize.getWidth();   // 297
+      const pageHmm = pdf.internal.pageSize.getHeight();  // 210
+      const marginMm = 10; // ~1cm
+      const innerWmm = pageWmm - marginMm * 2;
+      const innerHmm = pageHmm - marginMm * 2;
 
-    while (y < totalHeight) {
-      const currentSliceHeight = Math.min(sliceCssHeight, totalHeight - y);
+      // Largura “fixa” do preview (pra ficar igual à tela)
+      const TARGET_WIDTH_PX = 1200;
 
-      const canvas = await html2canvas(content, {
-        scale,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
+      // Congela layout para não reflowar
+      const prevWidth = content.style.width;
+      const prevMaxW = content.style.maxWidth;
+      const prevOverflow = content.style.overflow;
 
-        // recorta em “fatias” do conteúdo (evita canvas gigante)
-        width: TARGET_WIDTH_PX,
-        height: currentSliceHeight,
-        y,
+      content.style.width = `${TARGET_WIDTH_PX}px`;
+      content.style.maxWidth = `${TARGET_WIDTH_PX}px`;
+      content.style.overflow = 'visible';
 
-        onclone: (clonedDocument) => {
-          // remove itens que não devem exportar
-          clonedDocument
-            .querySelectorAll('[data-no-export="true"], .no-export, .no-print, [data-no-print="true"]')
-            .forEach((el) => (el.style.display = 'none'));
+      await waitForFonts();
+      await waitForImages(content);
+      await new Promise((r) => setTimeout(r, 250));
 
-          // evita cortes por overflow hidden
-          clonedDocument.querySelectorAll('[style*="overflow: hidden"], .overflow-hidden').forEach((el) => {
-            el.style.overflow = 'visible';
-          });
+      // Tamanho da fatia (em px) equivalente ao retângulo imprimível do A4
+      // sliceHeight = (innerH/innerW) * TARGET_WIDTH
+      const sliceHeightPx = Math.floor((innerHmm / innerWmm) * TARGET_WIDTH_PX);
 
-          // desliga animações/transições
-          clonedDocument.querySelectorAll('*').forEach((el) => {
-            el.style.animation = 'none';
-            el.style.transition = 'none';
-          });
+      // Altura total do conteúdo (o que dá problema quando tenta canvas gigante)
+      const totalHeightPx = Math.max(content.scrollHeight, content.offsetHeight);
 
-          // tabelas sem truncate
-          clonedDocument.querySelectorAll('td, th, td span, td a').forEach((el) => {
-            el.style.whiteSpace = 'normal';
-            el.style.overflow = 'visible';
-            el.style.textOverflow = 'unset';
-            el.style.wordBreak = 'break-word';
-            el.style.maxWidth = 'none';
-          });
-        },
-      });
+      // Scale moderado para não estourar memória
+      const scale = 2;
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      let offsetY = 0;
+      let pageIndex = 0;
 
-      // adiciona nova página (exceto a primeira)
-      if (pageIndex > 0) pdf.addPage();
+      while (offsetY < totalHeightPx) {
+        const remaining = totalHeightPx - offsetY;
+        const currentSliceHeight = Math.min(sliceHeightPx, remaining);
 
-      // desenha a imagem dentro do retângulo imprimível com margens
-      // (mantém proporção: largura fixa no innerW)
-      const imgW = innerW;
-      const imgH = (canvas.height / canvas.width) * imgW;
+        const canvas = await renderSliceCanvas({
+          sourceEl: content,
+          pageWidthPx: TARGET_WIDTH_PX,
+          sliceHeightPx: currentSliceHeight,
+          offsetYPx: offsetY,
+          scale,
+        });
 
-      pdf.addImage(imgData, 'JPEG', margin, margin, imgW, imgH, undefined, 'FAST');
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
 
-      // próximo slice
-      y += currentSliceHeight;
-      pageIndex += 1;
+        if (pageIndex > 0) pdf.addPage();
 
-      // pequeno respiro para não “engasgar” browser
-      await new Promise((r) => setTimeout(r, 30));
+        // Coloca a imagem dentro do retângulo imprimível (com margens)
+        // Mantém proporção usando innerWmm
+        const imgWmm = innerWmm;
+        const imgHmm = (canvas.height / canvas.width) * imgWmm;
+
+        pdf.addImage(imgData, 'JPEG', marginMm, marginMm, imgWmm, imgHmm, undefined, 'FAST');
+
+        offsetY += currentSliceHeight;
+        pageIndex += 1;
+
+        // respiro para o browser
+        await new Promise((r) => setTimeout(r, 20));
+      }
+
+      // restaura layout
+      content.style.width = prevWidth;
+      content.style.maxWidth = prevMaxW;
+      content.style.overflow = prevOverflow;
+
+      const fileUnit = safeFileName(unit?.name || 'unidade');
+      pdf.save(`relatorio-${fileUnit}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      onExport();
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+    } finally {
+      setIsExporting(false);
     }
-
-    // restaura estilos do container
-    content.style.width = prevWidth;
-    content.style.maxWidth = prevMaxW;
-    content.style.overflow = prevOverflow;
-
-    const safeUnit = (unit?.name || 'unidade').replace(/[^\w\- ]+/g, '').replace(/\s+/g, '-').trim();
-    pdf.save(`relatorio-${safeUnit}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-
-    onExport();
-  } catch (err) {
-    console.error('Erro ao gerar PDF:', err);
-  } finally {
-    setIsExporting(false);
-  }
-};
+  }, [unit?.name, onExport]);
 
   if (!open) return null;
 
@@ -265,7 +335,8 @@ const handleDownloadPDF = async () => {
                 </Button>
               </>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose}>
+
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -285,7 +356,11 @@ const handleDownloadPDF = async () => {
                       key={section.id}
                       className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                     >
-                      <Checkbox checked={selectedSections[section.id]} onCheckedChange={() => toggleSection(section.id)} className="mt-1" />
+                      <Checkbox
+                        checked={selectedSections[section.id]}
+                        onCheckedChange={() => toggleSection(section.id)}
+                        className="mt-1"
+                      />
                       <div>
                         <p className="font-medium text-gray-900">{section.label}</p>
                         <p className="text-sm text-gray-500">{section.description}</p>
@@ -315,11 +390,9 @@ const handleDownloadPDF = async () => {
                   boxSizing: 'border-box',
                 }}
               >
-                {/* CSS para PDF: remove bordas dos cards, corrige tabelas */}
                 <style>{`
-                  /* Remove botões de edição */
-                  [data-no-export="true"],
-                  .no-export { display:none !important; }
+                  /* Remove botões/elementos marcados para não exportar */
+                  [data-no-export="true"], .no-export { display:none !important; }
 
                   /* KPI cards sem borda no PDF */
                   .kpi-pdf-card {
@@ -328,21 +401,16 @@ const handleDownloadPDF = async () => {
                     background-color: #f9fafb !important;
                     border-radius: 8px !important;
                   }
-                  .kpi-pdf-card > * {
-                    background-color: transparent !important;
-                  }
+                  .kpi-pdf-card > * { background-color: transparent !important; }
 
-                  /* Funil: garantir que clip-path e cores apareçam */
+                  /* Funil: garantir cores */
                   .funnel-stage {
                     -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
                   }
 
                   /* Tabelas: texto sem corte */
-                  table {
-                    width: 100%;
-                    table-layout: auto !important;
-                  }
+                  table { width: 100%; table-layout: auto !important; }
                   td, th {
                     white-space: normal !important;
                     word-break: break-word !important;
@@ -352,13 +420,13 @@ const handleDownloadPDF = async () => {
                     padding: 6px 8px;
                     font-size: 11px;
                   }
-                  td span {
+                  td span, td a {
                     white-space: normal !important;
                     overflow: visible !important;
                     text-overflow: unset !important;
                   }
 
-                  /* Seções */
+                  /* Seções: evita quebra “feia” no print */
                   .pdf-section {
                     page-break-inside: avoid;
                     break-inside: avoid;
@@ -366,7 +434,7 @@ const handleDownloadPDF = async () => {
                   }
                 `}</style>
 
-                {/* Header */}
+                {/* Header do relatório */}
                 <div className="border-b-2 border-gray-200 pb-6 mb-6">
                   <div className="flex items-start gap-6">
                     {unit?.logo_url ? (
@@ -381,7 +449,9 @@ const handleDownloadPDF = async () => {
                     )}
 
                     <div className="flex-1">
-                      <h1 className="text-2xl font-bold text-gray-900 mb-1">Relatório de Performance - {unit?.name || 'Mídia Paga'}</h1>
+                      <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                        Relatório de Performance - {unit?.name || 'Mídia Paga'}
+                      </h1>
                       <p className="text-gray-500 text-sm mb-3">Análise completa de performance publicitária</p>
 
                       <div className="grid grid-cols-3 gap-4 text-sm">
@@ -399,14 +469,15 @@ const handleDownloadPDF = async () => {
                         </div>
                         <div>
                           <p className="text-gray-500 text-xs">Gerado em</p>
-                          <p className="font-semibold text-gray-900">{format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                          <p className="font-semibold text-gray-900">
+                            {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Conteúdo */}
                 {isGenerating ? (
                   <div className="py-12 text-center text-gray-500 flex items-center justify-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -423,21 +494,27 @@ const handleDownloadPDF = async () => {
 
                     {selectedSections.platforms && children?.platforms && (
                       <div className="pdf-section">
-                        <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Performance por Plataforma</h2>
+                        <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                          Performance por Plataforma
+                        </h2>
                         {children.platforms}
                       </div>
                     )}
 
                     {selectedSections.device && children?.device && (
                       <div className="pdf-section">
-                        <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Performance por Device</h2>
+                        <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                          Performance por Device
+                        </h2>
                         {children.device}
                       </div>
                     )}
 
                     {selectedSections.demographic && children?.demographic && (
                       <div className="pdf-section">
-                        <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Performance Demográfica</h2>
+                        <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                          Performance Demográfica
+                        </h2>
                         {children.demographic}
                       </div>
                     )}
