@@ -16,7 +16,8 @@ export default function KPICardWithComparison({
   formatValue,
   unitId,
   isAdmin,
-  thresholdStatus 
+  thresholdStatus,
+  isPDF = false
 }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [customLabel, setCustomLabel] = React.useState(label);
