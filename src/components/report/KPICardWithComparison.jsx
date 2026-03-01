@@ -80,8 +80,13 @@ export default function KPICardWithComparison({
     valueColor = 'text-red-700';
   }
 
+  // No PDF: sem borda colorida, fundo neutro
+  const cardClass = isPDF
+    ? 'bg-gray-50 border-0 shadow-none kpi-pdf-card'
+    : `${bgColor} border ${borderColor} shadow-sm hover:shadow-md transition-shadow`;
+
   return (
-    <Card className={`${bgColor} border ${borderColor} shadow-sm hover:shadow-md transition-shadow`}>
+    <Card className={cardClass}>
       <CardContent className="p-3 sm:p-5">
         <div className="flex items-start justify-between mb-1 sm:mb-2">
           <div className="text-xs sm:text-sm text-gray-600 font-medium leading-tight">{customLabel}</div>
