@@ -46,6 +46,7 @@ export default function RankingTable({
   const [visibleColumns, setVisibleColumns] = useState(ALL_COLUMNS.map((c) => c.key));
   const [sortConfig, setSortConfig] = useState({ key: 'conversations', direction: 'desc' });
   const [colWidths, setColWidths] = useState({});
+  const configLoadedRef = useRef(false);
   const resizingRef = useRef(null);
 
   const startResize = useCallback((e, colKey) => {
