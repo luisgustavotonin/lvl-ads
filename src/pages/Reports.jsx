@@ -820,7 +820,7 @@ export default function Reports() {
           children={{
             overview: (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4" data-pdf-element>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-6">
                   {selectedKPIs.map((kpiId) => {
                     const kpi = ALL_KPIS.find((k) => k.id === kpiId);
                     if (!kpi) return null;
@@ -834,23 +834,18 @@ export default function Reports() {
                         previousValue={previous[kpi.id]}
                         formatValue={kpi.format}
                         unitId={selectedUnit}
-                        isAdmin={user && user.role === 'admin'}
+                        isAdmin={false}
+                        isPDF={true}
                         thresholdStatus={evaluateThreshold(kpi.id, current[kpi.id])}
                       />
                     );
                   })}
                 </div>
 
-                <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-8 break-inside-avoid" data-pdf-section>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
-                    <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
-                  </div>
-
-                  <div className="overflow-hidden pb-2">
-                    <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
-                  </div>
-                </Card>
+                <div className="bg-white border border-gray-100 rounded-lg p-6 mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Funil de Conversão</h3>
+                  <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
+                </div>
 
                 <div className="space-y-4 pt-4" data-pdf-element>
                   <h3 className="text-base font-semibold text-gray-700">Gráficos por Dia</h3>
