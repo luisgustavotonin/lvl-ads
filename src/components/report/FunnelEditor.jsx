@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Settings2, GripVertical, X, Save } from 'lucide-react';
@@ -38,7 +38,7 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
   );
 
   // Sincroniza stages internos quando o dialog abre (pega as cores salvas)
-  React.useEffect(() => {
+  useEffect(() => {
     if (open) {
       setStages(
         (currentStages || []).map((s, i) => ({ ...s, color: s.color || STAGE_COLORS[i % STAGE_COLORS.length] }))
