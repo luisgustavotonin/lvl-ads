@@ -326,7 +326,12 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
                  >
                    <div className="flex-1">
                      <p className="font-medium text-sm">{template.name}</p>
-                     <p className="text-xs text-gray-500">{template.stages.length} estágios</p>
+                     <div className="flex items-center gap-1 mt-1">
+                       {template.stages.map((s, i) => (
+                         <span key={i} className="w-3 h-3 rounded-full inline-block border border-white shadow-sm" style={{ backgroundColor: s.color || '#3B82F6' }} title={s.label} />
+                       ))}
+                       <span className="text-xs text-gray-400 ml-1">{template.stages.length} etapas</span>
+                     </div>
                    </div>
                    <div className="flex gap-2">
                      <Button
