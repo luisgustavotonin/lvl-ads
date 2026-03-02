@@ -157,12 +157,14 @@ export default function Dashboard() {
       </div>
 
       {/* Meta Funnel Section */}
-      <MetaFunnelSection 
-        unitId={null}
-        period="custom"
-        customStartDate={period.start}
-        customEndDate={period.end}
-      />
+      {units.length > 0 && (
+        <MetaFunnelSection 
+          unitId={units[0]?.id || null}
+          period="custom"
+          customStartDate={period.start}
+          customEndDate={period.end}
+        />
+      )}
 
       {/* Chart and Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
