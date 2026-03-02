@@ -455,6 +455,15 @@ export default function Users() {
 
           <div className="space-y-6 py-4">
             <div className="space-y-2">
+              <Label>Nome completo</Label>
+              <Input
+                value={formData.full_name}
+                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                placeholder="Nome da pessoa"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Perfil de Acesso</Label>
               <Select
                 value={formData.profile_id}
