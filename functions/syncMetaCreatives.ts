@@ -41,6 +41,11 @@ async function upsertBatch(entity, rows) {
       await entity.update(existingMap.get(r.unique_key), r);
     }
     written += chunk.length;
+
+    // Pausa entre chunks para não exceder rate limit da plataforma
+    if (i + CHUNK_SIZE < deduped.length) {
+      await sleep(DELAY_BETWEEN_CHUNKS);
+    }
   }
   return written;
 }
