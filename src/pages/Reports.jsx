@@ -188,8 +188,11 @@ export default function Reports() {
     enabled: !!selectedUnit,
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (units.length > 0 && !selectedUnit) {
+      setSelectedUnit(units[0].id);
+    } else if (units.length > 0 && selectedUnit && !units.find(u => u.id === selectedUnit)) {
+      // Unidade selecionada não está mais acessível, reset para a primeira
       setSelectedUnit(units[0].id);
     }
   }, [units, selectedUnit]);
