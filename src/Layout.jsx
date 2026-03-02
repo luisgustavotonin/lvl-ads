@@ -18,30 +18,30 @@ import {
   LogOut,
   Bell,
   Zap,
-  Clock } from
-'lucide-react';
+  Clock
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger } from
-'@/components/ui/dropdown-menu';
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navigation = [
-{ name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard, permission: 'view_dashboard' },
-{ name: 'Relatórios', href: 'Reports', icon: FileText, permission: 'view_reports' },
-{ name: 'Unidades', href: 'Units', icon: Building2, permission: 'manage_units' },
-{ name: 'Integrações', href: 'Integrations', icon: Link2, permission: 'manage_integrations' },
-{ name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap, permission: 'manage_data' },
-{ name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell, permission: 'manage_permissions' },
-{ name: 'Perfis', href: 'Profiles', icon: Shield, permission: 'manage_profiles' },
-{ name: 'Usuários', href: 'Users', icon: Users, permission: 'manage_users' },
-{ name: 'Agendamentos', href: 'IngestSchedules', icon: Clock, permission: 'manage_schedules' },
-{ name: 'Gestão de Dados', href: 'DataManagement', icon: Database, permission: 'manage_data' },
-{ name: 'Configurações', href: 'Settings', icon: Settings, permission: 'admin_only' }];
-
+  { name: 'Dashboard',         href: 'Dashboard',       icon: LayoutDashboard, permission: 'view_dashboard' },
+  { name: 'Relatórios',        href: 'Reports',         icon: FileText,        permission: 'view_reports' },
+  { name: 'Unidades',          href: 'Units',           icon: Building2,       permission: 'manage_units' },
+  { name: 'Integrações',       href: 'Integrations',    icon: Link2,           permission: 'manage_integrations' },
+  { name: 'Ingestão Meta',     href: 'MetaIngest',      icon: Zap,             permission: 'manage_data' },
+  { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell,        permission: 'manage_permissions' },
+  { name: 'Perfis',            href: 'Profiles',        icon: Shield,          permission: 'manage_profiles' },
+  { name: 'Usuários',          href: 'Users',           icon: Users,           permission: 'manage_users' },
+  { name: 'Agendamentos',      href: 'IngestSchedules', icon: Clock,           permission: 'manage_schedules' },
+  { name: 'Gestão de Dados',   href: 'DataManagement',  icon: Database,        permission: 'manage_data' },
+  { name: 'Configurações',     href: 'Settings',        icon: Settings,        permission: 'admin_only' },
+];
 
 export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,7 +61,7 @@ export default function Layout({ children, currentPageName }) {
 
         // Busca todos UserProfiles e filtra pelo user_id = me.id
         const allUserProfiles = await base44.entities.UserProfile.list();
-        const myUserProfile = allUserProfiles.find((up) => up.user_id === me.id);
+        const myUserProfile = allUserProfiles.find(up => up.user_id === me.id);
 
         if (!myUserProfile || !myUserProfile.profile_id) {
           setAuthState({ user: me, permissions: {}, loading: false });
@@ -70,7 +70,7 @@ export default function Layout({ children, currentPageName }) {
 
         // Busca todos Profiles e filtra pelo id = profile_id
         const allProfiles = await base44.entities.Profile.list();
-        const myProfile = allProfiles.find((p) => p.id === myUserProfile.profile_id);
+        const myProfile = allProfiles.find(p => p.id === myUserProfile.profile_id);
 
         const permissions = myProfile?.permissions || {};
         setAuthState({ user: me, permissions, loading: false });
@@ -99,16 +99,16 @@ export default function Layout({ children, currentPageName }) {
 
   const getInitials = (name) => {
     if (!name) return 'U';
-    return name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const visibleNav = navigation.filter((item) => canAccess(item.permission));
+  const visibleNav = navigation.filter(item => canAccess(item.permission));
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900 text-white' : 'bg-gray-50'}`}>
-      {sidebarOpen &&
-      <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      }
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
 
       <aside className={cn(
         "fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0",
@@ -121,8 +121,7 @@ export default function Layout({ children, currentPageName }) {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                 <FileText className="w-4 h-4 text-white" />
               </div>
-              <span className="font-semibold text-gray-900">LVL Insights
-              </span>
+              <span className="font-semibold text-gray-900">LVL Insights</span>
             </div>
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
               <X className="w-5 h-5" />
@@ -131,28 +130,29 @@ export default function Layout({ children, currentPageName }) {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {loading ? <div className="px-3 py-2 text-sm text-gray-400">Carregando...</div> :
-
-            visibleNav.map((item) => {
-              const isActive = currentPageName === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={createPageUrl(item.href)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    isActive ?
-                    "bg-blue-50 text-blue-600" :
-                    "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                  onClick={() => setSidebarOpen(false)}>
-
+            {loading ? (
+              <div className="px-3 py-2 text-sm text-gray-400">Carregando...</div>
+            ) : (
+              visibleNav.map((item) => {
+                const isActive = currentPageName === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={createPageUrl(item.href)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    )}
+                    onClick={() => setSidebarOpen(false)}
+                  >
                     <item.icon className={cn("w-5 h-5", isActive ? "text-blue-600" : "text-gray-400")} />
                     {item.name}
-                  </Link>);
-
-            })
-            }
+                  </Link>
+                );
+              })
+            )}
           </nav>
 
           {/* User */}
@@ -203,6 +203,6 @@ export default function Layout({ children, currentPageName }) {
           {children}
         </main>
       </div>
-    </div>);
-
+    </div>
+  );
 }
