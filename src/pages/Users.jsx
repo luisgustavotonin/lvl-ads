@@ -57,6 +57,7 @@ export default function Users() {
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [formData, setFormData] = useState({
+    full_name: '',
     profile_id: '',
     unit_ids: [],
   });
