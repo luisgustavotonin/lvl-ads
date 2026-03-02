@@ -140,7 +140,7 @@ export default function Users() {
     if (!inviteEmail) return;
     setInviteLoading(true);
     try {
-      await base44.users.inviteUser(inviteEmail, inviteRole);
+      await base44.users.inviteUser(inviteEmail, inviteRole, { full_name: inviteName || undefined });
       // Aguarda o usuário ser criado antes de salvar o perfil
       await new Promise((r) => setTimeout(r, 1500));
       const freshUsers = await base44.entities.User.list();
