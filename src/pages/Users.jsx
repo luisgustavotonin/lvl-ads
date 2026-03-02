@@ -293,7 +293,6 @@ export default function Users() {
                     <div
                       key={unit.id}
                       className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                      onClick={() => toggleInviteUnit(unit.id)}
                     >
                       <Checkbox
                         checked={inviteUnitIds.includes(unit.id)}
