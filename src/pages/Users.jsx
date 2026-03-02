@@ -152,6 +152,7 @@ export default function Users() {
           unit_ids: inviteUnitIds,
         });
       }
+      setInviteName('');
       setInviteEmail('');
       setInviteRole('user');
       setInviteProfileId('');
