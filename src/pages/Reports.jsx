@@ -141,10 +141,25 @@ export default function Reports() {
     queryFn: () => base44.auth.me(),
   });
 
-  const { data: units = [], isLoading: unitsLoading } = useQuery({
+  const { data: allUnits = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
   });
+
+  const { data: userProfiles = [] } = useQuery({
+    queryKey: ['userProfiles'],
+    queryFn: () => base44.entities.UserProfile.list(),
+    enabled: !!user && user.role !== 'admin',
+  });
+
+  // Filtra unidades conforme permissão do usuário
+  const units = useMemo(() => {
+    if (!user) return allUnits;
+    if (user.role === 'admin') return allUnits;
+    const myProfile = userProfiles.find(up => up.user_id === user.id);
+    if (!myProfile || !myProfile.unit_ids || myProfile.unit_ids.length === 0) return allUnits;
+    return allUnits.filter(u => myProfile.unit_ids.includes(u.id));
+  }, [user, allUnits, userProfiles]);
 
   const { data: preference } = useQuery({
     queryKey: ['reportPreference', selectedUnit],
