@@ -480,7 +480,6 @@ export default function Users() {
                   <div 
                     key={unit.id}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    onClick={() => toggleUnit(unit.id)}
                   >
                     <Checkbox
                       checked={formData.unit_ids?.includes(unit.id)}
