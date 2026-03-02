@@ -102,9 +102,11 @@ Deno.serve(async (req) => {
     // fields otimizados: status do anúncio + apenas campos essenciais do creative
     const fields = 'id,campaign_id,effective_status,status,creative{id,object_type,thumbnail_url,image_url,video_id}';
 
+    // Filtra somente anúncios ativos (ACTIVE) para não sincronizar pausados/arquivados
     const url =
       `${META_BASE}/act_${actId}/ads?` +
       `fields=${encodeURIComponent(fields)}` +
+      `&effective_status=["ACTIVE"]` +
       `&limit=${PAGE_LIMIT}` +
       `&access_token=${encodeURIComponent(meta_token)}`;
 
