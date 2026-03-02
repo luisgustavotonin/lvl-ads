@@ -49,6 +49,7 @@ export default function Users() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
+  const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
   const [inviteProfileId, setInviteProfileId] = useState('');
