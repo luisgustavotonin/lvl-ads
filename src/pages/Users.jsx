@@ -150,17 +150,33 @@ export default function Users() {
     setInviteLoading(true);
     try {
       await base44.users.inviteUser(inviteEmail, inviteRole, { full_name: inviteName || undefined });
-      // Aguarda o usuário ser criado antes de salvar o perfil
-      await new Promise((r) => setTimeout(r, 1500));
-      const freshUsers = await base44.entities.User.list();
-      const newUser = freshUsers.find((u) => u.email === inviteEmail);
-      if (newUser && (inviteProfileId || inviteUnitIds.length > 0)) {
-        await base44.entities.UserProfile.create({
-          user_id: newUser.id,
-          profile_id: inviteProfileId || undefined,
-          unit_ids: inviteUnitIds,
-        });
+
+      // Tenta até 5x com 1s de intervalo para o usuário aparecer no sistema
+      let newUser = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const freshUsers = await base44.entities.User.list();
+        newUser = freshUsers.find((u) => u.email === inviteEmail);
+        if (newUser) break;
       }
+
+      if (newUser && (inviteProfileId || inviteUnitIds.length > 0)) {
+        // Verifica se já existe UserProfile para evitar duplicatas
+        const existingProfiles = await base44.entities.UserProfile.filter({ user_id: newUser.id });
+        if (existingProfiles.length > 0) {
+          await base44.entities.UserProfile.update(existingProfiles[0].id, {
+            profile_id: inviteProfileId || existingProfiles[0].profile_id,
+            unit_ids: inviteUnitIds,
+          });
+        } else {
+          await base44.entities.UserProfile.create({
+            user_id: newUser.id,
+            profile_id: inviteProfileId || undefined,
+            unit_ids: inviteUnitIds,
+          });
+        }
+      }
+
       setInviteName('');
       setInviteEmail('');
       setInviteRole('user');
