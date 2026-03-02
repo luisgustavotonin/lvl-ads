@@ -122,18 +122,25 @@ export default function Users() {
     setEditingUser(null);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // Atualiza nome do usuário se mudou
+    if (formData.full_name && formData.full_name !== editingUser.full_name) {
+      await base44.entities.User.update(editingUser.id, { full_name: formData.full_name });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    }
+
     const existingUserProfile = userProfiles.find(up => up.user_id === editingUser.id);
-    
+    const profileData = { profile_id: formData.profile_id, unit_ids: formData.unit_ids };
+
     if (existingUserProfile) {
       updateUserProfileMutation.mutate({
         id: existingUserProfile.id,
-        data: { ...formData, user_id: editingUser.id }
+        data: { ...profileData, user_id: editingUser.id }
       });
     } else {
       createUserProfileMutation.mutate({
         user_id: editingUser.id,
-        ...formData
+        ...profileData
       });
     }
   };
