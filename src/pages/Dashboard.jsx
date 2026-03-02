@@ -33,12 +33,33 @@ export default function Dashboard() {
     end: new Date(),
   });
 
-  const { data: units = [], isLoading: unitsLoading } = useQuery({
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
+  const { data: allUnits = [], isLoading: unitsLoading } = useQuery({
     queryKey: ['units'],
     queryFn: () => base44.entities.Unit.list(),
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
+  const { data: userProfiles = [] } = useQuery({
+    queryKey: ['userProfiles'],
+    queryFn: () => base44.entities.UserProfile.list(),
+    enabled: !!currentUser && currentUser.role !== 'admin',
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Filtra unidades conforme permissão do usuário
+  const units = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'admin') return allUnits;
+    const myProfile = userProfiles.find(up => up.user_id === currentUser.id);
+    if (!myProfile || !myProfile.unit_ids || myProfile.unit_ids.length === 0) return allUnits;
+    return allUnits.filter(u => myProfile.unit_ids.includes(u.id));
+  }, [currentUser, allUnits, userProfiles]);
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', period.start, period.end],
