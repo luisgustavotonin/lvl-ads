@@ -110,6 +110,7 @@ export default function Users() {
     const userProfile = userProfiles.find(up => up.user_id === user.id);
     setEditingUser(user);
     setFormData({
+      full_name: user.full_name || '',
       profile_id: userProfile?.profile_id || '',
       unit_ids: userProfile?.unit_ids || [],
     });
