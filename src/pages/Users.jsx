@@ -230,6 +230,17 @@ export default function Users() {
           )}
 
           <div className="space-y-4">
+            {/* Nome */}
+            <div>
+              <Label className="text-xs text-gray-500 mb-1 block">Nome completo</Label>
+              <Input
+                type="text"
+                placeholder="Nome da pessoa"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+              />
+            </div>
+
             {/* Email + Role */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
