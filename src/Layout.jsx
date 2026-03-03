@@ -161,9 +161,11 @@ export default function Layout({ children, currentPageName }) {
           <div className="px-4 py-6 border-b border-gray-100">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 flex items-center gap-3">
               <div className="w-14 h-14 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-200">
-                <div className="w-16 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center text-white font-bold text-lg">
-                  LVL
-                </div>
+                <img 
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/ede7e1dec_6824a59a24a8cd8416895e42_lvl.png" 
+                  alt="LVL Logo" 
+                  className="w-16 h-12 object-contain"
+                />
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-medium">LVL</p>
