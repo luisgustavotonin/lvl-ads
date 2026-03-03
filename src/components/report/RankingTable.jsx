@@ -97,28 +97,27 @@ export default function RankingTable({
     }
   }, [config, groupKey]);
 
-  // Salvar configurações apenas quando o usuário tem permissão para editar
-  useEffect(() => {
-    if (!unitId || !configLoadedRef.current || !canEditColumns) return;
-    const saveConfig = async () => {
-      try {
-        const existing = await base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
-        const newConfig = {
-          ...existing?.ranking_table_configs,
-          [groupKey]: { columnOrder, visibleColumns, limit }
-        };
-        if (existing) {
-          await base44.entities.ReportPreference.update(existing.id, { ranking_table_configs: newConfig });
-        } else {
-          await base44.entities.ReportPreference.create({ unit_id: unitId, ranking_table_configs: newConfig });
-        }
-      } catch (err) {
-        console.error('Erro ao salvar config de ranking table:', err);
+  // Salvar manualmente (apenas admin com canEditColumns)
+  const handleSaveConfig = async () => {
+    if (!unitId || !canEditColumns) return;
+    try {
+      const existing = await base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
+      const newConfig = {
+        ...existing?.ranking_table_configs,
+        [groupKey]: { columnOrder, visibleColumns, limit }
+      };
+      if (existing) {
+        await base44.entities.ReportPreference.update(existing.id, { ranking_table_configs: newConfig });
+      } else {
+        await base44.entities.ReportPreference.create({ unit_id: unitId, ranking_table_configs: newConfig });
       }
-    };
-    const timeoutId = setTimeout(saveConfig, 800);
-    return () => clearTimeout(timeoutId);
-  }, [columnOrder, visibleColumns, limit, unitId, groupKey, canEditColumns]);
+      queryClient.invalidateQueries({ queryKey: ['rankingTableConfig', unitId, groupKey] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Erro ao salvar config de ranking table:', err);
+    }
+  };
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
