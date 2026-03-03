@@ -452,14 +452,13 @@ export default function MetaIngest() {
         refetch();
         return;
       }
-
-      refetch();
     }
 
     setRunningQueue(false);
     runningRef.current = false;
     localStorage.removeItem('ingestQueue');
     toast.success('Fila concluída!');
+    refetch();
     queryClient.invalidateQueries({ queryKey: ['metaIngestRuns'] });
   };
 
