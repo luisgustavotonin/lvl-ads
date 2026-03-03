@@ -299,7 +299,7 @@ export default function Reports() {
   const { data: previousMetrics = [] } = useQuery({
     queryKey: ['previousMetrics', selectedUnit, previousPeriod.start, previousPeriod.end, selectedPlatforms],
     queryFn: async () => {
-      if (!selectedUnit) return [];
+      if (!selectedUnit || !period) return [];
       if (!selectedPlatforms.includes('META')) return [];
 
       const unit = units.find((u) => u.id === selectedUnit);
