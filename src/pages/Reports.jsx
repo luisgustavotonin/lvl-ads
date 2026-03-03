@@ -211,15 +211,13 @@ export default function Reports() {
     if (periodInitialized) return;
     if (userPermissions === null) return; // ainda carregando
 
-    let defaultPeriodKey = 'last_30_days';
-    if (userPermissions !== 'ADMIN') {
-      const myUserProfile = userProfiles.find(up => up.user_id === user?.id);
-      const myProfile = allProfiles.find(p => p.id === myUserProfile?.profile_id);
-      if (myProfile?.default_period) defaultPeriodKey = myProfile.default_period;
+    let defaultPeriodKey = 'last_30';
+    if (userPermissions !== 'ADMIN' && userProfileData?.default_period) {
+      defaultPeriodKey = userProfileData.default_period;
     }
     setPeriod(getDefaultPeriodDates(defaultPeriodKey));
     setPeriodInitialized(true);
-  }, [userPermissions, userProfiles, allProfiles, periodInitialized]);
+  }, [userPermissions, userProfileData, periodInitialized]);
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
