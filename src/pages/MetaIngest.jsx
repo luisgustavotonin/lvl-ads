@@ -297,12 +297,29 @@ export default function MetaIngest() {
     updateItem(queueId, { status: 'running' });
 
     try {
-      const result = await base44.functions.invoke('runMetaIngest', {
+      // Passo 1: Enfileirar o job
+      const jobKey = buildJobKey(unit.account_id, form.date_from, form.date_to, mode);
+      
+      const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
         account_id: unit.account_id,
         unit_id: unit.id,
         date_from: form.date_from,
         date_to: form.date_to,
         meta_token: unit.secret_token,
+        mode,
+        force: form.force,
+      });
+
+      if (enqRes.data?.error) {
+        updateItem(queueId, { status: 'failed', error: enqRes.data.error });
+        return false;
+      }
+
+      // Passo 2: Executar o job com o job_key
+      const result = await base44.functions.invoke('runMetaIngest', {
+        job_key: jobKey,
+        meta_token: unit.secret_token,
+        unit_id: unit.id,
         mode,
         force: form.force,
       });
