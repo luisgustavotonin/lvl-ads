@@ -116,7 +116,8 @@ export default function Profiles() {
     color: COLORS[0],
     permissions: {},
     status: 'active',
-    default_period: 'last_30_days',
+    default_period: 'last_30',
+    allowed_periods: [],
   });
 
   const { data: profiles = [], isLoading } = useQuery({
