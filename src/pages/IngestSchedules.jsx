@@ -409,12 +409,18 @@ export default function IngestSchedules() {
 
                 <div className="flex items-center gap-2">
                   <Switch checked={s.is_active} onCheckedChange={() => handleToggleActive(s)} />
-                  <button title="Executar agora" className="text-green-500 hover:text-green-700" onClick={() => handleRunNow(s)} disabled={runningId === s.id}>
-                    {runningId === s.id
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <Play className="w-4 h-4" />
-                    }
-                  </button>
+                  {s.last_status === 'running' ? (
+                    <button title="Parar agora" className="text-red-500 hover:text-red-700" onClick={() => handleStopSchedule(s)}>
+                      <StopCircle className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button title="Executar agora" className="text-green-500 hover:text-green-700" onClick={() => handleRunNow(s)} disabled={runningId === s.id}>
+                      {runningId === s.id
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <Play className="w-4 h-4" />
+                      }
+                    </button>
+                  )}
                   <button title="Editar" className="text-gray-400 hover:text-blue-500" onClick={() => openEdit(s)}>
                     <Edit2 className="w-4 h-4" />
                   </button>
