@@ -106,110 +106,105 @@ Deno.serve(async (req) => {
       last_log: `Iniciado em ${nowBrasilia} (horário Brasília)`
     });
 
-    let totalRows = 0;
-    let hasError = false;
+    // Enfileirar TODOS os jobs de uma vez, sem delays
+     const jobsToEnqueue = [];
 
-    for (const unit of units) {
-      if (!unit.account_id || !unit.secret_token) {
-        scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id ou token' });
-        continue;
-      }
+     for (const unit of units) {
+       if (!unit.account_id || !unit.secret_token) {
+         scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id ou token' });
+         continue;
+       }
 
-      for (let modeIdx = 0; modeIdx < modes.length; modeIdx++) {
-        const mode = modes[modeIdx];
-        const job_key = simpleHash(`${unit.account_id}:${date_from}:${date_to}:${mode}:sched`);
+       for (const mode of modes) {
+         const job_key = simpleHash(`${unit.account_id}:${date_from}:${date_to}:${mode}:sched`);
+         jobsToEnqueue.push({
+           account_id: unit.account_id,
+           unit_id: unit.id,
+           date_from,
+           date_to,
+           job_type: 'insights',
+           level: 'ad',
+           breakdowns: [],
+           force: schedule.force || false,
+           meta_token: unit.secret_token,
+           mode,
+           job_key_override: job_key,
+           trigger_type: 'scheduled',
+           schedule_name: schedule.name,
+         });
+       }
+     }
 
-        try {
-          // Enqueue
-          const enqRes = await base44.asServiceRole.functions.invoke('enqueueMetaIngest', {
-            account_id: unit.account_id,
-            unit_id: unit.id,
-            date_from,
-            date_to,
-            job_type: 'insights',
-            level: 'ad',
-            breakdowns: [],
-            force: schedule.force || false,
-            meta_token: unit.secret_token,
-            mode,
-            job_key_override: job_key,
-            trigger_type: 'scheduled',
-            schedule_name: schedule.name,
-          });
+     // Enfileirar todos em paralelo
+     const enqueueResults = await Promise.allSettled(
+       jobsToEnqueue.map(params =>
+         base44.asServiceRole.functions.invoke('enqueueMetaIngest', params)
+       )
+     );
 
-          const enqData = enqRes.data;
-          if (enqData?.status === 'done' && !schedule.force) {
-            scheduleResult.jobs.push({ unit: unit.name, mode, status: 'skipped', reason: 'dados já existem' });
-            continue;
-          }
+     // Processar resultados de enfileiramento
+     let enqueuedCount = 0;
+     for (let i = 0; i < jobsToEnqueue.length; i++) {
+       const params = jobsToEnqueue[i];
+       const result = enqueueResults[i];
 
-          // Run
-          const runRes = await base44.asServiceRole.functions.invoke('runMetaIngest', {
-            job_key,
-            meta_token: unit.secret_token,
-            unit_id: unit.id,
-            mode,
-            force: schedule.force || false,
-          });
+       if (result.status === 'fulfilled' && result.value?.data?.status === 'queued') {
+         scheduleResult.jobs.push({
+           unit: params.unit_id,
+           mode: params.mode,
+           status: 'queued',
+           job_id: result.value.data.job_id
+         });
+         enqueuedCount++;
+       } else {
+         scheduleResult.jobs.push({
+           unit: params.unit_id,
+           mode: params.mode,
+           status: 'error',
+           error: result.status === 'rejected' ? result.reason?.message : 'Falha ao enfileirar'
+         });
+       }
+     }
 
-          const runData = runRes.data;
-          if (runData?.error) {
-            scheduleResult.jobs.push({ unit: unit.name, mode, status: 'error', error: runData.error });
-            hasError = true;
-          } else {
-            scheduleResult.jobs.push({ unit: unit.name, mode, status: 'done', rows: runData?.rows_written || 0 });
-            totalRows += runData?.rows_written || 0;
-          }
-        } catch (e) {
-          scheduleResult.jobs.push({ unit: unit.name, mode, status: 'error', error: e.message });
-          hasError = true;
-        }
+     // Sync creatives if configured (também em paralelo, sem delay)
+     if (schedule.sync_creatives) {
+       const creativeDOW = schedule.creatives_day_of_week;
+       const shouldSyncCreatives = force_all || schedule_id || (creativeDOW == null ? true : creativeDOW === todayDOW);
 
-        // Delay entre modos para evitar rate limit da Meta API
-        if (modeIdx < modes.length - 1) {
-          await new Promise(r => setTimeout(r, 10000)); // 10s entre cada breakdown
-        }
-      }
-    }
+       if (shouldSyncCreatives) {
+         const creativeTasks = units
+           .filter(u => u.account_id && u.secret_token)
+           .map(unit =>
+             base44.asServiceRole.functions.invoke('syncMetaCreatives', {
+               account_id: unit.account_id,
+               unit_id: unit.id,
+               meta_token: unit.secret_token,
+             }).then(res => ({ unit, status: 'done', data: res.data }))
+               .catch(e => ({ unit, status: 'error', error: e.message }))
+           );
 
-    // Sync creatives if configured
-    if (schedule.sync_creatives) {
-      const creativeDOW = schedule.creatives_day_of_week;
-      const shouldSyncCreatives = force_all || schedule_id || (creativeDOW == null ? true : creativeDOW === todayDOW);
+         const creativesResults = await Promise.all(creativeTasks);
+         for (const cResult of creativesResults) {
+           scheduleResult.jobs.push({
+             unit: cResult.unit.name,
+             mode: 'creatives',
+             status: cResult.status,
+             rows: cResult.data?.rows_written || 0,
+             error: cResult.error || null,
+           });
+         }
+       }
+     }
 
-      if (shouldSyncCreatives) {
-        for (const unit of units) {
-          if (!unit.account_id || !unit.secret_token) continue;
-          try {
-            const cRes = await base44.asServiceRole.functions.invoke('syncMetaCreatives', {
-              account_id: unit.account_id,
-              unit_id: unit.id,
-              meta_token: unit.secret_token,
-            });
-            const cData = cRes.data;
-            scheduleResult.jobs.push({
-              unit: unit.name,
-              mode: 'creatives',
-              status: cData?.success ? 'done' : 'error',
-              rows: cData?.rows_written || 0,
-              error: cData?.error || null,
-            });
-          } catch (e) {
-            scheduleResult.jobs.push({ unit: unit.name, mode: 'creatives', status: 'error', error: e.message });
-            hasError = true;
-          }
-        }
-      }
-    }
+     const logSummary = `${enqueuedCount} jobs enfileirados\n` + 
+       scheduleResult.jobs.map(j =>
+         `${j.unit}/${j.mode}: ${j.status}${j.job_id ? ` (${j.job_id})` : ''}${j.error ? ` - ${j.error}` : ''}`
+       ).join('\n');
 
-    const logSummary = scheduleResult.jobs.map(j =>
-      `${j.unit}/${j.mode}: ${j.status}${j.rows ? ` (${j.rows} rows)` : ''}${j.error ? ` - ${j.error}` : ''}`
-    ).join('\n');
-
-    await base44.asServiceRole.entities.IngestSchedule.update(schedule.id, {
-      last_status: hasError ? 'error' : 'success',
-      last_log: `${nowBrasilia} Brasília | ${date_from}→${date_to} | ${totalRows} rows\n${logSummary}`
-    });
+     await base44.asServiceRole.entities.IngestSchedule.update(schedule.id, {
+       last_status: 'queued',
+       last_log: `${nowBrasilia} Brasília | ${date_from}→${date_to} | ${logSummary}`
+     });
 
     results.push(scheduleResult);
   }
