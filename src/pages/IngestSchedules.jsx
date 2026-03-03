@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Trash2, Play, Clock, CheckCircle2, XCircle, Loader2, Edit2, ChevronDown, ChevronUp, Image, StopCircle } from 'lucide-react';
+import { Plus, Trash2, Play, Clock, CheckCircle2, XCircle, Loader2, Edit2, ChevronDown, ChevronUp, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -179,20 +179,6 @@ export default function IngestSchedules() {
     } finally {
       setRunningId(null);
       refetch();
-    }
-  };
-
-  const handleStopSchedule = async (s) => {
-    try {
-      const res = await base44.functions.invoke('stopIngestSchedule', { schedule_id: s.id });
-      if (res.data?.ok) {
-        toast.success('Agendamento parado');
-        refetch();
-      } else {
-        toast.error('Erro ao parar');
-      }
-    } catch (e) {
-      toast.error(e.message);
     }
   };
 
@@ -409,18 +395,12 @@ export default function IngestSchedules() {
 
                 <div className="flex items-center gap-2">
                   <Switch checked={s.is_active} onCheckedChange={() => handleToggleActive(s)} />
-                  {s.last_status === 'running' ? (
-                    <button title="Parar agora" className="text-red-500 hover:text-red-700" onClick={() => handleStopSchedule(s)}>
-                      <StopCircle className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button title="Executar agora" className="text-green-500 hover:text-green-700" onClick={() => handleRunNow(s)} disabled={runningId === s.id}>
-                      {runningId === s.id
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : <Play className="w-4 h-4" />
-                      }
-                    </button>
-                  )}
+                  <button title="Executar agora" className="text-green-500 hover:text-green-700" onClick={() => handleRunNow(s)} disabled={runningId === s.id}>
+                    {runningId === s.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Play className="w-4 h-4" />
+                    }
+                  </button>
                   <button title="Editar" className="text-gray-400 hover:text-blue-500" onClick={() => openEdit(s)}>
                     <Edit2 className="w-4 h-4" />
                   </button>
