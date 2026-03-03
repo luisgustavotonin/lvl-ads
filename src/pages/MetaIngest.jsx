@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
@@ -91,13 +91,9 @@ export default function MetaIngest() {
 
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['metaIngestRuns'],
-    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 100),
-    refetchInterval: 2000,
+    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 15),
+    refetchInterval: 4000,
   });
-
-  // Separar jobs pendentes/rodando do histórico
-  const pendingJobs = jobs.filter(j => j.status === 'queued' || j.status === 'running');
-  const historyJobs = jobs.filter(j => j.status !== 'queued' && j.status !== 'running');
 
   const selectedUnit = units.find(u => u.id === form.unit_ids[0]); // for creatives (single)
 
@@ -144,29 +140,6 @@ export default function MetaIngest() {
       refetch();
     } catch (err) {
       toast.error(err?.response?.data?.error || err.message || 'Erro ao excluir job');
-    }
-  };
-
-  // Retry a failed job
-  const handleRetry = async (job) => {
-    try {
-      const unit = units.find(u => u.account_id === job.account_id);
-      if (!unit) { toast.error('Unidade não encontrada'); return; }
-
-      toast.loading('Enfileirando job novamente...');
-      const res = await base44.functions.invoke('runMetaIngest', {
-        job_key: job.job_key,
-        meta_token: unit.secret_token,
-        unit_id: unit.id,
-        mode: job.mode,
-        force: true,
-      });
-
-      if (res.data?.error) { toast.error(res.data.error); return; }
-      toast.success('Job re-enfileirado! Verifique a fila.');
-      refetch();
-    } catch (err) {
-      toast.error(err?.response?.data?.error || err.message || 'Erro ao retry');
     }
   };
 
@@ -292,53 +265,56 @@ export default function MetaIngest() {
     toast.success('Fila de criativos concluída!');
   };
 
-  // Executar um único job - um por vez, sem paralelização
-  const runSingleJob = async (unit, mode, queueId, updateItem) => {
-    updateItem(queueId, { status: 'running' });
+  // Enqueue and run a single unit+mode job
+  const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
+    const account_id = unit.account_id;
+    const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
 
-    try {
-      // Passo 1: Enfileirar o job
-      const jobKey = buildJobKey(unit.account_id, form.date_from, form.date_to, mode);
-      
-      const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
-        account_id: unit.account_id,
-        unit_id: unit.id,
-        date_from: form.date_from,
-        date_to: form.date_to,
-        meta_token: unit.secret_token,
-        mode,
-        force: form.force,
-      });
+    const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
+      account_id,
+      unit_id: unit.id,
+      date_from: form.date_from,
+      date_to: form.date_to,
+      job_type: 'insights',
+      level: 'ad',
+      breakdowns: [],
+      force: form.force,
+      meta_token: unit.secret_token,
+      mode,
+      job_key_override: job_key,
+    });
 
-      if (enqRes.data?.error) {
-        updateItem(queueId, { status: 'failed', error: enqRes.data.error });
-        return false;
-      }
+    const enqData = { job_key, ...enqRes.data };
 
-      // Passo 2: Executar o job com o job_key
-      const result = await base44.functions.invoke('runMetaIngest', {
-        job_key: jobKey,
-        meta_token: unit.secret_token,
-        unit_id: unit.id,
-        mode,
-        force: form.force,
-      });
-
-      const data = result.data;
-      if (data?.error) {
-        updateItem(queueId, { status: 'failed', error: data.error });
-        return false;
-      }
-
-      updateItem(queueId, { status: 'done', rows_written: data?.rows_written || 0 });
-      return true;
-    } catch (err) {
-      updateItem(queueId, { status: 'failed', error: err.message });
+    if (enqData.status === 'running') {
+      updateItem(queueId, { status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução".' });
       return false;
     }
+
+    if (enqData.status === 'done' && !form.force) {
+      updateItem(queueId, { status: 'skipped', rows_written: enqData.rows_written || 0, error: `Dados já existem. Use "Forçar re-execução".` });
+      return true;
+    }
+
+    updateItem(queueId, { job_key });
+
+    const runResult = await base44.functions.invoke('runMetaIngest', {
+      job_key,
+      meta_token: unit.secret_token,
+      unit_id: unit.id,
+      mode,
+      force: form.force,
+    });
+
+    const data = runResult.data;
+    if (data.error) {
+      updateItem(queueId, { status: 'failed', error: data.error });
+      return false;
+    }
+
+    updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
+    return true;
   };
-
-
 
   // Main: build queue (units x types) and run sequentially
   const handleRunQueue = async () => {
@@ -397,9 +373,21 @@ export default function MetaIngest() {
 
       updateItem(item.id, { status: 'running' });
 
-        const ok = await runSingleJob(unit, item.mode, item.id, updateItem);
-      
-      if (!ok) {
+      try {
+        const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
+        if (!ok) {
+          // stop on error
+          runningRef.current = false;
+          setRunningQueue(false);
+          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+            : q));
+          toast.error(`Erro em "${item.label}". Fila interrompida.`);
+          refetch();
+          return;
+        }
+      } catch (err) {
+        updateItem(item.id, { status: 'failed', error: err.message });
         runningRef.current = false;
         setRunningQueue(false);
         setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
@@ -408,11 +396,6 @@ export default function MetaIngest() {
         toast.error(`Erro em "${item.label}". Fila interrompida.`);
         refetch();
         return;
-      }
-
-      // Aguarda 5 segundos antes do próximo job (exceto o último)
-      if (i < queueItems.length - 1) {
-        await delay(5000);
       }
 
       refetch();
@@ -711,14 +694,12 @@ export default function MetaIngest() {
         </Card>
       )}
 
-
-
       {/* Recent jobs */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-gray-800">Histórico Recente</h2>
-            <p className="text-xs text-gray-400">Últimos 100 jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
+            <p className="text-xs text-gray-400">Últimos 15 jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => refetch()} className="gap-1 text-gray-500">
             <RefreshCw className="w-4 h-4" />
@@ -726,11 +707,11 @@ export default function MetaIngest() {
           </Button>
         </div>
 
-        {historyJobs.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-8">Nenhum job completo ainda</p>
+        {jobs.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-8">Nenhum job ainda</p>
         )}
 
-        {historyJobs.map(job => {
+        {jobs.map(job => {
           const isExpanded = expandedJob === job.id;
           const unitName = units.find(u => u.account_id === job.account_id)?.name
             || units.find(u => u.id === job.unit_id)?.name
@@ -773,11 +754,6 @@ export default function MetaIngest() {
                     {(job.status === 'queued' || job.status === 'running') && (
                       <button title="Cancelar" className="text-red-400 hover:text-red-600" onClick={() => handleCancel(job)}>
                         <StopCircle className="w-4 h-4" />
-                      </button>
-                    )}
-                    {job.status === 'failed' && (
-                      <button title="Tentar novamente" className="text-blue-400 hover:text-blue-600" onClick={() => handleRetry(job)}>
-                        <RefreshCw className="w-4 h-4" />
                       </button>
                     )}
                     <button title="Excluir registro" className="text-gray-300 hover:text-red-500" onClick={() => handleDelete(job)}>

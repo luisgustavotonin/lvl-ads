@@ -141,25 +141,12 @@ async function processNextJob(base44, params) {
         });
     }
 
-    // Ordenar por prioridade (maior primeiro) e depois por unit_id para evitar paralelismo
-    availableJobs.sort((a, b) => {
-        const priorityDiff = (b.priority || 0) - (a.priority || 0);
-        if (priorityDiff !== 0) return priorityDiff;
-        return (a.unit_id || '').localeCompare(b.unit_id || '');
-    });
+    // Ordenar por prioridade (maior primeiro)
+    availableJobs.sort((a, b) => (b.priority || 0) - (a.priority || 0));
     const job = availableJobs[0];
 
-    // Aguardar 5 segundos antes de processar (para evitar rate limit com múltiplas unidades)
-    const lastJob = availableJobs.find(j => j.unit_id === job.unit_id && j.id !== job.id);
-    if (lastJob?.completed_at) {
-        const timeSinceLastJob = now.getTime() - new Date(lastJob.completed_at).getTime();
-        if (timeSinceLastJob < 5000) {
-            await sleep(5000 - timeSinceLastJob);
-        }
-    }
-
-    // Travar o job por 15 minutos (breakdowns podem levar mais tempo)
-     const lockUntil = new Date(now.getTime() + 15 * 60 * 1000);
+    // Travar o job por 10 minutos
+    const lockUntil = new Date(now.getTime() + 10 * 60 * 1000);
     await base44.asServiceRole.entities.MetaJob.update(job.id, {
         status: 'RUNNING',
         locked_until: lockUntil.toISOString(),
