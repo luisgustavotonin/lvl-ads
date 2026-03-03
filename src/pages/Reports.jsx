@@ -287,10 +287,11 @@ export default function Reports() {
 
       return data || [];
     },
-    enabled: !!selectedUnit && units.length > 0,
+    enabled: !!selectedUnit && units.length > 0 && !!period,
   });
 
   const previousPeriod = useMemo(() => {
+    if (!period) return { start: subDays(new Date(), 59), end: subDays(new Date(), 30) };
     const days = differenceInDays(period.end, period.start) + 1;
     return { start: subDays(period.start, days), end: subDays(period.start, 1) };
   }, [period]);
