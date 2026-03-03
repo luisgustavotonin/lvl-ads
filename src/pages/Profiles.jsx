@@ -403,6 +403,26 @@ export default function Profiles() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Período Padrão do Relatório</Label>
+                <Select
+                  value={formData.default_period || 'last_30_days'}
+                  onValueChange={(value) => setFormData({ ...formData, default_period: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEFAULT_PERIOD_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2" style={{display:'none'}}></div>
+              <div className="space-y-2">
                 <Label>Cor</Label>
                 <div className="flex gap-2">
                   {COLORS.map((color) => (
