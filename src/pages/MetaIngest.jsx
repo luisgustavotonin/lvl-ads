@@ -761,14 +761,25 @@ export default function MetaIngest() {
             <p className="text-xs text-gray-400">Últimos 100 jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => {
-            refetch();
-            // Se há fila local com erros, persiste no localStorage para não perder
-            if (localQueue.length > 0 && localQueue.some(q => q.status === 'failed' || q.status === 'skipped')) {
+            // Salvar fila local antes de refetch
+            const queueToPreserve = localQueue.filter(q => q.status !== 'done' && q.status !== 'queued');
+            if (queueToPreserve.length > 0) {
               localStorage.setItem('ingestQueue', JSON.stringify({
                 running: runningQueue,
                 items: localQueue
               }));
             }
+            refetch();
+            // Restaurar fila local após refetch
+            setTimeout(() => {
+              const stored = localStorage.getItem('ingestQueue');
+              if (stored) {
+                try {
+                  const data = JSON.parse(stored);
+                  setLocalQueue(data.items || []);
+                } catch (e) {}
+              }
+            }, 100);
           }} className="gap-1 text-gray-500">
             <RefreshCw className="w-4 h-4" />
             Atualizar
