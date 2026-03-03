@@ -18,7 +18,8 @@ import {
   LogOut,
   Bell,
   Zap,
-  Clock } from
+  Clock,
+  BarChart3 } from
 'lucide-react';
 
 const BOTTOM_NAV = [
