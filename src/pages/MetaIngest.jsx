@@ -141,44 +141,126 @@ export default function MetaIngest() {
     }
   };
 
-  // Sync creatives
-  const handleSyncCreatives = async () => {
-    if (!form.unit_ids.length) { toast.error('Selecione uma unidade'); return; }
-    if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID cadastrado'); return; }
-    if (!selectedUnit?.secret_token) { toast.error('Unidade sem Token cadastrado'); return; }
+  // Sincroniza criativos uma unidade
+  const syncCreativeUnit = async (unit, queueId, updateItem) => {
+    if (!unit?.account_id || !unit?.secret_token) {
+      updateItem(queueId, { status: 'failed', error: 'Unidade sem Account ID ou Token' });
+      return false;
+    }
 
-    const entry = {
-      ts: new Date().toISOString(),
-      unit: selectedUnit.name,
-      account_id: selectedUnit.account_id,
-      status: 'running',
-      rows_written: null,
-      error: null,
-    };
-    setCreativesHistory(prev => [entry, ...prev]);
-    setLoadingCreatives(true);
+    updateItem(queueId, { status: 'running' });
 
     try {
       const res = await base44.functions.invoke('syncMetaCreatives', {
-        account_id: selectedUnit.account_id,
-        unit_id: selectedUnit.id,
-        meta_token: selectedUnit.secret_token,
+        account_id: unit.account_id,
+        unit_id: unit.id,
+        meta_token: unit.secret_token,
       });
       const data = res.data;
       if (data?.error) {
-        setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'error', error: data.error } : e));
-        toast.error(`Erro: ${data.error}`);
+        updateItem(queueId, { status: 'failed', error: data.error });
+        return false;
       } else {
-        setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'done', rows_written: data.rows_written ?? 0 } : e));
-        toast.success(`Criativos sincronizados: ${data.rows_written ?? 0} registros`);
+        updateItem(queueId, { status: 'done', rows_written: data.rows_written ?? 0 });
+        return true;
       }
     } catch (err) {
       const msg = err?.message || String(err);
-      setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'error', error: msg } : e));
-      toast.error(`Erro: ${msg}`);
-    } finally {
-      setLoadingCreatives(false);
+      updateItem(queueId, { status: 'failed', error: msg });
+      return false;
     }
+  };
+
+  // Enfileira todas as unidades selecionadas para sincronização de criativos
+  const handleSyncCreatives = async () => {
+    if (!form.unit_ids.length) { toast.error('Selecione ao menos uma unidade'); return; }
+
+    const selectedUnits = units.filter(u => form.unit_ids.includes(u.id));
+    const invalidUnits = selectedUnits.filter(u => !u.account_id || !u.secret_token);
+    if (invalidUnits.length) {
+      toast.error(`Unidades sem configuração: ${invalidUnits.map(u => u.name).join(', ')}`);
+      return;
+    }
+
+    // Build queue
+    const queueItems = selectedUnits.map(u => ({
+      id: `creative-${u.id}-${Date.now()}`,
+      unitId: u.id,
+      unitName: u.name,
+      account_id: u.account_id,
+      label: `${u.name} (${u.account_id})`,
+      status: 'queued',
+      rows_written: 0,
+      error: null,
+    }));
+
+    setCreativesQueue(queueItems);
+    setRunningCreativesQueue(true);
+    runningCreativesRef.current = true;
+
+    const updateItem = (id, patch) => {
+      setCreativesQueue(prev => prev.map(q => q.id === id ? { ...q, ...patch } : q));
+      setCreativesHistory(prev => {
+        const found = prev.findIndex(e => e.id === id);
+        if (found >= 0) {
+          return prev.map((e, i) => i === found ? { ...e, ...patch } : e);
+        } else {
+          return [{ id, ts: new Date().toISOString(), ...patch }, ...prev];
+        }
+      });
+    };
+
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    for (let i = 0; i < queueItems.length; i++) {
+      if (!runningCreativesRef.current) break;
+
+      if (i > 0) {
+        await delay(5000);
+        if (!runningCreativesRef.current) break;
+      }
+
+      const item = queueItems[i];
+      const unit = units.find(u => u.id === item.unitId);
+
+      const historyEntry = {
+        id: item.id,
+        ts: new Date().toISOString(),
+        unit: item.unitName,
+        account_id: item.account_id,
+        status: 'running',
+        rows_written: 0,
+        error: null,
+      };
+      setCreativesHistory(prev => [historyEntry, ...prev]);
+      updateItem(item.id, { status: 'running' });
+
+      try {
+        const ok = await syncCreativeUnit(unit, item.id, updateItem);
+        if (!ok) {
+          runningCreativesRef.current = false;
+          setRunningCreativesQueue(false);
+          setCreativesQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+            : q));
+          toast.error(`Erro em "${item.label}". Fila interrompida.`);
+          return;
+        }
+      } catch (err) {
+        updateItem(item.id, { status: 'failed', error: err.message });
+        runningCreativesRef.current = false;
+        setRunningCreativesQueue(false);
+        setCreativesQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+          : q));
+        toast.error(`Erro em "${item.label}". Fila interrompida.`);
+        return;
+      }
+    }
+
+    setRunningCreativesQueue(false);
+    runningCreativesRef.current = false;
+    toast.success('Fila de criativos concluída!');
   };
 
   // Enqueue and run a single unit+mode job
