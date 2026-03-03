@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Settings2, GripVertical, X, Save } from 'lucide-react';
@@ -8,10 +8,43 @@ import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { generateColorSystem } from '@/components/colorSystem';
 
 const STAGE_COLORS = [
   '#3B82F6', '#EF4444', '#F97316', '#FBBF24', '#10B981', '#8B5CF6', '#EC4899', '#06B6D4', '#6366F1', '#6B7280'
+];
+
+// Cores organizadas por grupo primário com variações decrescentes de intensidade
+const COLOR_GROUPS = [
+  // Azul
+  ['#0C2340', '#0F3460', '#1E3A8A', '#1E40AF', '#1D4ED8', '#2563EB', '#3B82F6', '#60A5FA'],
+  // Vermelho
+  ['#5F1313', '#7F1D1D', '#991B1B', '#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5'],
+  // Laranja
+  ['#5C2410', '#7C2D12', '#9A3412', '#C2410C', '#EA580C', '#F97316', '#FB923C', '#FDBA74'],
+  // Amarelo
+  ['#66530B', '#78350F', '#92400E', '#B45309', '#FBBF24', '#FCD34D', '#FDE047', '#FFFACD'],
+  // Verde
+  ['#022C22', '#064E3B', '#047857', '#059669', '#10B981', '#34D399', '#6EE7B7', '#A7F3D0'],
+  // Teal
+  ['#0F2F3F', '#164E63', '#0D9488', '#14B8A6', '#2DD4BF', '#5EEAD4', '#99F6E4', '#CCFBF1'],
+  // Cyan
+  ['#06202A', '#024E51', '#0891B2', '#06B6D4', '#22D3EE', '#67E8F9', '#A5F3FC', '#CFFAFE'],
+  // Azul Céu
+  ['#0C1E3C', '#0D47A1', '#1565C0', '#1976D2', '#1E88E5', '#2196F3', '#42A5F5', '#64B5F6'],
+  // Roxo
+  ['#2E0854', '#4C1D95', '#6D28D9', '#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE'],
+  // Magenta
+  ['#3E1F47', '#5A189A', '#7209B7', '#B5179E', '#EC4899', '#F472B6', '#F8B4D6', '#FBE7F3'],
+  // Rosa
+  ['#4A0E4E', '#831843', '#BE185D', '#DB2777', '#EC4899', '#F472B6', '#F8B4D6', '#FCE7F3'],
+  // Violeta
+  ['#3C096C', '#5A189A', '#7209B7', '#9D4EDD', '#C77DFF', '#E0AAFF', '#F0E6FF', '#FAF0FF'],
+  // Âmbar
+  ['#5D3A1A', '#78350F', '#92400E', '#B45309', '#D97706', '#F59E0B', '#FBBF24', '#FCD34D'],
+  // Marrom
+  ['#3E2723', '#5D4037', '#795548', '#8D6E63', '#A1887F', '#BCB8B1', '#D7CCCC', '#EFEBE9'],
+  // Cinza
+  ['#0F172A', '#1E293B', '#334155', '#475569', '#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0'],
 ];
 
 const AVAILABLE_METRICS = [
@@ -31,17 +64,6 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
   const [stages, setStages] = useState(
     (currentStages || []).map((s, i) => ({ ...s, color: s.color || STAGE_COLORS[i % STAGE_COLORS.length] }))
   );
-
-  // Gera o sistema de cores com variações tonais
-  const colorSystem = useMemo(() => generateColorSystem(), []);
-  
-  // Converte o sistema de cores em grupos para exibição no picker
-  const colorGroups = useMemo(() => {
-    return Object.entries(colorSystem).map(([colorName, variations]) => ({
-      name: colorName,
-      colors: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map(stop => variations[stop])
-    }));
-  }, [colorSystem]);
 
   // Sincroniza stages internos quando o dialog abre (pega as cores salvas)
   useEffect(() => {
@@ -248,21 +270,20 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
                              </div>
 
                              {openColorPicker === stage.key && (
-                               <div className="absolute left-0 top-8 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-96 max-h-[50vh] overflow-y-auto"
+                               <div className="absolute left-0 top-8 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-80 max-h-[50vh] overflow-y-auto"
                                  onClick={e => e.stopPropagation()}
                                >
-                                 <div className="space-y-3">
-                                   {colorGroups.map((group) => (
-                                     <div key={group.name}>
-                                       <div className="text-xs font-semibold text-gray-600 mb-1.5 capitalize">{group.name}</div>
-                                       <div className="grid grid-cols-11 gap-1">
-                                         {group.colors.map((color) => (
+                                 <div className="space-y-2">
+                                   {COLOR_GROUPS.map((group, idx) => (
+                                     <div key={idx}>
+                                       <div className="grid grid-cols-8 gap-1.5">
+                                         {group.map(c => (
                                            <button
-                                             key={color}
-                                             onClick={() => setStageColor(stage.key, color)}
-                                             className="w-5 h-5 rounded-full border-2 hover:scale-110 transition-transform flex-shrink-0"
-                                             style={{ backgroundColor: color, borderColor: stage.color === color ? '#000' : '#D1D5DB' }}
-                                             title={color}
+                                             key={c}
+                                             onClick={() => setStageColor(stage.key, c)}
+                                             className="w-6 h-6 rounded-full border-2 hover:scale-110 transition-transform flex-shrink-0"
+                                             style={{ backgroundColor: c, borderColor: stage.color === c ? '#000' : '#D1D5DB' }}
+                                             title={c}
                                            />
                                          ))}
                                        </div>
