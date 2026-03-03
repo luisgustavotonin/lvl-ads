@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
 
         // Delay entre modos para evitar rate limit da Meta API
         if (modeIdx < modes.length - 1) {
-          await new Promise(r => setTimeout(r, 5000)); // 5s entre cada breakdown
+          await new Promise(r => setTimeout(r, 10000)); // 10s entre cada breakdown
         }
       }
     }
