@@ -409,13 +409,24 @@ async function createOnlyFallback(entity, rows) {
   return written;
 }
 
-async function safeBulkCreate(entity, rows, bulkChunkSize) {
-  try {
-    return await bulkCreateChunked(entity, rows, bulkChunkSize);
-  } catch (e) {
-    console.error('⚠️ bulkCreate falhou, usando createOnlyFallback:', e?.message || e);
-    return await createOnlyFallback(entity, rows);
+async function safeBulkCreate(entity, rows, bulkChunkSize, maxRetries = 2) {
+  let lastError = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await bulkCreateChunked(entity, rows, bulkChunkSize);
+    } catch (e) {
+      lastError = e;
+      if (attempt < maxRetries) {
+        const backoff = jitter(300 * Math.pow(2, attempt));
+        console.warn(`bulkCreate retry (attempt ${attempt + 1}/${maxRetries + 1}) in ${backoff}ms:`, e?.message);
+        await sleep(backoff);
+      }
+    }
   }
+  
+  console.error('⚠️ bulkCreate falhou após retries, usando createOnlyFallback:', lastError?.message || lastError);
+  return await createOnlyFallback(entity, rows);
 }
 
 /**
