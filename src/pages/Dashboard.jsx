@@ -172,7 +172,7 @@ export default function Dashboard() {
 
       {/* Period Filter */}
       <Card className="p-4 bg-white border border-gray-200 shadow-sm">
-        <PeriodFilter value={period} onChange={setPeriod} />
+        <PeriodFilter value={period} onChange={setPeriod} allowedPresets={allowedPeriods} />
       </Card>
 
       {/* Stats Cards */}
