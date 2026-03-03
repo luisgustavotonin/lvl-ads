@@ -266,55 +266,37 @@ export default function MetaIngest() {
   };
 
   // Enqueue and run a single unit+mode job
-  const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
-    const account_id = unit.account_id;
-    const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
+   const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
+     const account_id = unit.account_id;
+     const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
 
-    const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
-      account_id,
-      unit_id: unit.id,
-      date_from: form.date_from,
-      date_to: form.date_to,
-      job_type: 'insights',
-      level: 'ad',
-      breakdowns: [],
-      force: form.force,
-      meta_token: unit.secret_token,
-      mode,
-      job_key_override: job_key,
-    });
+     // Executa direto o runMetaIngest sem enqueue (simplificado)
+     try {
+       const runResult = await base44.functions.invoke('runMetaIngest', {
+         job_key,
+         meta_token: unit.secret_token,
+         unit_id: unit.id,
+         mode,
+         force: form.force,
+         account_id,
+         date_from: form.date_from,
+         date_to: form.date_to,
+       });
 
-    const enqData = { job_key, ...enqRes.data };
+       const data = runResult.data;
+       if (data && data.error) {
+         updateItem(queueId, { status: 'failed', error: data.error.substring(0, 60) });
+         return false;
+       }
 
-    if (enqData.status === 'running') {
-      updateItem(queueId, { status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução".' });
-      return false;
-    }
-
-    if (enqData.status === 'done' && !form.force) {
-      updateItem(queueId, { status: 'skipped', rows_written: enqData.rows_written || 0, error: `Dados já existem. Use "Forçar re-execução".` });
-      return true;
-    }
-
-    updateItem(queueId, { job_key });
-
-    const runResult = await base44.functions.invoke('runMetaIngest', {
-      job_key,
-      meta_token: unit.secret_token,
-      unit_id: unit.id,
-      mode,
-      force: form.force,
-    });
-
-    const data = runResult.data;
-    if (data.error) {
-      updateItem(queueId, { status: 'failed', error: data.error });
-      return false;
-    }
-
-    updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
-    return true;
-  };
+       updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
+       return true;
+     } catch (err) {
+       const errMsg = err?.response?.data?.error || err?.message || 'Erro desconhecido';
+       updateItem(queueId, { status: 'failed', error: errMsg.substring(0, 60) });
+       return false;
+     }
+   };
 
   // Main: build queue (units x types) and run sequentially
   const handleRunQueue = async () => {
