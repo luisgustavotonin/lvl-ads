@@ -408,16 +408,16 @@ export default function Profiles() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Período Padrão do Relatório</Label>
+                <Label>Período Padrão (pré-selecionado)</Label>
                 <Select
-                  value={formData.default_period || 'last_30_days'}
+                  value={formData.default_period || 'last_30'}
                   onValueChange={(value) => setFormData({ ...formData, default_period: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEFAULT_PERIOD_OPTIONS.map(opt => (
+                    {ALL_PERIOD_OPTIONS.filter(o => o.value !== 'custom').map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
                   </SelectContent>
