@@ -124,10 +124,8 @@ const ALL_KPIS = [
 export default function Reports() {
   const [selectedUnit, setSelectedUnit] = useState(null);
 
-  const [period, setPeriod] = useState({
-    start: subDays(new Date(), 29),
-    end: new Date(),
-  });
+  const [period, setPeriod] = useState(null); // será definido após carregar o perfil
+  const [periodInitialized, setPeriodInitialized] = useState(false);
 
   const [customComparisonPeriod, setCustomComparisonPeriod] = useState(null);
   const [selectedKPIs, setSelectedKPIs] = useState(ALL_KPIS.map((k) => k.id));
