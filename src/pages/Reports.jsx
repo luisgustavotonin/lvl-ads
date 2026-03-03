@@ -594,14 +594,14 @@ export default function Reports() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {activeTab === 'overview' && (
+              {activeTab === 'overview' && canDo('export_reports') && (
                 <Button onClick={() => setExportOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700">
                   <Download className="w-4 h-4" />
                   Exportar PDF
                 </Button>
               )}
 
-              <Sheet>
+              {canDo('edit_report_kpis') && <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2">
                     <Settings2 className="w-4 h-4" />
