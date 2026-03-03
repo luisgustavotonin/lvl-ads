@@ -721,43 +721,7 @@ export default function MetaIngest() {
         </Card>
       )}
 
-      {/* Fila de DB (jobs pendentes/rodando) */}
-      {pendingJobs.length > 0 && (
-        <Card className="border-l-4 border-l-amber-400">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-500" />
-              Fila do Sistema ({pendingJobs.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {pendingJobs.map((job, i) => {
-                const unitName = units.find(u => u.account_id === job.account_id)?.name
-                  || units.find(u => u.id === job.unit_id)?.name
-                  || job.account_id;
-                const modeLabel = INSIGHT_TYPES.find(t => t.mode === job.mode)?.label || job.mode || '—';
-                return (
-                  <div key={job.id} className="flex items-center gap-3 py-2 border-b last:border-0">
-                    <span className="text-xs text-gray-400 w-4">{i + 1}</span>
-                    <StatusBadge status={job.status} />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-800">{unitName}</span>
-                      <span className="text-xs text-gray-500 ml-1">— {modeLabel}</span>
-                      <span className="text-xs text-gray-400 ml-1">{job.date_from}→{job.date_to}</span>
-                    </div>
-                    {(job.status === 'queued' || job.status === 'running') && (
-                      <button title="Cancelar" className="text-red-400 hover:text-red-600" onClick={() => handleCancel(job)}>
-                        <StopCircle className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Recent jobs */}
       <div className="space-y-3">
