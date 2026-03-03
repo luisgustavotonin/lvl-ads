@@ -91,9 +91,13 @@ export default function MetaIngest() {
 
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['metaIngestRuns'],
-    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 15),
-    refetchInterval: 4000,
+    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 100),
+    refetchInterval: 2000,
   });
+
+  // Separar jobs pendentes/rodando do histórico
+  const pendingJobs = jobs.filter(j => j.status === 'queued' || j.status === 'running');
+  const historyJobs = jobs.filter(j => j.status !== 'queued' && j.status !== 'running');
 
   const selectedUnit = units.find(u => u.id === form.unit_ids[0]); // for creatives (single)
 
