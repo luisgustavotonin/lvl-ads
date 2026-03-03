@@ -152,6 +152,27 @@ export default function Reports() {
     enabled: !!user && user.role !== 'admin',
   });
 
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => base44.entities.Profile.list(),
+    enabled: !!user && user.role !== 'admin',
+  });
+
+  // Permissões do usuário atual
+  const userPermissions = useMemo(() => {
+    if (!user) return null;
+    if (user.role === 'admin') return 'ADMIN';
+    const myUserProfile = userProfiles.find(up => up.user_id === user.id);
+    if (!myUserProfile) return {};
+    const myProfile = allProfiles.find(p => p.id === myUserProfile.profile_id);
+    return myProfile?.permissions || {};
+  }, [user, userProfiles, allProfiles]);
+
+  const canDo = (permission) => {
+    if (userPermissions === 'ADMIN') return true;
+    return userPermissions?.[permission] === true;
+  };
+
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
     if (!user) return allUnits;
@@ -160,6 +181,14 @@ export default function Reports() {
     if (!myProfile || !myProfile.unit_ids || myProfile.unit_ids.length === 0) return allUnits;
     return allUnits.filter(u => myProfile.unit_ids.includes(u.id));
   }, [user, allUnits, userProfiles]);
+
+  // Abas visíveis conforme permissões (se nenhuma permissão de aba configurada, mostra todas)
+  const visibleTabs = useMemo(() => {
+    if (userPermissions === 'ADMIN') return REPORT_TABS;
+    const hasAnyTabPermission = REPORT_TABS.some(tab => userPermissions?.[tab.permission] === true);
+    if (!hasAnyTabPermission) return REPORT_TABS; // sem restrição configurada = mostra tudo
+    return REPORT_TABS.filter(tab => canDo(tab.permission));
+  }, [userPermissions]);
 
   const { data: preference } = useQuery({
     queryKey: ['reportPreference', selectedUnit],
