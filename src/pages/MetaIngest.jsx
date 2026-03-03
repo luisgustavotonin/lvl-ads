@@ -773,8 +773,13 @@ export default function MetaIngest() {
                       <StopCircle className="w-4 h-4" />
                     </button>
                   )}
-                  <button title="Excluir registro" className="text-gray-300 hover:text-red-500" onClick={() => handleDelete(job)}>
-                    <Trash2 className="w-4 h-4" />
+                  <button 
+                    title="Excluir registro" 
+                    className="text-gray-300 hover:text-red-500 disabled:opacity-50" 
+                    disabled={deletingJobId === job.id}
+                    onClick={() => handleDelete(job)}
+                  >
+                    {deletingJobId === job.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   </button>
                   <button
                     className="text-gray-400 hover:text-gray-600"
