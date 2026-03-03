@@ -217,21 +217,21 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Status Cards */}
+        {/* Units list */}
         <div className="space-y-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-gray-400" />
-                Unidades Recentes
+                Unidades
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {units.slice(0, 3).map((unit) => (
-                  <div key={unit.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                {units.map((unit) => (
+                  <div key={unit.id} className="flex items-center gap-3 p-2 rounded-lg">
                     <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-medium"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-medium flex-shrink-0"
                       style={{ backgroundColor: unit.color || '#3B82F6' }}
                     >
                       {unit.name?.charAt(0)?.toUpperCase()}
@@ -240,12 +240,6 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <Link to={createPageUrl('Units')}>
-                <Button variant="outline" className="w-full mt-4 gap-2">
-                  Ver todas
-                  <ArrowUpRight className="w-4 h-4" />
-                </Button>
-              </Link>
             </CardContent>
           </Card>
         </div>
