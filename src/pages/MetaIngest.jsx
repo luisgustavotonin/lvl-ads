@@ -821,13 +821,13 @@ export default function MetaIngest() {
                       )}
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                      <span>Rows: <strong>{job.rows_written || 0}</strong></span>
-                      <span className="text-gray-300">·</span>
-                      <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
-                      {job.error_message && (
-                        <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
-                      )}
-                    </div>
+                       <span>Rows: <strong>{job.rows_written || 0}</strong></span>
+                       <span className="text-gray-300">·</span>
+                       <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                       {job.error_message && job.status !== 'done' && (
+                         <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
+                       )}
+                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {(job.status === 'queued' || job.status === 'running') && (
