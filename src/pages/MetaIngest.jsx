@@ -344,24 +344,22 @@ export default function MetaIngest() {
     for (let i = 0; i < queueItems.length; i++) {
       if (!runningRef.current) break;
 
-      // Aguarda 5 segundos entre jobs (exceto o primeiro)
-      if (i > 0) {
-        await delay(5000);
-        if (!runningRef.current) break;
-      }
-
       const item = queueItems[i];
       const unit = units.find(u => u.id === item.unitId);
 
       updateItem(item.id, { status: 'running' });
 
       try {
-        const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
-        if (!ok) {
-          updateItem(item.id, { status: 'failed', error: 'Job retornou erro - veja logs' });
-        }
+        await enqueueAndRun(unit, item.mode, item.id, updateItem);
       } catch (err) {
-        updateItem(item.id, { status: 'failed', error: `Timeout/Erro: ${err.message.substring(0, 40)}` });
+        // já tratado dentro de enqueueAndRun
+        console.error(`Erro em "${item.label}":`, err.message);
+      }
+
+      // Aguarda 3-5 segundos entre jobs (com jitter para evitar sincronização)
+      if (i < queueItems.length - 1) {
+        const wait = 3000 + Math.random() * 2000;
+        await delay(wait);
       }
     }
 
