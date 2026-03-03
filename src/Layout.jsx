@@ -82,6 +82,13 @@ export default function Layout({ children, currentPageName }) {
         const permissions = myProfile?.permissions || {};
         setAuthState({ user: me, permissions, loading: false });
 
+        // Redireciona se o usuário está no Dashboard sem ter permissão
+        if (currentPageName === 'Dashboard' && !permissions?.view_dashboard) {
+          if (permissions?.view_reports) {
+            navigate(createPageUrl('Reports'));
+          }
+        }
+
       } catch (e) {
         console.error('[Layout] Erro ao inicializar:', e);
         setAuthState({ user: null, permissions: {}, loading: false });
