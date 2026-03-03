@@ -166,10 +166,19 @@ export default function Profiles() {
   };
 
   const handleSubmit = () => {
+    // Garante que TODAS as permissões conhecidas estejam explicitamente definidas (true ou false)
+    const allPermissions = {};
+    Object.values(PERMISSION_CATEGORIES).forEach(category => {
+      category.permissions.forEach(p => {
+        allPermissions[p.id] = formData.permissions?.[p.id] === true;
+      });
+    });
+    const dataToSave = { ...formData, permissions: allPermissions };
+
     if (editingProfile) {
-      updateMutation.mutate({ id: editingProfile.id, data: formData });
+      updateMutation.mutate({ id: editingProfile.id, data: dataToSave });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(dataToSave);
     }
   };
 
