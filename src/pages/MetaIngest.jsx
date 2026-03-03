@@ -782,17 +782,30 @@ export default function MetaIngest() {
                 </div>
 
                 {isExpanded && (
-                  <div className="mt-3 pt-3 border-t text-xs text-gray-500 space-y-1 font-mono break-all bg-gray-50 rounded p-2">
-                    <p><strong>job_key:</strong> {job.job_key}</p>
-                    <p><strong>account_id:</strong> {job.account_id}</p>
-                    <p><strong>tipo:</strong> {modeLabel}</p>
-                    <p><strong>período:</strong> {job.date_from} → {job.date_to}</p>
-                    <p><strong>origem:</strong> {isScheduled ? `Agendamento — ${job.schedule_name || ''}` : 'Manual'}</p>
-                    <p><strong>status:</strong> {job.status}</p>
-                    {job.error_message && <p className="text-red-500"><strong>erro:</strong> {job.error_message}</p>}
-                    <p><strong>criado em:</strong> {new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
-                  </div>
-                )}
+                   <div className="mt-3 pt-3 border-t text-xs text-gray-500 space-y-2 font-mono break-all bg-gray-50 rounded p-2">
+                     <div className="space-y-1">
+                       <p><strong>job_key:</strong> {job.job_key}</p>
+                       <p><strong>account_id:</strong> {job.account_id}</p>
+                       <p><strong>tipo:</strong> {modeLabel}</p>
+                       <p><strong>período:</strong> {job.date_from} → {job.date_to}</p>
+                       <p><strong>origem:</strong> {isScheduled ? `Agendamento — ${job.schedule_name || ''}` : 'Manual'}</p>
+                       <p><strong>status:</strong> {job.status}</p>
+                       <p><strong>rows_written:</strong> {job.rows_written || 0}</p>
+                       {job.error_message && <p className="text-red-500"><strong>erro:</strong> {job.error_message}</p>}
+                       <p><strong>criado em:</strong> {new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
+                     </div>
+                     {job.status === 'done' && (
+                       <a
+                         href={`${window.location.origin}/webhook-logs?job_id=${job.id}`}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="inline-block mt-2 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                       >
+                         Ver logs de webhook / payload
+                       </a>
+                     )}
+                   </div>
+                 )}
               </CardContent>
             </Card>
           );
