@@ -83,6 +83,7 @@ export default function MetaIngest() {
 
   const runningRef = useRef(false);
   const runningCreativesRef = useRef(false);
+  const workerRef = useRef(null);
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -342,6 +343,39 @@ export default function MetaIngest() {
     updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
     return true;
   };
+
+  // Initialize Web Worker
+  useEffect(() => {
+    try {
+      workerRef.current = new Worker('/ingestQueueWorker.js');
+      workerRef.current.onmessage = (event) => {
+        const { type, itemId, status, error, index, total } = event.data;
+        
+        if (type === 'status') {
+          setLocalQueue(prev => prev.map(q => 
+            q.id === itemId 
+              ? { ...q, status, error: error || q.error }
+              : q
+          ));
+        } else if (type === 'completed') {
+          setRunningQueue(false);
+          runningRef.current = false;
+          toast.success('Fila concluída!');
+        } else if (type === 'stopped') {
+          setRunningQueue(false);
+          runningRef.current = false;
+        }
+      };
+    } catch (e) {
+      console.warn('Web Worker não disponível, usando modo sync');
+    }
+
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+      }
+    };
+  }, []);
 
   // Main: build queue (units x types) and run sequentially
   const handleRunQueue = async () => {
