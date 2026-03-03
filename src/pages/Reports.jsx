@@ -209,15 +209,21 @@ export default function Reports() {
   // Inicializa o período uma vez que o perfil seja carregado
   React.useEffect(() => {
     if (periodInitialized) return;
-    if (userPermissions === null) return; // ainda carregando
+    if (!user) return; // aguarda user carregar
 
-    let defaultPeriodKey = userPermissions === 'ADMIN' ? 'today' : 'last_30';
-    if (userPermissions !== 'ADMIN' && userProfileData?.default_period) {
-      defaultPeriodKey = userProfileData.default_period;
+    if (user.role === 'admin') {
+      setPeriod(getDefaultPeriodDates('today'));
+      setPeriodInitialized(true);
+      return;
     }
+
+    // Para não-admin: aguarda userPermissions
+    if (userPermissions === null) return;
+
+    const defaultPeriodKey = userProfileData?.default_period || 'last_30';
     setPeriod(getDefaultPeriodDates(defaultPeriodKey));
     setPeriodInitialized(true);
-  }, [userPermissions, userProfileData, periodInitialized]);
+  }, [user, userPermissions, userProfileData, periodInitialized]);
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
