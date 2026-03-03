@@ -761,25 +761,25 @@ export default function MetaIngest() {
             <p className="text-xs text-gray-400">Últimos 100 jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => {
-            // Salvar fila local antes de refetch
-            const queueToPreserve = localQueue.filter(q => q.status !== 'done' && q.status !== 'queued');
-            if (queueToPreserve.length > 0) {
-              localStorage.setItem('ingestQueue', JSON.stringify({
-                running: runningQueue,
-                items: localQueue
-              }));
-            }
+            // Refetch dos jobs reais
             refetch();
-            // Restaurar fila local após refetch
+            // Limpar fila local de items que já estão completos no histórico
             setTimeout(() => {
-              const stored = localStorage.getItem('ingestQueue');
-              if (stored) {
-                try {
-                  const data = JSON.parse(stored);
-                  setLocalQueue(data.items || []);
-                } catch (e) {}
-              }
-            }, 100);
+              setLocalQueue(prev => {
+                // Manter apenas jobs que ainda estão rodando/pendentes
+                const filtered = prev.filter(q => q.status === 'running' || q.status === 'queued');
+                // Atualizar localStorage
+                if (filtered.length > 0) {
+                  localStorage.setItem('ingestQueue', JSON.stringify({
+                    running: runningQueue && filtered.some(q => q.status === 'running'),
+                    items: filtered
+                  }));
+                } else {
+                  localStorage.removeItem('ingestQueue');
+                }
+                return filtered;
+              });
+            }, 200);
           }} className="gap-1 text-gray-500">
             <RefreshCw className="w-4 h-4" />
             Atualizar
