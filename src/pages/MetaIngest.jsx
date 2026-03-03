@@ -292,11 +292,12 @@ export default function MetaIngest() {
     toast.success('Fila de criativos concluída!');
   };
 
-  // Enqueue and run a single unit+mode job
+  // Enqueue and run a single unit+mode job - sequencialmente, um por vez
   const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
     const account_id = unit.account_id;
     const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
 
+    // Passo 1: Enfileirar o job
     const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
       account_id,
       unit_id: unit.id,
@@ -323,8 +324,9 @@ export default function MetaIngest() {
       return true;
     }
 
-    updateItem(queueId, { job_key });
+    updateItem(queueId, { job_key, status: 'running' });
 
+    // Passo 2: Executar o job (aguarda completamente)
     const runResult = await base44.functions.invoke('runMetaIngest', {
       job_key,
       meta_token: unit.secret_token,
@@ -402,32 +404,10 @@ export default function MetaIngest() {
 
       updateItem(item.id, { status: 'running' });
 
-      let success = false;
-      let lastError = null;
-
-      // Retry 2 vezes em caso de erro temporário (502, 503, etc)
-      for (let retry = 0; retry < 2; retry++) {
         try {
-          const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
-          if (ok) {
-            success = true;
-            break;
-          } else {
-            lastError = 'Job já existe ou erro desconhecido';
-          }
-        } catch (err) {
-          lastError = err?.response?.status === 502 || err?.response?.status === 503 
-            ? `Erro temporário (${err?.response?.status}). Tentando novamente...`
-            : err.message;
-
-          if (retry < 1) {
-            await delay(3000); // aguarda 3s antes de retry
-          }
-        }
-      }
-
-      if (!success) {
-        updateItem(item.id, { status: 'failed', error: lastError });
+        await enqueueAndRun(unit, item.mode, item.id, updateItem);
+      } catch (err) {
+        updateItem(item.id, { status: 'failed', error: err.message });
         runningRef.current = false;
         setRunningQueue(false);
         setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
@@ -436,6 +416,11 @@ export default function MetaIngest() {
         toast.error(`Erro em "${item.label}". Fila interrompida.`);
         refetch();
         return;
+      }
+
+      // Aguarda 5 segundos antes do próximo job (exceto o último)
+      if (i < queueItems.length - 1) {
+        await delay(5000);
       }
 
       refetch();
