@@ -171,7 +171,8 @@ export default function Profiles() {
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         permissions: {},
         status: 'active',
-        default_period: 'last_30_days',
+        default_period: 'last_30',
+        allowed_periods: [],
       });
     }
     setExpandedCategories(['operacao']);
