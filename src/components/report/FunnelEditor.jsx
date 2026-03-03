@@ -16,25 +16,35 @@ const STAGE_COLORS = [
 // Cores organizadas por grupo primário com variações decrescentes de intensidade
 const COLOR_GROUPS = [
   // Azul
-  ['#1E3A8A', '#1E40AF', '#1D4ED8', '#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE'],
+  ['#0C2340', '#0F3460', '#1E3A8A', '#1E40AF', '#1D4ED8', '#2563EB', '#3B82F6', '#60A5FA'],
   // Vermelho
-  ['#7F1D1D', '#991B1B', '#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA', '#FEE2E2'],
+  ['#5F1313', '#7F1D1D', '#991B1B', '#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5'],
   // Laranja
-  ['#7C2D12', '#9A3412', '#EA580C', '#F97316', '#FB923C', '#FDBA74', '#FED7AA', '#FFEDD5'],
+  ['#5C2410', '#7C2D12', '#9A3412', '#C2410C', '#EA580C', '#F97316', '#FB923C', '#FDBA74'],
   // Amarelo
-  ['#78350F', '#92400E', '#FBBF24', '#FCD34D', '#FDE047', '#FEFCE8', '#FEFFF0', '#FFFEF2'],
+  ['#66530B', '#78350F', '#92400E', '#B45309', '#FBBF24', '#FCD34D', '#FDE047', '#FFFACD'],
   // Verde
-  ['#064E3B', '#047857', '#059669', '#10B981', '#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5'],
-  // Roxo
-  ['#4C1D95', '#6D28D9', '#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#F3E8FF'],
-  // Rosa/Magenta
-  ['#831843', '#BE185D', '#DB2777', '#EC4899', '#F472B6', '#F8B4D6', '#FBE7F3', '#FDF5F8'],
+  ['#022C22', '#064E3B', '#047857', '#059669', '#10B981', '#34D399', '#6EE7B7', '#A7F3D0'],
+  // Teal
+  ['#0F2F3F', '#164E63', '#0D9488', '#14B8A6', '#2DD4BF', '#5EEAD4', '#99F6E4', '#CCFBF1'],
   // Cyan
-  ['#06202A', '#024E51', '#06B6D4', '#06B6D4', '#22D3EE', '#67E8F9', '#A5F3FC', '#CFFAFE'],
-  // Indigo
-  ['#312E81', '#3730A3', '#4F46E5', '#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF'],
+  ['#06202A', '#024E51', '#0891B2', '#06B6D4', '#22D3EE', '#67E8F9', '#A5F3FC', '#CFFAFE'],
+  // Azul Céu
+  ['#0C1E3C', '#0D47A1', '#1565C0', '#1976D2', '#1E88E5', '#2196F3', '#42A5F5', '#64B5F6'],
+  // Roxo
+  ['#2E0854', '#4C1D95', '#6D28D9', '#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE'],
+  // Magenta
+  ['#3E1F47', '#5A189A', '#7209B7', '#B5179E', '#EC4899', '#F472B6', '#F8B4D6', '#FBE7F3'],
+  // Rosa
+  ['#4A0E4E', '#831843', '#BE185D', '#DB2777', '#EC4899', '#F472B6', '#F8B4D6', '#FCE7F3'],
+  // Violeta
+  ['#3C096C', '#5A189A', '#7209B7', '#9D4EDD', '#C77DFF', '#E0AAFF', '#F0E6FF', '#FAF0FF'],
+  // Âmbar
+  ['#5D3A1A', '#78350F', '#92400E', '#B45309', '#D97706', '#F59E0B', '#FBBF24', '#FCD34D'],
+  // Marrom
+  ['#3E2723', '#5D4037', '#795548', '#8D6E63', '#A1887F', '#BCB8B1', '#D7CCCC', '#EFEBE9'],
   // Cinza
-  ['#1F2937', '#374151', '#4B5563', '#6B7280', '#9CA3AF', '#D1D5DB', '#E5E7EB', '#F3F4F6'],
+  ['#0F172A', '#1E293B', '#334155', '#475569', '#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0'],
 ];
 
 const AVAILABLE_METRICS = [
