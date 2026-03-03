@@ -66,8 +66,6 @@ export default function MetaIngest() {
     force: false,
   });
 
-  const [unitSearch, setUnitSearch] = useState('');
-
   // selected types — single by default, multi with "select all"
   const [selectedTypes, setSelectedTypes] = useState(['base']);
   const [multiMode, setMultiMode] = useState(false);
@@ -76,13 +74,10 @@ export default function MetaIngest() {
   const [localQueue, setLocalQueue] = useState([]); // [{id, mode, label, status, rows_written, error}]
   const [runningQueue, setRunningQueue] = useState(false);
   const [loadingCreatives, setLoadingCreatives] = useState(false);
-  const [creativesHistory, setCreativesHistory] = useState([]); // [{id, ts, unit, account_id, status, rows_written, error}]
+  const [creativesHistory, setCreativesHistory] = useState([]); // [{ts, unit, status, rows_written, error}]
   const [expandedJob, setExpandedJob] = useState(null);
-  const [creativesQueue, setCreativesQueue] = useState([]); // fila de sincronizações de criativos
-  const [runningCreativesQueue, setRunningCreativesQueue] = useState(false);
 
   const runningRef = useRef(false);
-  const runningCreativesRef = useRef(false);
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -143,160 +138,96 @@ export default function MetaIngest() {
     }
   };
 
-  // Sincroniza criativos uma unidade
-  const syncCreativeUnit = async (unit, queueId, updateItem) => {
-    if (!unit?.account_id || !unit?.secret_token) {
-      updateItem(queueId, { status: 'failed', error: 'Unidade sem Account ID ou Token' });
-      return false;
-    }
+  // Sync creatives
+  const handleSyncCreatives = async () => {
+    if (!form.unit_ids.length) { toast.error('Selecione uma unidade'); return; }
+    if (!selectedUnit?.account_id) { toast.error('Unidade sem Account ID cadastrado'); return; }
+    if (!selectedUnit?.secret_token) { toast.error('Unidade sem Token cadastrado'); return; }
 
-    updateItem(queueId, { status: 'running' });
+    const entry = {
+      ts: new Date().toISOString(),
+      unit: selectedUnit.name,
+      account_id: selectedUnit.account_id,
+      status: 'running',
+      rows_written: null,
+      error: null,
+    };
+    setCreativesHistory(prev => [entry, ...prev]);
+    setLoadingCreatives(true);
 
     try {
       const res = await base44.functions.invoke('syncMetaCreatives', {
-        account_id: unit.account_id,
-        unit_id: unit.id,
-        meta_token: unit.secret_token,
+        account_id: selectedUnit.account_id,
+        unit_id: selectedUnit.id,
+        meta_token: selectedUnit.secret_token,
       });
       const data = res.data;
       if (data?.error) {
-        updateItem(queueId, { status: 'failed', error: data.error });
-        return false;
+        setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'error', error: data.error } : e));
+        toast.error(`Erro: ${data.error}`);
       } else {
-        updateItem(queueId, { status: 'done', rows_written: data.rows_written ?? 0 });
-        return true;
+        setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'done', rows_written: data.rows_written ?? 0 } : e));
+        toast.success(`Criativos sincronizados: ${data.rows_written ?? 0} registros`);
       }
     } catch (err) {
       const msg = err?.message || String(err);
-      updateItem(queueId, { status: 'failed', error: msg });
-      return false;
+      setCreativesHistory(prev => prev.map((e, i) => i === 0 ? { ...e, status: 'error', error: msg } : e));
+      toast.error(`Erro: ${msg}`);
+    } finally {
+      setLoadingCreatives(false);
     }
-  };
-
-  // Enfileira todas as unidades selecionadas para sincronização de criativos
-  const handleSyncCreatives = async () => {
-    if (!form.unit_ids.length) { toast.error('Selecione ao menos uma unidade'); return; }
-
-    const selectedUnits = units.filter(u => form.unit_ids.includes(u.id));
-    const invalidUnits = selectedUnits.filter(u => !u.account_id || !u.secret_token);
-    if (invalidUnits.length) {
-      toast.error(`Unidades sem configuração: ${invalidUnits.map(u => u.name).join(', ')}`);
-      return;
-    }
-
-    // Build queue
-    const queueItems = selectedUnits.map(u => ({
-      id: `creative-${u.id}-${Date.now()}`,
-      unitId: u.id,
-      unitName: u.name,
-      account_id: u.account_id,
-      label: `${u.name} (${u.account_id})`,
-      status: 'queued',
-      rows_written: 0,
-      error: null,
-    }));
-
-    setCreativesQueue(queueItems);
-    setRunningCreativesQueue(true);
-    runningCreativesRef.current = true;
-
-    const updateItem = (id, patch) => {
-      setCreativesQueue(prev => prev.map(q => q.id === id ? { ...q, ...patch } : q));
-      setCreativesHistory(prev => {
-        const found = prev.findIndex(e => e.id === id);
-        if (found >= 0) {
-          return prev.map((e, i) => i === found ? { ...e, ...patch } : e);
-        } else {
-          return [{ id, ts: new Date().toISOString(), ...patch }, ...prev];
-        }
-      });
-    };
-
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-    for (let i = 0; i < queueItems.length; i++) {
-      if (!runningCreativesRef.current) break;
-
-      if (i > 0) {
-        await delay(5000);
-        if (!runningCreativesRef.current) break;
-      }
-
-      const item = queueItems[i];
-      const unit = units.find(u => u.id === item.unitId);
-
-      const historyEntry = {
-        id: item.id,
-        ts: new Date().toISOString(),
-        unit: item.unitName,
-        account_id: item.account_id,
-        status: 'running',
-        rows_written: 0,
-        error: null,
-      };
-      setCreativesHistory(prev => [historyEntry, ...prev]);
-      updateItem(item.id, { status: 'running' });
-
-      try {
-        const ok = await syncCreativeUnit(unit, item.id, updateItem);
-        if (!ok) {
-          runningCreativesRef.current = false;
-          setRunningCreativesQueue(false);
-          setCreativesQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-            : q));
-          toast.error(`Erro em "${item.label}". Fila interrompida.`);
-          return;
-        }
-      } catch (err) {
-        updateItem(item.id, { status: 'failed', error: err.message });
-        runningCreativesRef.current = false;
-        setRunningCreativesQueue(false);
-        setCreativesQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-          : q));
-        toast.error(`Erro em "${item.label}". Fila interrompida.`);
-        return;
-      }
-    }
-
-    setRunningCreativesQueue(false);
-    runningCreativesRef.current = false;
-    toast.success('Fila de criativos concluída!');
   };
 
   // Enqueue and run a single unit+mode job
-   const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
-     const account_id = unit.account_id;
-     const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
+  const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
+    const account_id = unit.account_id;
+    const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
 
-     // Executa direto o runMetaIngest sem enqueue (simplificado)
-     try {
-       const runResult = await base44.functions.invoke('runMetaIngest', {
-         job_key,
-         meta_token: unit.secret_token,
-         unit_id: unit.id,
-         mode,
-         force: form.force,
-         account_id,
-         date_from: form.date_from,
-         date_to: form.date_to,
-       });
+    const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
+      account_id,
+      unit_id: unit.id,
+      date_from: form.date_from,
+      date_to: form.date_to,
+      job_type: 'insights',
+      level: 'ad',
+      breakdowns: [],
+      force: form.force,
+      meta_token: unit.secret_token,
+      mode,
+      job_key_override: job_key,
+    });
 
-       const data = runResult.data;
-       if (data && data.error) {
-         updateItem(queueId, { status: 'failed', error: data.error.substring(0, 60) });
-         return false;
-       }
+    const enqData = { job_key, ...enqRes.data };
 
-       updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
-       return true;
-     } catch (err) {
-       const errMsg = err?.response?.data?.error || err?.message || 'Erro desconhecido';
-       updateItem(queueId, { status: 'failed', error: errMsg.substring(0, 60) });
-       return false;
-     }
-   };
+    if (enqData.status === 'running') {
+      updateItem(queueId, { status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução".' });
+      return false;
+    }
+
+    if (enqData.status === 'done' && !form.force) {
+      updateItem(queueId, { status: 'skipped', rows_written: enqData.rows_written || 0, error: `Dados já existem. Use "Forçar re-execução".` });
+      return true;
+    }
+
+    updateItem(queueId, { job_key });
+
+    const runResult = await base44.functions.invoke('runMetaIngest', {
+      job_key,
+      meta_token: unit.secret_token,
+      unit_id: unit.id,
+      mode,
+      force: form.force,
+    });
+
+    const data = runResult.data;
+    if (data.error) {
+      updateItem(queueId, { status: 'failed', error: data.error });
+      return false;
+    }
+
+    updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
+    return true;
+  };
 
   // Main: build queue (units x types) and run sequentially
   const handleRunQueue = async () => {
@@ -344,23 +275,43 @@ export default function MetaIngest() {
     for (let i = 0; i < queueItems.length; i++) {
       if (!runningRef.current) break;
 
+      // Aguarda 5 segundos entre jobs (exceto o primeiro)
+      if (i > 0) {
+        await delay(5000);
+        if (!runningRef.current) break;
+      }
+
       const item = queueItems[i];
       const unit = units.find(u => u.id === item.unitId);
 
       updateItem(item.id, { status: 'running' });
 
       try {
-        await enqueueAndRun(unit, item.mode, item.id, updateItem);
+        const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
+        if (!ok) {
+          // stop on error
+          runningRef.current = false;
+          setRunningQueue(false);
+          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+            : q));
+          toast.error(`Erro em "${item.label}". Fila interrompida.`);
+          refetch();
+          return;
+        }
       } catch (err) {
-        // já tratado dentro de enqueueAndRun
-        console.error(`Erro em "${item.label}":`, err.message);
+        updateItem(item.id, { status: 'failed', error: err.message });
+        runningRef.current = false;
+        setRunningQueue(false);
+        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+          : q));
+        toast.error(`Erro em "${item.label}". Fila interrompida.`);
+        refetch();
+        return;
       }
 
-      // Aguarda 3-5 segundos entre jobs (com jitter para evitar sincronização)
-      if (i < queueItems.length - 1) {
-        const wait = 3000 + Math.random() * 2000;
-        await delay(wait);
-      }
+      refetch();
     }
 
     setRunningQueue(false);
@@ -407,44 +358,34 @@ export default function MetaIngest() {
                 >Limpar</button>
               </div>
             </div>
-            <Input 
-              type="text" 
-              placeholder="Buscar unidade..." 
-              value={unitSearch} 
-              onChange={e => setUnitSearch(e.target.value)}
-              className="text-sm"
-            />
             <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-              {[...units]
-                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-                .filter(u => u.name.toLowerCase().includes(unitSearch.toLowerCase()))
-                .map(u => {
-                  const selected = form.unit_ids.includes(u.id);
-                  return (
-                    <label
-                      key={u.id}
-                      className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                    >
-                      <Checkbox
-                        checked={selected}
-                        onCheckedChange={checked => {
-                          setForm(f => ({
-                            ...f,
-                            unit_ids: checked
-                              ? [...f.unit_ids, u.id]
-                              : f.unit_ids.filter(id => id !== u.id)
-                          }));
-                        }}
-                      />
-                      <span className={`text-sm font-medium ${selected ? 'text-blue-800' : 'text-gray-800'}`}>{u.name}</span>
-                      {u.account_id
-                        ? <span className="text-xs text-gray-400 ml-auto">{u.account_id}</span>
-                        : <span className="text-xs text-red-400 ml-auto">⚠️ sem account_id</span>
-                      }
-                      {!u.secret_token && <span className="text-xs text-red-400">sem token</span>}
-                    </label>
-                  );
-                })}
+              {units.map(u => {
+                const selected = form.unit_ids.includes(u.id);
+                return (
+                  <label
+                    key={u.id}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={checked => {
+                        setForm(f => ({
+                          ...f,
+                          unit_ids: checked
+                            ? [...f.unit_ids, u.id]
+                            : f.unit_ids.filter(id => id !== u.id)
+                        }));
+                      }}
+                    />
+                    <span className={`text-sm font-medium ${selected ? 'text-blue-800' : 'text-gray-800'}`}>{u.name}</span>
+                    {u.account_id
+                      ? <span className="text-xs text-gray-400 ml-auto">{u.account_id}</span>
+                      : <span className="text-xs text-red-400 ml-auto">⚠️ sem account_id</span>
+                    }
+                    {!u.secret_token && <span className="text-xs text-red-400">sem token</span>}
+                  </label>
+                );
+              })}
             </div>
             {form.unit_ids.length > 0 && (
               <p className="text-xs text-blue-600">{form.unit_ids.length} unidade(s) selecionada(s)</p>
@@ -545,49 +486,15 @@ export default function MetaIngest() {
                   : 'Executar'}
               </Button>
             )}
-            {runningCreativesQueue ? (
-              <Button onClick={() => { runningCreativesRef.current = false; setRunningCreativesQueue(false); setCreativesQueue(prev => prev.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q)); toast('Fila de criativos interrompida', { icon: '⏹' }); }} variant="destructive">
-                <StopCircle className="w-4 h-4 mr-2" />
-                Parar Criativos
-              </Button>
-            ) : (
-              <Button onClick={handleSyncCreatives} disabled={!form.unit_ids.length} variant="outline">
-                <Image className="w-4 h-4 mr-2" />
-                Sincronizar Criativos {form.unit_ids.length > 1 ? `(${form.unit_ids.length})` : ''}
-              </Button>
-            )}
+            <Button onClick={handleSyncCreatives} disabled={loadingCreatives} variant="outline">
+              {loadingCreatives
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sincronizando...</>
+                : <><Image className="w-4 h-4 mr-2" />Sincronizar Criativos</>
+              }
+            </Button>
           </div>
         </CardContent>
       </Card>
-
-      {/* Creatives Queue Status */}
-      {creativesQueue.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Image className="w-4 h-4 text-pink-500" />
-              Fila: Sincronização de Criativos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {creativesQueue.map((item, i) => (
-                <div key={item.id} className="flex items-center gap-3 py-2 border-b last:border-0">
-                  <span className="text-xs text-gray-400 w-4">{i + 1}</span>
-                  <StatusBadge status={item.status} />
-                  <span className="text-sm font-medium text-gray-800 flex-1">{item.label}</span>
-                  {item.rows_written > 0 && (
-                    <span className="text-xs text-gray-500">{item.rows_written} criativos</span>
-                  )}
-                  {item.error && (
-                    <span className={`text-xs max-w-xs truncate ${item.status === 'skipped' ? 'text-gray-400' : 'text-red-500'}`}>{item.error}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Creatives Sync History */}
       {creativesHistory.length > 0 && (
@@ -608,11 +515,6 @@ export default function MetaIngest() {
                   {entry.status === 'done' && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-700 border-green-200">
                       <CheckCircle2 className="w-3 h-3" /> {entry.rows_written} criativos
-                    </span>
-                  )}
-                  {entry.status === 'failed' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-100 text-red-700 border-red-200 max-w-xs truncate">
-                      <XCircle className="w-3 h-3" /> {entry.error}
                     </span>
                   )}
                   {entry.status === 'error' && (
@@ -685,76 +587,49 @@ export default function MetaIngest() {
             <Card key={job.id} className={`border-gray-200 ${isScheduled ? 'border-l-4 border-l-purple-400' : ''}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <StatusBadge status={job.status} />
-                    <span className="text-sm font-medium text-gray-800 truncate">{unitName}</span>
-                    <Badge variant="outline" className="text-xs">{modeLabel}</Badge>
-                    <span className="text-xs text-gray-400">{job.date_from} → {job.date_to}</span>
-                    {isScheduled ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
-                        <CalendarClock className="w-3 h-3" />
-                        {job.schedule_name || 'Agendado'}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
-                        <User className="w-3 h-3" />
-                        Manual
-                      </span>
-                    )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusBadge status={job.status} />
+                      <span className="text-sm font-medium text-gray-800 truncate">{unitName}</span>
+                      <Badge variant="outline" className="text-xs">{modeLabel}</Badge>
+                      <span className="text-xs text-gray-400">{job.date_from} → {job.date_to}</span>
+                      {isScheduled ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
+                          <CalendarClock className="w-3 h-3" />
+                          {job.schedule_name || 'Agendado'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
+                          <User className="w-3 h-3" />
+                          Manual
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                      <span>Rows: <strong>{job.rows_written || 0}</strong></span>
+                      <span className="text-gray-300">·</span>
+                      <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                      {job.error_message && (
+                        <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                    <span>Rows: <strong>{job.rows_written || 0}</strong></span>
-                    <span className="text-gray-300">·</span>
-                    <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
-                    {job.error_message && (
-                      <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
+                  <div className="flex items-center gap-2">
+                    {(job.status === 'queued' || job.status === 'running') && (
+                      <button title="Cancelar" className="text-red-400 hover:text-red-600" onClick={() => handleCancel(job)}>
+                        <StopCircle className="w-4 h-4" />
+                      </button>
                     )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {job.status === 'failed' && (
-                    <button 
-                      title="Reexecutar este job" 
-                      className="text-blue-400 hover:text-blue-600"
-                      onClick={async () => {
-                        try {
-                          const res = await base44.functions.invoke('runMetaIngest', {
-                            job_key: job.job_key,
-                            meta_token: selectedUnit?.secret_token,
-                            unit_id: job.unit_id,
-                            mode: job.mode,
-                            force: false,
-                          });
-                          if (res.data?.error) {
-                            toast.error(res.data.error);
-                          } else {
-                            toast.success('Job reexecutado');
-                            refetch();
-                          }
-                        } catch (err) {
-                          toast.error(err?.message || 'Erro ao reexecutar');
-                        }
-                      }}
+                    <button title="Excluir registro" className="text-gray-300 hover:text-red-500" onClick={() => handleDelete(job)}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      className="text-gray-400 hover:text-gray-600"
+                      onClick={() => setExpandedJob(isExpanded ? null : job.id)}
                     >
-                      <RefreshCw className="w-4 h-4" />
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
-                  )}
-                  {(job.status === 'queued' || job.status === 'running') && (
-                    <button title="Cancelar" className="text-red-400 hover:text-red-600" onClick={() => handleCancel(job)}>
-                      <StopCircle className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button title="Excluir registro" className="text-gray-300 hover:text-red-500" onClick={() => handleDelete(job)}>
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    className="text-gray-400 hover:text-gray-600"
-                    onClick={() => setExpandedJob(isExpanded ? null : job.id)}
-                  >
-                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                </div>
+                  </div>
                 </div>
 
                 {isExpanded && (
