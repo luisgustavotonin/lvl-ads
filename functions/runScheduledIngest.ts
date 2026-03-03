@@ -115,7 +115,8 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      for (const mode of modes) {
+      for (let modeIdx = 0; modeIdx < modes.length; modeIdx++) {
+        const mode = modes[modeIdx];
         const job_key = simpleHash(`${unit.account_id}:${date_from}:${date_to}:${mode}:sched`);
 
         try {
@@ -162,6 +163,11 @@ Deno.serve(async (req) => {
         } catch (e) {
           scheduleResult.jobs.push({ unit: unit.name, mode, status: 'error', error: e.message });
           hasError = true;
+        }
+
+        // Delay entre modos para evitar rate limit da Meta API
+        if (modeIdx < modes.length - 1) {
+          await new Promise(r => setTimeout(r, 5000)); // 5s entre cada breakdown
         }
       }
     }
