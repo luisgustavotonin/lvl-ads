@@ -270,8 +270,16 @@ export default function MetaIngest() {
       setLocalQueue(prev => prev.map(q => q.id === id ? { ...q, ...patch } : q));
     };
 
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     for (let i = 0; i < queueItems.length; i++) {
       if (!runningRef.current) break;
+
+      // Aguarda 5 segundos entre jobs (exceto o primeiro)
+      if (i > 0) {
+        await delay(5000);
+        if (!runningRef.current) break;
+      }
 
       const item = queueItems[i];
       const unit = units.find(u => u.id === item.unitId);
