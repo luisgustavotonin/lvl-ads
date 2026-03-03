@@ -90,21 +90,25 @@ export default function Dashboard() {
   // Inicializar período com base no perfil
   useEffect(() => {
     if (periodInitialized) return;
-    if (!currentUser) return; // aguarda currentUser carregar
+    if (!currentUser) return;
 
     if (currentUser.role === 'admin') {
-      setPeriod(getDefaultPeriodDates('today'));
+      const savedKey = currentUser?.admin_default_period_dashboard || 'today';
+      setPeriod(getDefaultPeriodDates(savedKey));
       setPeriodInitialized(true);
       return;
     }
 
-    // Para não-admin: aguarda userProfiles e allProfiles carregarem
     if (userProfiles.length === 0 && allProfiles.length === 0) return;
 
     const defaultKey = userProfileData?.default_period || 'last_7';
     setPeriod(getDefaultPeriodDates(defaultKey));
     setPeriodInitialized(true);
   }, [currentUser, userProfileData, periodInitialized, userProfiles, allProfiles]);
+
+  const saveAdminDefaultPeriod = async (presetId) => {
+    await base44.auth.updateMe({ admin_default_period_dashboard: presetId });
+  };
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
