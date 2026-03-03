@@ -53,7 +53,15 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
 
   const handlePreset = (preset) => {
     setActivePreset(preset.id);
+    setSaved(false);
     onChange(preset.getDates());
+  };
+
+  const handleSaveDefault = async () => {
+    if (!onSaveDefault || activePreset === 'custom') return;
+    await onSaveDefault(activePreset);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const handleMainDate = (field, str) => {
