@@ -319,12 +319,7 @@ export default function RankingTable({
 
                 }
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">{item.name}</p>
-                    <Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100'} flex-shrink-0 text-xs`}>
-                      {item.status}
-                    </Badge>
-                  </div>
+                  <p className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">{item.name}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
