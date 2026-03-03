@@ -571,12 +571,17 @@ export default function MetaIngest() {
                   : 'Executar'}
               </Button>
             )}
-            <Button onClick={handleSyncCreatives} disabled={loadingCreatives} variant="outline">
-              {loadingCreatives
-                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sincronizando...</>
-                : <><Image className="w-4 h-4 mr-2" />Sincronizar Criativos</>
-              }
-            </Button>
+            {runningCreativesQueue ? (
+              <Button onClick={() => { runningCreativesRef.current = false; setRunningCreativesQueue(false); setCreativesQueue(prev => prev.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q)); toast('Fila de criativos interrompida', { icon: '⏹' }); }} variant="destructive">
+                <StopCircle className="w-4 h-4 mr-2" />
+                Parar Criativos
+              </Button>
+            ) : (
+              <Button onClick={handleSyncCreatives} disabled={!form.unit_ids.length} variant="outline">
+                <Image className="w-4 h-4 mr-2" />
+                Sincronizar Criativos {form.unit_ids.length > 1 ? `(${form.unit_ids.length})` : ''}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
