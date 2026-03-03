@@ -73,16 +73,14 @@ export default function RankingTable({
   }, [colWidths]);
 
   // Carregar configurações salvas
-   const { data: config } = useQuery({
-     queryKey: ['rankingTableConfig', unitId, groupKey],
-     queryFn: () => {
-       if (!unitId) return null;
-       return base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
-     },
-     enabled: !!unitId,
-     refetchInterval: 3000,
-     staleTime: 1000
-   });
+  const { data: config } = useQuery({
+    queryKey: ['rankingTableConfig', unitId, groupKey],
+    queryFn: () => {
+      if (!unitId) return null;
+      return base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
+    },
+    enabled: !!unitId
+  });
 
   // Carregar configurações salvas (apenas uma vez por unitId/groupKey)
   useEffect(() => {

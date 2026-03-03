@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -18,6 +18,7 @@ function normalizeActId(id) {
 async function upsertBatch(entity, rows) {
   if (!rows.length) return 0;
 
+  // dedupe por unique_key
   const map = new Map();
   for (const r of rows) {
     if (r?.unique_key) map.set(r.unique_key, r);
@@ -27,6 +28,7 @@ async function upsertBatch(entity, rows) {
   let written = 0;
   for (let i = 0; i < deduped.length; i += CHUNK_SIZE) {
     const chunk = deduped.slice(i, i + CHUNK_SIZE);
+    // Busca registros existentes por unique_key para decidir create vs update
     const keys = chunk.map(r => r.unique_key);
     const existing = await entity.filter({ unique_key: { $in: keys } }, null, CHUNK_SIZE);
     const existingMap = new Map(existing.map(e => [e.unique_key, e.id]));
@@ -40,6 +42,7 @@ async function upsertBatch(entity, rows) {
     }
     written += chunk.length;
 
+    // Pausa entre chunks para não exceder rate limit da plataforma
     if (i + CHUNK_SIZE < deduped.length) {
       await sleep(DELAY_BETWEEN_CHUNKS);
     }
@@ -80,12 +83,14 @@ Deno.serve(async (req) => {
     let accountId, unitId;
 
     if (job_key) {
+      // chamado via job_key (fluxo antigo)
       const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
       if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
       const job = jobs[0];
       accountId = job.account_id;
       unitId = unit_id || job.unit_id || '';
     } else if (account_id) {
+      // chamado direto com account_id + unit_id (botão Sincronizar Criativos)
       accountId = account_id;
       unitId = unit_id || '';
     } else {
@@ -94,8 +99,10 @@ Deno.serve(async (req) => {
 
     const actId = normalizeActId(accountId);
 
+    // fields otimizados: status do anúncio + apenas campos essenciais do creative
     const fields = 'id,campaign_id,effective_status,status,creative{id,object_type,thumbnail_url,image_url,video_id}';
 
+    // Filtra somente anúncios ativos (ACTIVE) para não sincronizar pausados/arquivados
     const url =
       `${META_BASE}/act_${actId}/ads?` +
       `fields=${encodeURIComponent(fields)}` +
@@ -108,6 +115,8 @@ Deno.serve(async (req) => {
     const ads = await fetchAllPages(url);
     console.log(`[syncMetaCreatives] ads fetched=${ads.length}`);
 
+    // Monta rows da tabela MetaAdsCreative
+    // unique_key = account_id:unit_id:ad_id:creative_id
     const nowIso = new Date().toISOString();
 
     const rows = ads
@@ -118,17 +127,24 @@ Deno.serve(async (req) => {
 
         return {
           unique_key: `${accountId}:${unitId}:${adId}:${c.id}`,
+
           creative_id: c.id,
           ad_id: adId,
           campaign_id: a.campaign_id || null,
+
           account_id: accountId,
           unit_id: unitId,
+
+          // status do anúncio
           effective_status: a.effective_status || null,
           status: a.status || null,
+
+          // campos do creative (essenciais)
           image_url: c.image_url || null,
           thumbnail_url: c.thumbnail_url || null,
           video_id: c.video_id || null,
           object_type: c.object_type || null,
+
           last_updated: nowIso,
           raw: { ad: a, creative: c },
         };
