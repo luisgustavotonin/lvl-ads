@@ -202,12 +202,12 @@ Deno.serve(async (req) => {
        ).join('\n');
 
      await base44.asServiceRole.entities.IngestSchedule.update(schedule.id, {
-       last_status: 'queued',
+       last_status: 'success',
        last_log: `${nowBrasilia} Brasília | ${date_from}→${date_to} | ${logSummary}`
      });
 
-    results.push(scheduleResult);
-  }
+     results.push(scheduleResult);
+     }
 
-  return Response.json({ ok: true, ran: results.length, results });
-});
+     return Response.json({ ok: true, ran: results.length, results, message: `${results.reduce((sum, r) => sum + r.jobs.filter(j => j.status === 'queued').length, 0)} jobs enfileirados` });
+     });
