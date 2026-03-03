@@ -269,20 +269,20 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
                               />
                               {openColorPicker === stage.key && (
                                 <div
-                                  className="absolute left-0 top-7 z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl p-4"
-                                  style={{ minWidth: 360 }}
+                                  className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl p-3 max-h-[60vh] overflow-y-auto"
+                                  style={{ width: 320 }}
                                   onClick={e => e.stopPropagation()}
                                 >
-                                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                                  <div className="space-y-2">
                                     {COLOR_GROUPS.map((group, idx) => (
                                       <div key={idx}>
-                                        <div className="grid grid-cols-8 gap-2">
+                                        <div className="grid grid-cols-8 gap-1.5">
                                           {group.map(c => (
                                             <button
                                               key={c}
                                               onClick={() => setStageColor(stage.key, c)}
-                                              className="w-7 h-7 rounded-full border-2 hover:scale-125 transition-transform flex-shrink-0"
-                                              style={{ backgroundColor: c, borderColor: stage.color === c ? '#111' : '#E5E7EB' }}
+                                              className="w-6 h-6 rounded-full border-2 hover:scale-110 transition-transform flex-shrink-0"
+                                              style={{ backgroundColor: c, borderColor: stage.color === c ? '#000' : '#D1D5DB' }}
                                               title={c}
                                             />
                                           ))}
