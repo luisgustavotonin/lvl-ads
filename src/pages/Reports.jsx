@@ -182,11 +182,12 @@ export default function Reports() {
     return allUnits.filter(u => myProfile.unit_ids.includes(u.id));
   }, [user, allUnits, userProfiles]);
 
-  // Abas visíveis conforme permissões (se nenhuma permissão de aba configurada, mostra todas)
+  // Abas visíveis conforme permissões
   const visibleTabs = useMemo(() => {
     if (userPermissions === 'ADMIN') return REPORT_TABS;
-    const hasAnyTabPermission = REPORT_TABS.some(tab => userPermissions?.[tab.permission] === true);
-    if (!hasAnyTabPermission) return REPORT_TABS; // sem restrição configurada = mostra tudo
+    // Se o objeto de permissões tem ao menos UMA chave de aba definida (true ou false), aplica filtro
+    const hasAnyTabConfigured = REPORT_TABS.some(tab => tab.permission in (userPermissions || {}));
+    if (!hasAnyTabConfigured) return REPORT_TABS; // perfil sem restrição de abas = mostra tudo
     return REPORT_TABS.filter(tab => canDo(tab.permission));
   }, [userPermissions]);
 
