@@ -182,6 +182,20 @@ export default function IngestSchedules() {
     }
   };
 
+  const handleStopSchedule = async (s) => {
+    try {
+      const res = await base44.functions.invoke('stopIngestSchedule', { schedule_id: s.id });
+      if (res.data?.ok) {
+        toast.success('Agendamento parado');
+        refetch();
+      } else {
+        toast.error('Erro ao parar');
+      }
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
   const unitName = (uid) => units.find(u => u.id === uid)?.name || uid;
 
   return (
