@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Trash2, Play, Clock, CheckCircle2, XCircle, Loader2, Edit2, ChevronDown, ChevronUp, Image } from 'lucide-react';
+import { Plus, Trash2, Play, Clock, CheckCircle2, XCircle, Loader2, Edit2, ChevronDown, ChevronUp, Image, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
