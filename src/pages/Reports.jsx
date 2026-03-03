@@ -833,6 +833,7 @@ export default function Reports() {
                   nameKey="campaign_name"
                   showThumbnail={false}
                   unitId={selectedUnit}
+                  canEditColumns={canDo('edit_report_columns')}
                 />
                 <RankingTable
                   title="Conjuntos de Anúncios em Destaque"
@@ -841,6 +842,7 @@ export default function Reports() {
                   nameKey="adset_name"
                   showThumbnail={false}
                   unitId={selectedUnit}
+                  canEditColumns={canDo('edit_report_columns')}
                 />
                 <RankingTable
                   title="Anúncios em Destaque"
@@ -849,6 +851,7 @@ export default function Reports() {
                   nameKey="ad_name"
                   showThumbnail={true}
                   unitId={selectedUnit}
+                  canEditColumns={canDo('edit_report_columns')}
                 />
               </div>
             </>
