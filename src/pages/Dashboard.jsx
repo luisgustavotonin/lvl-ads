@@ -274,31 +274,44 @@ export default function Dashboard() {
         </Card>
 
         {/* Units list */}
-        <div className="space-y-4">
-          <Card className="border-gray-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-gray-400" />
-                Unidades
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {units.map((unit) => (
-                  <div key={unit.id} className="flex items-center gap-3 p-2 rounded-lg">
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-medium flex-shrink-0"
-                      style={{ backgroundColor: unit.color || '#3B82F6' }}
-                    >
-                      {unit.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 truncate">{unit.name}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+         <div className="space-y-4">
+           <Card className="border-gray-100">
+             <CardHeader className="pb-2">
+               <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                 <Building2 className="w-5 h-5 text-gray-400" />
+                 Unidades
+               </CardTitle>
+             </CardHeader>
+             <CardContent>
+               <div className="space-y-2 max-h-64 overflow-y-auto">
+                 {units.slice(0, 5).map((unit) => (
+                   <div key={unit.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                     {unit.logo_url ? (
+                       <img 
+                         src={unit.logo_url} 
+                         alt={unit.name}
+                         className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                       />
+                     ) : (
+                       <div 
+                         className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-medium flex-shrink-0"
+                         style={{ backgroundColor: unit.color || '#3B82F6' }}
+                       >
+                         {unit.name?.charAt(0)?.toUpperCase()}
+                       </div>
+                     )}
+                     <span className="text-sm font-medium text-gray-900 truncate">{unit.name}</span>
+                   </div>
+                 ))}
+                 {units.length > 5 && (
+                   <div className="text-xs text-gray-400 text-center pt-2 border-t border-gray-100">
+                     +{units.length - 5} unidades
+                   </div>
+                 )}
+               </div>
+             </CardContent>
+           </Card>
+         </div>
       </div>
     </div>
   );
