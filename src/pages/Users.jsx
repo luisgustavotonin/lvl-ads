@@ -55,6 +55,7 @@ export default function Users() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(null);
+  const [inactivateDialog, setInactivateDialog] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
