@@ -134,13 +134,16 @@ export default function MetaIngest() {
   // Delete a job record
   const handleDelete = async (job) => {
     if (!window.confirm('Excluir registro do job?\n\nOs dados já gravados nas tabelas de insights continuam existindo.')) return;
+    setDeletingJobId(job.id);
     try {
-      const res = await base44.functions.invoke('deleteMetaIngestRun', { job_id: job.id });
-      if (res.data?.error) { toast.error(res.data.error); return; }
+      await base44.asServiceRole.entities.MetaIngestRun.delete(job.id);
       toast.success('Job excluído');
       refetch();
     } catch (err) {
-      toast.error(err?.response?.data?.error || err.message || 'Erro ao excluir job');
+      console.error('Erro ao excluir job:', err);
+      toast.error(err?.message || 'Erro ao excluir job');
+    } finally {
+      setDeletingJobId(null);
     }
   };
 
