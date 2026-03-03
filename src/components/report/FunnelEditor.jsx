@@ -259,18 +259,25 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
                               />
                               {openColorPicker === stage.key && (
                                 <div
-                                  className="absolute left-0 top-7 z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl p-3"
-                                  style={{ minWidth: 160 }}
+                                  className="absolute left-0 top-7 z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl p-4"
+                                  style={{ minWidth: 360 }}
                                   onClick={e => e.stopPropagation()}
                                 >
-                                  <div className="grid grid-cols-6 gap-2">
-                                    {COLOR_OPTIONS.map(c => (
-                                      <button
-                                        key={c}
-                                        onClick={() => setStageColor(stage.key, c)}
-                                        className="w-6 h-6 rounded-full border-2 hover:scale-125 transition-transform flex-shrink-0"
-                                        style={{ backgroundColor: c, borderColor: stage.color === c ? '#111' : 'transparent' }}
-                                      />
+                                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                                    {COLOR_GROUPS.map((group, idx) => (
+                                      <div key={idx}>
+                                        <div className="grid grid-cols-8 gap-2">
+                                          {group.map(c => (
+                                            <button
+                                              key={c}
+                                              onClick={() => setStageColor(stage.key, c)}
+                                              className="w-7 h-7 rounded-full border-2 hover:scale-125 transition-transform flex-shrink-0"
+                                              style={{ backgroundColor: c, borderColor: stage.color === c ? '#111' : '#E5E7EB' }}
+                                              title={c}
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
                                     ))}
                                   </div>
                                 </div>
