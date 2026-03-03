@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
@@ -12,7 +12,7 @@ import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import MetaFunnelSection from '@/components/dashboard/MetaFunnelSection';
-import PeriodFilter from '@/components/report/PeriodFilter';
+import PeriodFilter, { ALL_PRESETS } from '@/components/report/PeriodFilter';
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('pt-BR', { 
