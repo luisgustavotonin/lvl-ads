@@ -156,6 +156,24 @@ export default function Reports() {
     enabled: !!user && user.role !== 'admin',
   });
 
+  // Inicializa o período com base no perfil do usuário
+  const getDefaultPeriodDates = (periodKey) => {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+    switch (periodKey) {
+      case 'today':       return { start: today, end: today };
+      case 'yesterday':   return { start: subDays(today, 1), end: subDays(today, 1) };
+      case 'last_7_days': return { start: subDays(today, 6), end: today };
+      case 'last_14_days':return { start: subDays(today, 13), end: today };
+      case 'last_30_days':return { start: subDays(today, 29), end: today };
+      case 'mtd':         return { start: startOfMonth, end: today };
+      case 'last_month':  return { start: startOfLastMonth, end: endOfLastMonth };
+      default:            return { start: subDays(today, 29), end: today };
+    }
+  };
+
   // Permissões do usuário atual
   const userPermissions = useMemo(() => {
     if (!user) return null;
