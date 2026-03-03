@@ -20,6 +20,11 @@ import {
   Zap,
   Clock
 } from 'lucide-react';
+
+const BOTTOM_NAV = [
+  { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard, permission: 'view_dashboard' },
+  { name: 'Relatórios', href: 'Reports', icon: FileText, permission: 'view_reports' },
+];
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,

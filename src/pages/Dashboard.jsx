@@ -118,12 +118,7 @@ export default function Dashboard() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1 text-sm">Visão geral da sua mídia paga</p>
         </div>
-        <Link to={createPageUrl('Reports')}>
-          <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-sm">
-            <FileText className="w-4 h-4" />
-            Ver Relatórios
-          </Button>
-        </Link>
+
       </div>
 
       {/* Period Filter */}
