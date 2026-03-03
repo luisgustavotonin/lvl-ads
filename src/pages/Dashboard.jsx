@@ -183,7 +183,12 @@ export default function Dashboard() {
 
       {/* Period Filter */}
       <Card className="p-4 bg-white border border-gray-200 shadow-sm">
-        <PeriodFilter value={period} onChange={setPeriod} allowedPresets={allowedPeriods} />
+        <PeriodFilter
+          value={period}
+          onChange={setPeriod}
+          allowedPresets={allowedPeriods}
+          onSaveDefault={currentUser?.role === 'admin' ? saveAdminDefaultPeriod : null}
+        />
       </Card>
 
       {/* Stats Cards */}
