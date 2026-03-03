@@ -520,7 +520,7 @@ export default function Reports() {
 
   const selectedUnitData = units.find((u) => u.id === selectedUnit);
 
-  if (unitsLoading) {
+  if (unitsLoading || !period) {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-96 w-full" />
