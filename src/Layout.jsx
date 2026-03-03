@@ -91,6 +91,34 @@ export default function Layout({ children, currentPageName }) {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
+  // Usuário sem perfil atribuído: mostra tela de acesso pendente
+  if (!loading && user && permissions === null) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-white to-slate-50">
+        <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-lg border border-slate-100 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-yellow-100">
+            <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-3">Acesso Pendente</h1>
+          <p className="text-slate-600 mb-6">
+            Seu acesso ainda não foi configurado. Solicite ao administrador que atribua um perfil à sua conta para que você possa utilizar a plataforma.
+          </p>
+          <div className="p-4 bg-slate-50 rounded-md text-sm text-slate-500">
+            Logado como: <span className="font-medium text-slate-700">{user.email}</span>
+          </div>
+          <button
+            onClick={() => base44.auth.logout()}
+            className="mt-4 text-sm text-slate-400 hover:text-slate-600 underline"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const canAccess = (permission) => {
     if (loading) return false;
     if (permissions === 'ADMIN') return true;
