@@ -178,6 +178,19 @@ export default function Reports() {
     }
   };
 
+  // Perfil do usuário atual (para filtros de período)
+  const userProfileData = useMemo(() => {
+    if (!user || user.role === 'admin') return null;
+    const myUserProfile = userProfiles.find(up => up.user_id === user.id);
+    if (!myUserProfile) return null;
+    return allProfiles.find(p => p.id === myUserProfile.profile_id) || null;
+  }, [user, userProfiles, allProfiles]);
+
+  const allowedPeriods = useMemo(() => {
+    if (!userProfileData) return null; // admin/sem perfil = todos
+    return userProfileData.allowed_periods?.length > 0 ? userProfileData.allowed_periods : null;
+  }, [userProfileData]);
+
   // Permissões do usuário atual
   const userPermissions = useMemo(() => {
     if (!user) return null;
