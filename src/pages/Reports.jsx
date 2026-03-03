@@ -165,8 +165,12 @@ export default function Reports() {
     switch (periodKey) {
       case 'today':       return { start: today, end: today };
       case 'yesterday':   return { start: subDays(today, 1), end: subDays(today, 1) };
+      case 'last_7':
       case 'last_7_days': return { start: subDays(today, 6), end: today };
+      case 'last_14':
       case 'last_14_days':return { start: subDays(today, 13), end: today };
+      case 'last_28':     return { start: subDays(today, 27), end: today };
+      case 'last_30':
       case 'last_30_days':return { start: subDays(today, 29), end: today };
       case 'mtd':         return { start: startOfMonth, end: today };
       case 'last_month':  return { start: startOfLastMonth, end: endOfLastMonth };
