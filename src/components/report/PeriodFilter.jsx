@@ -111,6 +111,18 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
              Comparar
            </Button>
          )}
+         {onSaveDefault && activePreset !== 'custom' && (
+           <Button
+             variant="outline"
+             size="sm"
+             onClick={handleSaveDefault}
+             className={saved ? 'border-green-500 text-green-600' : 'border-gray-300 text-gray-500'}
+             title="Salvar como período padrão"
+           >
+             {saved ? <Check className="w-3.5 h-3.5 mr-1" /> : <Bookmark className="w-3.5 h-3.5 mr-1" />}
+             {saved ? 'Salvo!' : 'Salvar padrão'}
+           </Button>
+         )}
        </div>
 
       {/* Date rows */}
