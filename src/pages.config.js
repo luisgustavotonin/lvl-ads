@@ -61,6 +61,7 @@ import Users from './pages/Users';
 import IngestSchedules from './pages/IngestSchedules';
 import Dashboard from './pages/Dashboard';
 import MetaIngest from './pages/MetaIngest';
+import WebhookLogViewer from './pages/WebhookLogViewer';
 import __Layout from './Layout.jsx';
 
 
@@ -79,6 +80,7 @@ export const PAGES = {
     "IngestSchedules": IngestSchedules,
     "Dashboard": Dashboard,
     "MetaIngest": MetaIngest,
+    "WebhookLogViewer": WebhookLogViewer,
 }
 
 export const pagesConfig = {
