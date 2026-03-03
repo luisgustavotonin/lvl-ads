@@ -260,39 +260,38 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
                             </div>
 
                             {/* Cor inline */}
-                            <div className="relative flex-shrink-0">
-                              <button
-                                onClick={() => setOpenColorPicker(openColorPicker === stage.key ? null : stage.key)}
-                                className="w-5 h-5 rounded border border-gray-300 flex-shrink-0 block"
-                                style={{ backgroundColor: stage.color || '#3B82F6' }}
-                                title="Editar cor"
-                              />
-                              {openColorPicker === stage.key && (
-                                <div
-                                  className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl p-3 max-h-[60vh] overflow-y-auto"
-                                  style={{ width: 320 }}
-                                  onClick={e => e.stopPropagation()}
-                                >
-                                  <div className="space-y-2">
-                                    {COLOR_GROUPS.map((group, idx) => (
-                                      <div key={idx}>
-                                        <div className="grid grid-cols-8 gap-1.5">
-                                          {group.map(c => (
-                                            <button
-                                              key={c}
-                                              onClick={() => setStageColor(stage.key, c)}
-                                              className="w-6 h-6 rounded-full border-2 hover:scale-110 transition-transform flex-shrink-0"
-                                              style={{ backgroundColor: c, borderColor: stage.color === c ? '#000' : '#D1D5DB' }}
-                                              title={c}
-                                            />
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                             <div className="flex-shrink-0">
+                               <button
+                                 onClick={() => setOpenColorPicker(openColorPicker === stage.key ? null : stage.key)}
+                                 className="w-5 h-5 rounded border border-gray-300 flex-shrink-0 block"
+                                 style={{ backgroundColor: stage.color || '#3B82F6' }}
+                                 title="Editar cor"
+                               />
+                             </div>
+
+                             {openColorPicker === stage.key && (
+                               <div className="absolute left-0 top-8 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-80 max-h-[50vh] overflow-y-auto"
+                                 onClick={e => e.stopPropagation()}
+                               >
+                                 <div className="space-y-2">
+                                   {COLOR_GROUPS.map((group, idx) => (
+                                     <div key={idx}>
+                                       <div className="grid grid-cols-8 gap-1.5">
+                                         {group.map(c => (
+                                           <button
+                                             key={c}
+                                             onClick={() => setStageColor(stage.key, c)}
+                                             className="w-6 h-6 rounded-full border-2 hover:scale-110 transition-transform flex-shrink-0"
+                                             style={{ backgroundColor: c, borderColor: stage.color === c ? '#000' : '#D1D5DB' }}
+                                             title={c}
+                                           />
+                                         ))}
+                                       </div>
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
 
                             <span className="flex-1 text-sm">{stage.label}</span>
                             <button
