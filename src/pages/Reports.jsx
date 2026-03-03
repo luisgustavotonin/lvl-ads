@@ -189,6 +189,21 @@ export default function Reports() {
     return userPermissions?.[permission] === true;
   };
 
+  // Inicializa o período uma vez que o perfil seja carregado
+  React.useEffect(() => {
+    if (periodInitialized) return;
+    if (userPermissions === null) return; // ainda carregando
+
+    let defaultPeriodKey = 'last_30_days';
+    if (userPermissions !== 'ADMIN') {
+      const myUserProfile = userProfiles.find(up => up.user_id === user?.id);
+      const myProfile = allProfiles.find(p => p.id === myUserProfile?.profile_id);
+      if (myProfile?.default_period) defaultPeriodKey = myProfile.default_period;
+    }
+    setPeriod(getDefaultPeriodDates(defaultPeriodKey));
+    setPeriodInitialized(true);
+  }, [userPermissions, userProfiles, allProfiles, periodInitialized]);
+
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
     if (!user) return allUnits;
