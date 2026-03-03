@@ -83,7 +83,6 @@ export default function MetaIngest() {
 
   const runningRef = useRef(false);
   const runningCreativesRef = useRef(false);
-  const workerRef = useRef(null);
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -344,37 +343,19 @@ export default function MetaIngest() {
     return true;
   };
 
-  // Initialize Web Worker
+  // Monitor background queue status
   useEffect(() => {
-    try {
-      workerRef.current = new Worker('/ingestQueueWorker.js');
-      workerRef.current.onmessage = (event) => {
-        const { type, itemId, status, error, index, total } = event.data;
-        
-        if (type === 'status') {
-          setLocalQueue(prev => prev.map(q => 
-            q.id === itemId 
-              ? { ...q, status, error: error || q.error }
-              : q
-          ));
-        } else if (type === 'completed') {
-          setRunningQueue(false);
-          runningRef.current = false;
-          toast.success('Fila concluída!');
-        } else if (type === 'stopped') {
-          setRunningQueue(false);
-          runningRef.current = false;
-        }
-      };
-    } catch (e) {
-      console.warn('Web Worker não disponível, usando modo sync');
-    }
-
-    return () => {
-      if (workerRef.current) {
-        workerRef.current.terminate();
+    const interval = setInterval(() => {
+      const stored = localStorage.getItem('ingestQueue');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          setLocalQueue(data.items || []);
+          setRunningQueue(data.running || false);
+        } catch (e) {}
       }
-    };
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Main: build queue (units x types) and run sequentially
@@ -414,8 +395,21 @@ export default function MetaIngest() {
     setRunningQueue(true);
     runningRef.current = true;
 
+    // Persist to localStorage so queue continues even if user navigates
+    localStorage.setItem('ingestQueue', JSON.stringify({
+      running: true,
+      items: queueItems
+    }));
+
     const updateItem = (id, patch) => {
-      setLocalQueue(prev => prev.map(q => q.id === id ? { ...q, ...patch } : q));
+      setLocalQueue(prev => {
+        const updated = prev.map(q => q.id === id ? { ...q, ...patch } : q);
+        localStorage.setItem('ingestQueue', JSON.stringify({
+          running: runningRef.current,
+          items: updated
+        }));
+        return updated;
+      });
     };
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -464,6 +458,7 @@ export default function MetaIngest() {
 
     setRunningQueue(false);
     runningRef.current = false;
+    localStorage.removeItem('ingestQueue');
     toast.success('Fila concluída!');
     queryClient.invalidateQueries({ queryKey: ['metaIngestRuns'] });
   };
@@ -471,7 +466,9 @@ export default function MetaIngest() {
   const handleStopQueue = () => {
     runningRef.current = false;
     setRunningQueue(false);
-    setLocalQueue(prev => prev.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q));
+    const updated = localQueue.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q);
+    setLocalQueue(updated);
+    localStorage.removeItem('ingestQueue');
     toast('Fila interrompida', { icon: '⏹' });
   };
 
