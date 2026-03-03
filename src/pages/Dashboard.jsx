@@ -169,13 +169,22 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-1 text-sm">Visão geral da sua mídia paga</p>
-        </div>
+       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+         <div className="flex items-center gap-4">
+           {/* Logo LVL */}
+           <div className="flex items-center gap-3 bg-gradient-to-br from-blue-50 to-indigo-50 px-4 py-3 rounded-xl border border-blue-100 shadow-sm">
+             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+               <span className="text-white font-bold text-lg">L</span>
+             </div>
+             <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Insights</span>
+           </div>
+         </div>
 
-      </div>
+         <div>
+           <h1 className="text-lg sm:text-xl font-bold text-gray-900">Dashboard</h1>
+           <p className="text-gray-500 mt-0.5 text-xs sm:text-sm">Visão geral da sua mídia paga</p>
+         </div>
+       </div>
 
       {/* Period Filter */}
       <Card className="p-4 bg-white border border-gray-200 shadow-sm">
