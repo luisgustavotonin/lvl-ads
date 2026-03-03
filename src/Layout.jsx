@@ -52,6 +52,7 @@ export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authState, setAuthState] = useState({ user: null, permissions: null, loading: true });
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function init() {
