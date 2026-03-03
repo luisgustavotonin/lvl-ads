@@ -27,11 +27,27 @@ const formatNumber = (value) => {
   return new Intl.NumberFormat('pt-BR').format(value || 0);
 };
 
+const getDefaultPeriodDates = (periodKey) => {
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+  switch (periodKey) {
+    case 'today':       return { start: today, end: today };
+    case 'yesterday':   return { start: subDays(today, 1), end: subDays(today, 1) };
+    case 'last_7':      return { start: subDays(today, 6), end: today };
+    case 'last_14':     return { start: subDays(today, 13), end: today };
+    case 'last_28':     return { start: subDays(today, 27), end: today };
+    case 'last_30':     return { start: subDays(today, 29), end: today };
+    case 'mtd':         return { start: startOfMonth, end: today };
+    case 'last_month':  return { start: startOfLastMonth, end: endOfLastMonth };
+    default:            return { start: subDays(today, 6), end: today };
+  }
+};
+
 export default function Dashboard() {
-  const [period, setPeriod] = useState({
-    start: subDays(new Date(), 6),
-    end: new Date(),
-  });
+  const [period, setPeriod] = useState(null);
+  const [periodInitialized, setPeriodInitialized] = useState(false);
 
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
@@ -51,6 +67,37 @@ export default function Dashboard() {
     enabled: !!currentUser && currentUser.role !== 'admin',
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => base44.entities.Profile.list(),
+    enabled: !!currentUser && currentUser.role !== 'admin',
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const userProfileData = useMemo(() => {
+    if (!currentUser || currentUser.role === 'admin') return null;
+    const myUserProfile = userProfiles.find(up => up.user_id === currentUser.id);
+    if (!myUserProfile) return null;
+    return allProfiles.find(p => p.id === myUserProfile.profile_id) || null;
+  }, [currentUser, userProfiles, allProfiles]);
+
+  const allowedPeriods = useMemo(() => {
+    if (!userProfileData) return null;
+    return userProfileData.allowed_periods?.length > 0 ? userProfileData.allowed_periods : null;
+  }, [userProfileData]);
+
+  // Inicializar período com base no perfil
+  useEffect(() => {
+    if (periodInitialized) return;
+    if (currentUser === undefined) return;
+    if (currentUser?.role !== 'admin' && userProfiles.length === 0) return; // esperando carregar
+
+    let defaultKey = 'last_7';
+    if (userProfileData?.default_period) defaultKey = userProfileData.default_period;
+    setPeriod(getDefaultPeriodDates(defaultKey));
+    setPeriodInitialized(true);
+  }, [currentUser, userProfileData, periodInitialized, userProfiles]);
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
