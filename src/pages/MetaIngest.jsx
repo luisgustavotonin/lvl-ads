@@ -80,6 +80,7 @@ export default function MetaIngest() {
   const [expandedJob, setExpandedJob] = useState(null);
   const [creativesQueue, setCreativesQueue] = useState([]); // fila de sincronizações de criativos
   const [runningCreativesQueue, setRunningCreativesQueue] = useState(false);
+  const [deletingJobId, setDeletingJobId] = useState(null);
 
   const runningRef = useRef(false);
   const runningCreativesRef = useRef(false);
