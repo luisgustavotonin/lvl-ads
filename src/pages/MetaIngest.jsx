@@ -376,15 +376,11 @@ export default function MetaIngest() {
       try {
         const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
         if (!ok) {
-          // continua a fila, marcando este item como failed/skipped
-          toast.error(`Erro em "${item.label}". Continuando com próximos...`);
+          updateItem(item.id, { status: 'failed', error: 'Job retornou erro - veja logs' });
         }
       } catch (err) {
-        updateItem(item.id, { status: 'failed', error: err.message });
-        toast.error(`Erro em "${item.label}". Continuando com próximos...`);
+        updateItem(item.id, { status: 'failed', error: `Timeout/Erro: ${err.message.substring(0, 40)}` });
       }
-
-      refetch();
     }
 
     setRunningQueue(false);
