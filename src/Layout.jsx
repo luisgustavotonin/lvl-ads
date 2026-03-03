@@ -152,10 +152,7 @@ export default function Layout({ children, currentPageName }) {
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <FileText className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-semibold text-gray-900">LVL Insights</span>
+              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/72fc8f78b_6824a59a24a8cd8416895e42_lvl.png" alt="LVL" className="h-8 w-auto" />
             </div>
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
               <X className="w-5 h-5" />
