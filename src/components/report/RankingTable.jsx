@@ -95,9 +95,9 @@ export default function RankingTable({
     }
   }, [config, groupKey]);
 
-  // Salvar configurações quando mudam (só após o carregamento inicial)
+  // Salvar configurações apenas quando o usuário tem permissão para editar
   useEffect(() => {
-    if (!unitId || !configLoadedRef.current) return;
+    if (!unitId || !configLoadedRef.current || !canEditColumns) return;
     const saveConfig = async () => {
       try {
         const existing = await base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
@@ -116,7 +116,7 @@ export default function RankingTable({
     };
     const timeoutId = setTimeout(saveConfig, 800);
     return () => clearTimeout(timeoutId);
-  }, [columnOrder, visibleColumns, limit, unitId, groupKey]);
+  }, [columnOrder, visibleColumns, limit, unitId, groupKey, canEditColumns]);
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
