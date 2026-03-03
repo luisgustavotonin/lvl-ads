@@ -47,6 +47,7 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
 import IngestSchedules from './pages/IngestSchedules';
 import Integrations from './pages/Integrations';
@@ -60,11 +61,11 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
-import Dashboard from './pages/Dashboard';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "Dashboard": Dashboard,
     "DataManagement": DataManagement,
     "IngestSchedules": IngestSchedules,
     "Integrations": Integrations,
@@ -78,7 +79,6 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
-    "Dashboard": Dashboard,
 }
 
 export const pagesConfig = {
