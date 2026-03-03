@@ -121,7 +121,8 @@ export default function Dashboard() {
     },
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
-  });
+    enabled: !!period,
+    });
 
 
 
