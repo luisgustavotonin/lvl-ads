@@ -26,11 +26,11 @@ import ReportDemographic from '@/components/report/ReportDemographic';
 import ReportCreatives from '@/components/report/ReportCreatives';
 
 const REPORT_TABS = [
-  { id: 'overview', label: 'Insights', icon: TrendingUp },
-  { id: 'platforms', label: 'Plataformas', icon: Globe },
-  { id: 'device', label: 'Dispositivos', icon: Monitor },
-  { id: 'demographic', label: 'Idade e Gênero', icon: Users },
-  { id: 'creatives', label: 'Criativos', icon: Image },
+  { id: 'overview', label: 'Insights', icon: TrendingUp, permission: 'reports_tab_overview' },
+  { id: 'platforms', label: 'Plataformas', icon: Globe, permission: 'reports_tab_platforms' },
+  { id: 'device', label: 'Dispositivos', icon: Monitor, permission: 'reports_tab_device' },
+  { id: 'demographic', label: 'Idade e Gênero', icon: Users, permission: 'reports_tab_demographic' },
+  { id: 'creatives', label: 'Criativos', icon: Image, permission: 'reports_tab_creatives' },
 ];
 
 const ALL_KPIS = [
