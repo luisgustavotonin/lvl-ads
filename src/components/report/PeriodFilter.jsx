@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, subDays } from 'date-fns';
-import { Bookmark, Check } from 'lucide-react';
 
 const getBrasiliaToday = () => {
   const str = new Date().toLocaleString('en-US', {
@@ -37,12 +36,10 @@ const fromInput = (str) => {
 };
 
 // allowedPresets: array of preset ids. If null/empty = show all
-// onSaveDefault: optional callback(presetId) called when admin clicks save
-export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange, allowedPresets, onSaveDefault }) {
+export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange, allowedPresets }) {
   const [activePreset, setActivePreset] = React.useState('last_30');
   const [isCustomOpen, setIsCustomOpen] = React.useState(false);
   const [showComparison, setShowComparison] = React.useState(false);
-  const [saved, setSaved] = React.useState(false);
 
   const visiblePresets = React.useMemo(() => {
     if (!allowedPresets || allowedPresets.length === 0) return ALL_PRESETS;
@@ -53,15 +50,7 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
 
   const handlePreset = (preset) => {
     setActivePreset(preset.id);
-    setSaved(false);
     onChange(preset.getDates());
-  };
-
-  const handleSaveDefault = async () => {
-    if (!onSaveDefault || activePreset === 'custom') return;
-    await onSaveDefault(activePreset);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const handleMainDate = (field, str) => {
@@ -109,18 +98,6 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
              className={`${showComparison ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
            >
              Comparar
-           </Button>
-         )}
-         {onSaveDefault && activePreset !== 'custom' && (
-           <Button
-             variant="outline"
-             size="sm"
-             onClick={handleSaveDefault}
-             className={saved ? 'border-green-500 text-green-600' : 'border-gray-300 text-gray-500'}
-             title="Salvar como período padrão"
-           >
-             {saved ? <Check className="w-3.5 h-3.5 mr-1" /> : <Bookmark className="w-3.5 h-3.5 mr-1" />}
-             {saved ? 'Salvo!' : 'Salvar padrão'}
            </Button>
          )}
        </div>

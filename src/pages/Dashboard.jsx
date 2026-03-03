@@ -90,25 +90,21 @@ export default function Dashboard() {
   // Inicializar período com base no perfil
   useEffect(() => {
     if (periodInitialized) return;
-    if (!currentUser) return;
+    if (!currentUser) return; // aguarda currentUser carregar
 
     if (currentUser.role === 'admin') {
-      const savedKey = currentUser?.admin_default_period_dashboard || 'today';
-      setPeriod(getDefaultPeriodDates(savedKey));
+      setPeriod(getDefaultPeriodDates('today'));
       setPeriodInitialized(true);
       return;
     }
 
+    // Para não-admin: aguarda userProfiles e allProfiles carregarem
     if (userProfiles.length === 0 && allProfiles.length === 0) return;
 
     const defaultKey = userProfileData?.default_period || 'last_7';
     setPeriod(getDefaultPeriodDates(defaultKey));
     setPeriodInitialized(true);
   }, [currentUser, userProfileData, periodInitialized, userProfiles, allProfiles]);
-
-  const saveAdminDefaultPeriod = async (presetId) => {
-    await base44.auth.updateMe({ admin_default_period_dashboard: presetId });
-  };
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
@@ -183,12 +179,7 @@ export default function Dashboard() {
 
       {/* Period Filter */}
       <Card className="p-4 bg-white border border-gray-200 shadow-sm">
-        <PeriodFilter
-          value={period}
-          onChange={setPeriod}
-          allowedPresets={allowedPeriods}
-          onSaveDefault={currentUser?.role === 'admin' ? saveAdminDefaultPeriod : null}
-        />
+        <PeriodFilter value={period} onChange={setPeriod} allowedPresets={allowedPeriods} />
       </Card>
 
       {/* Stats Cards */}
