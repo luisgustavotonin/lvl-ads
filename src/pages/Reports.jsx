@@ -601,7 +601,8 @@ export default function Reports() {
                 </Button>
               )}
 
-              {canDo('edit_report_kpis') && <Sheet>
+              {canDo('edit_report_kpis') && (
+              <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2">
                     <Settings2 className="w-4 h-4" />
