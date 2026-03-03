@@ -189,55 +189,27 @@ export default function Layout({ children, currentPageName }) {
             )}
           </nav>
 
-          {/* User - desktop: dropdown, mobile: name + logout button */}
-          <div className="p-3 border-t border-gray-100">
-            {/* Desktop */}
-            <div className="hidden lg:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                        {getInitials(user?.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || 'Usuário'}</p>
-                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => base44.auth.logout()}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sair
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            {/* Mobile */}
-            <div className="lg:hidden space-y-2">
-              <div className="flex items-center gap-3 px-2 py-1">
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                    {getInitials(user?.full_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || 'Usuário'}</p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                </div>
+          {/* User */}
+          <div className="p-3 border-t border-gray-100 space-y-2">
+            <div className="flex items-center gap-3 px-2 py-1">
+              <Avatar className="w-8 h-8">
+                <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
+                  {getInitials(user?.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || 'Usuário'}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
               </div>
-              <Button
-                variant="outline"
-                className="w-full gap-2 text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => base44.auth.logout()}
-              >
-                <LogOut className="w-4 h-4" />
-                Sair
-              </Button>
             </div>
+            <Button
+              variant="outline"
+              className="w-full gap-2 text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => base44.auth.logout()}
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </Button>
           </div>
         </div>
       </aside>
