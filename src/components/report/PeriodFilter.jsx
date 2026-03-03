@@ -37,10 +37,12 @@ const fromInput = (str) => {
 };
 
 // allowedPresets: array of preset ids. If null/empty = show all
-export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange, allowedPresets }) {
+// onSaveDefault: optional callback(presetId) called when admin clicks save
+export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange, allowedPresets, onSaveDefault }) {
   const [activePreset, setActivePreset] = React.useState('last_30');
   const [isCustomOpen, setIsCustomOpen] = React.useState(false);
   const [showComparison, setShowComparison] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
 
   const visiblePresets = React.useMemo(() => {
     if (!allowedPresets || allowedPresets.length === 0) return ALL_PRESETS;
