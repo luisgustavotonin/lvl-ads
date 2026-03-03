@@ -425,6 +425,35 @@ export default function Profiles() {
               </div>
             </div>
 
+            {/* Filtros visíveis */}
+            <div className="space-y-2">
+              <Label>Filtros de período visíveis</Label>
+              <p className="text-xs text-gray-500">Se nenhum for marcado, todos os filtros serão exibidos.</p>
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {ALL_PERIOD_OPTIONS.map(opt => {
+                  const isChecked = formData.allowed_periods?.includes(opt.value);
+                  return (
+                    <div key={opt.value} className="flex items-center gap-2 p-2 border rounded-lg hover:bg-gray-50">
+                      <Checkbox
+                        id={`period-${opt.value}`}
+                        checked={!!isChecked}
+                        onCheckedChange={(checked) => {
+                          const prev = formData.allowed_periods || [];
+                          setFormData({
+                            ...formData,
+                            allowed_periods: checked
+                              ? [...prev, opt.value]
+                              : prev.filter(v => v !== opt.value)
+                          });
+                        }}
+                      />
+                      <label htmlFor={`period-${opt.value}`} className="text-sm cursor-pointer">{opt.label}</label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Cor</Label>
