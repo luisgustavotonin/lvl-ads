@@ -157,15 +157,19 @@ export default function Layout({ children, currentPageName }) {
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              
-              
+          {/* Brand Header */}
+          <div className="px-4 py-6 border-b border-gray-100">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 flex items-center gap-3">
+              <div className="w-14 h-14 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-200">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center text-white font-bold text-lg">
+                  LVL
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">LVL</p>
+                <p className="text-lg font-bold text-blue-600">Insights</p>
+              </div>
             </div>
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
-              <X className="w-5 h-5" />
-            </Button>
           </div>
 
           {/* Navigation */}

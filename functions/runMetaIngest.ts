@@ -347,15 +347,32 @@ async function deleteByPeriod(entity, { account_id, unit_id, date_from, date_to 
   }
 }
 
-async function safeFilterByInChunked(entity, keys) {
+async function safeFilterByInChunked(entity, keys, maxRetries = 3) {
   try {
     const existingAll = [];
     const chunks = splitIntoChunks(keys, CHUNK_SIZE);
 
     for (const ck of chunks) {
-      const res = await entity.filter({ unique_key: { $in: ck } }, null, ck.length);
-      if (Array.isArray(res) && res.length) existingAll.push(...res);
-      await sleep(10);
+      let lastError = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const res = await entity.filter({ unique_key: { $in: ck } }, null, ck.length);
+          if (Array.isArray(res) && res.length) existingAll.push(...res);
+          await sleep(10);
+          break;
+        } catch (e) {
+          lastError = e;
+          if (attempt < maxRetries) {
+            const backoff = jitter(200 * Math.pow(2, attempt));
+            console.warn(`filter $in retry (attempt ${attempt + 1}/${maxRetries + 1}) in ${backoff}ms:`, e?.message);
+            await sleep(backoff);
+          }
+        }
+      }
+      if (lastError && lastError !== existingAll) {
+        console.error('⚠️ filter $in falhou após retries:', lastError?.message || lastError);
+        return null;
+      }
     }
 
     return existingAll;
@@ -392,13 +409,24 @@ async function createOnlyFallback(entity, rows) {
   return written;
 }
 
-async function safeBulkCreate(entity, rows, bulkChunkSize) {
-  try {
-    return await bulkCreateChunked(entity, rows, bulkChunkSize);
-  } catch (e) {
-    console.error('⚠️ bulkCreate falhou, usando createOnlyFallback:', e?.message || e);
-    return await createOnlyFallback(entity, rows);
+async function safeBulkCreate(entity, rows, bulkChunkSize, maxRetries = 2) {
+  let lastError = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await bulkCreateChunked(entity, rows, bulkChunkSize);
+    } catch (e) {
+      lastError = e;
+      if (attempt < maxRetries) {
+        const backoff = jitter(300 * Math.pow(2, attempt));
+        console.warn(`bulkCreate retry (attempt ${attempt + 1}/${maxRetries + 1}) in ${backoff}ms:`, e?.message);
+        await sleep(backoff);
+      }
+    }
   }
+  
+  console.error('⚠️ bulkCreate falhou após retries, usando createOnlyFallback:', lastError?.message || lastError);
+  return await createOnlyFallback(entity, rows);
 }
 
 /**
