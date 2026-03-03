@@ -690,7 +690,7 @@ export default function Reports() {
         </Card>
 
         <div className="flex overflow-x-auto gap-1 bg-white rounded-xl border border-gray-200 shadow-sm p-1">
-          {REPORT_TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
