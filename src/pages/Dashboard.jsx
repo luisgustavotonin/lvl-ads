@@ -90,14 +90,21 @@ export default function Dashboard() {
   // Inicializar período com base no perfil
   useEffect(() => {
     if (periodInitialized) return;
-    if (currentUser === undefined) return;
-    if (currentUser?.role !== 'admin' && userProfiles.length === 0) return; // esperando carregar
+    if (!currentUser) return; // aguarda currentUser carregar
 
-    let defaultKey = currentUser?.role === 'admin' ? 'today' : 'last_7';
-    if (userProfileData?.default_period) defaultKey = userProfileData.default_period;
+    if (currentUser.role === 'admin') {
+      setPeriod(getDefaultPeriodDates('today'));
+      setPeriodInitialized(true);
+      return;
+    }
+
+    // Para não-admin: aguarda userProfiles e allProfiles carregarem
+    if (userProfiles.length === 0 && allProfiles.length === 0) return;
+
+    const defaultKey = userProfileData?.default_period || 'last_7';
     setPeriod(getDefaultPeriodDates(defaultKey));
     setPeriodInitialized(true);
-  }, [currentUser, userProfileData, periodInitialized, userProfiles]);
+  }, [currentUser, userProfileData, periodInitialized, userProfiles, allProfiles]);
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
