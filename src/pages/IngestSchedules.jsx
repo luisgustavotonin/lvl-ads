@@ -165,20 +165,22 @@ export default function IngestSchedules() {
 
   const handleRunNow = async (s) => {
     setRunningId(s.id);
+    toast.loading('Iniciando execução...');
     try {
       const res = await base44.functions.invoke('runScheduledIngest', { schedule_id: s.id, force_all: true });
       const data = res.data;
       if (data?.ok) {
-        const total = data.results?.[0]?.jobs?.reduce((a, j) => a + (j.rows || 0), 0) || 0;
-        toast.success(`Executado! ${total} rows processados`);
+        await refetch();
+        const total = data.results?.[0]?.jobs?.filter(j => j.status === 'queued')?.length || 0;
+        toast.success(`${total} jobs enfileirados — verifique em Ingestão Meta`);
       } else {
-        toast.error('Erro ao executar');
+        toast.error(data?.message || 'Erro ao executar');
       }
     } catch (e) {
       toast.error(e.message);
     } finally {
       setRunningId(null);
-      refetch();
+      await refetch();
     }
   };
 
