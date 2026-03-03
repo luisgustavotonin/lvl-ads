@@ -80,7 +80,6 @@ export default function MetaIngest() {
   const [expandedJob, setExpandedJob] = useState(null);
   const [creativesQueue, setCreativesQueue] = useState([]); // fila de sincronizações de criativos
   const [runningCreativesQueue, setRunningCreativesQueue] = useState(false);
-  const [deletingJobId, setDeletingJobId] = useState(null);
 
   const runningRef = useRef(false);
   const runningCreativesRef = useRef(false);
@@ -134,16 +133,13 @@ export default function MetaIngest() {
   // Delete a job record
   const handleDelete = async (job) => {
     if (!window.confirm('Excluir registro do job?\n\nOs dados já gravados nas tabelas de insights continuam existindo.')) return;
-    setDeletingJobId(job.id);
     try {
-      await base44.asServiceRole.entities.MetaIngestRun.delete(job.id);
+      const res = await base44.functions.invoke('deleteMetaIngestRun', { job_id: job.id });
+      if (res.data?.error) { toast.error(res.data.error); return; }
       toast.success('Job excluído');
       refetch();
     } catch (err) {
-      console.error('Erro ao excluir job:', err);
-      toast.error(err?.message || 'Erro ao excluir job');
-    } finally {
-      setDeletingJobId(null);
+      toast.error(err?.response?.data?.error || err.message || 'Erro ao excluir job');
     }
   };
 
@@ -380,12 +376,26 @@ export default function MetaIngest() {
       try {
         const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
         if (!ok) {
-          // continua a fila, marcando este item como failed/skipped
-          toast.error(`Erro em "${item.label}". Continuando com próximos...`);
+          // stop on error
+          runningRef.current = false;
+          setRunningQueue(false);
+          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+            : q));
+          toast.error(`Erro em "${item.label}". Fila interrompida.`);
+          refetch();
+          return;
         }
       } catch (err) {
         updateItem(item.id, { status: 'failed', error: err.message });
-        toast.error(`Erro em "${item.label}". Continuando com próximos...`);
+        runningRef.current = false;
+        setRunningQueue(false);
+        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
+          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
+          : q));
+        toast.error(`Erro em "${item.label}". Fila interrompida.`);
+        refetch();
+        return;
       }
 
       refetch();
@@ -713,81 +723,49 @@ export default function MetaIngest() {
             <Card key={job.id} className={`border-gray-200 ${isScheduled ? 'border-l-4 border-l-purple-400' : ''}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <StatusBadge status={job.status} />
-                    <span className="text-sm font-medium text-gray-800 truncate">{unitName}</span>
-                    <Badge variant="outline" className="text-xs">{modeLabel}</Badge>
-                    <span className="text-xs text-gray-400">{job.date_from} → {job.date_to}</span>
-                    {isScheduled ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
-                        <CalendarClock className="w-3 h-3" />
-                        {job.schedule_name || 'Agendado'}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
-                        <User className="w-3 h-3" />
-                        Manual
-                      </span>
-                    )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusBadge status={job.status} />
+                      <span className="text-sm font-medium text-gray-800 truncate">{unitName}</span>
+                      <Badge variant="outline" className="text-xs">{modeLabel}</Badge>
+                      <span className="text-xs text-gray-400">{job.date_from} → {job.date_to}</span>
+                      {isScheduled ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
+                          <CalendarClock className="w-3 h-3" />
+                          {job.schedule_name || 'Agendado'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
+                          <User className="w-3 h-3" />
+                          Manual
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                      <span>Rows: <strong>{job.rows_written || 0}</strong></span>
+                      <span className="text-gray-300">·</span>
+                      <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                      {job.error_message && (
+                        <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                    <span>Rows: <strong>{job.rows_written || 0}</strong></span>
-                    <span className="text-gray-300">·</span>
-                    <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
-                    {job.error_message && (
-                      <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
+                  <div className="flex items-center gap-2">
+                    {(job.status === 'queued' || job.status === 'running') && (
+                      <button title="Cancelar" className="text-red-400 hover:text-red-600" onClick={() => handleCancel(job)}>
+                        <StopCircle className="w-4 h-4" />
+                      </button>
                     )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {job.status === 'failed' && (
-                    <button 
-                      title="Reexecutar este job" 
-                      className="text-blue-400 hover:text-blue-600"
-                      onClick={async () => {
-                        try {
-                          const res = await base44.functions.invoke('runMetaIngest', {
-                            job_key: job.job_key,
-                            meta_token: selectedUnit?.secret_token,
-                            unit_id: job.unit_id,
-                            mode: job.mode,
-                            force: false,
-                          });
-                          if (res.data?.error) {
-                            toast.error(res.data.error);
-                          } else {
-                            toast.success('Job reexecutado');
-                            refetch();
-                          }
-                        } catch (err) {
-                          toast.error(err?.message || 'Erro ao reexecutar');
-                        }
-                      }}
+                    <button title="Excluir registro" className="text-gray-300 hover:text-red-500" onClick={() => handleDelete(job)}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      className="text-gray-400 hover:text-gray-600"
+                      onClick={() => setExpandedJob(isExpanded ? null : job.id)}
                     >
-                      <RefreshCw className="w-4 h-4" />
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
-                  )}
-                  {(job.status === 'queued' || job.status === 'running') && (
-                    <button title="Cancelar" className="text-red-400 hover:text-red-600" onClick={() => handleCancel(job)}>
-                      <StopCircle className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button 
-                    title="Excluir registro" 
-                    className="text-gray-300 hover:text-red-500 disabled:opacity-50" 
-                    disabled={deletingJobId === job.id}
-                    onClick={() => handleDelete(job)}
-                  >
-                    {deletingJobId === job.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  </button>
-                  <button
-                    className="text-gray-400 hover:text-gray-600"
-                    onClick={() => setExpandedJob(isExpanded ? null : job.id)}
-                  >
-                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                </div>
+                  </div>
                 </div>
 
                 {isExpanded && (
