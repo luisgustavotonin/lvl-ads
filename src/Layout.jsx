@@ -42,6 +42,7 @@ const navigation = [
 { name: 'Integrações', href: 'Integrations', icon: Link2, permission: 'manage_integrations' },
 { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap, permission: 'manage_data' },
 { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell, permission: 'manage_permissions' },
+{ name: 'Logs de Webhook', href: 'WebhookLogViewer', icon: BarChart3, permission: 'manage_data' },
 { name: 'Perfis', href: 'Profiles', icon: Shield, permission: 'manage_profiles' },
 { name: 'Usuários', href: 'Users', icon: Users, permission: 'manage_users' },
 { name: 'Agendamentos', href: 'IngestSchedules', icon: Clock, permission: 'manage_schedules' },
