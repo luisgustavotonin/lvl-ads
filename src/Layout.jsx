@@ -168,7 +168,7 @@ export default function Layout({ children, currentPageName }) {
 
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">LVL</p>
+                
                 <p className="text-orange-600 text-lg font-bold">Insights</p>
               </div>
             </div>
