@@ -109,8 +109,9 @@ export default function Dashboard() {
   }, [currentUser, allUnits, userProfiles]);
 
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
-    queryKey: ['dashboardMetrics', period.start, period.end],
+    queryKey: ['dashboardMetrics', period?.start, period?.end],
     queryFn: async () => {
+      if (!period) return [];
       const startDate = format(period.start, 'yyyy-MM-dd');
       const endDate = format(period.end, 'yyyy-MM-dd');
       const data = await base44.entities.MetaInsightBase.filter({
