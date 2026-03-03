@@ -268,9 +268,9 @@ export default function Reports() {
   }, [selectedUnit, units]);
 
   const { data: currentMetrics = [], isLoading } = useQuery({
-    queryKey: ['currentMetrics', selectedUnit, period.start, period.end, selectedPlatforms],
+    queryKey: ['currentMetrics', selectedUnit, period?.start, period?.end, selectedPlatforms],
     queryFn: async () => {
-      if (!selectedUnit) return [];
+      if (!selectedUnit || !period) return [];
       if (!selectedPlatforms.includes('META')) return [];
 
       const unit = units.find((u) => u.id === selectedUnit);
