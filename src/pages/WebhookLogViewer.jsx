@@ -69,11 +69,11 @@ export default function WebhookLogViewer() {
         <CardContent className="p-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Buscar por Job ID ou Integration ID</Label>
+              <Label>Buscar por Job Key</Label>
               <Input 
-                placeholder="Ex: 16ec9dff, job_id..." 
-                value={jobIdSearch}
-                onChange={e => setJobIdSearch(e.target.value)}
+                placeholder="Ex: 16ec9dff, abc123def..." 
+                value={jobKeySearch}
+                onChange={e => setJobKeySearch(e.target.value)}
               />
             </div>
             <div className="space-y-2">
