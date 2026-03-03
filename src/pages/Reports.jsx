@@ -749,7 +749,7 @@ export default function Reports() {
               <Card className="p-6 bg-white border border-gray-200 shadow-sm mb-6" data-pdf-section>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-900">Funil de Conversão</h3>
-                  <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />
+                  {canDo('edit_report_funnel') && <FunnelEditor unitId={selectedUnit} currentStages={funnelStages} onSave={setFunnelStages} />}
                 </div>
 
                 <div className="overflow-hidden pb-2">
