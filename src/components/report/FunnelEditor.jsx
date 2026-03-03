@@ -32,6 +32,17 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
     (currentStages || []).map((s, i) => ({ ...s, color: s.color || STAGE_COLORS[i % STAGE_COLORS.length] }))
   );
 
+  // Gera o sistema de cores com variações tonais
+  const colorSystem = useMemo(() => generateColorSystem(), []);
+  
+  // Converte o sistema de cores em grupos para exibição no picker
+  const colorGroups = useMemo(() => {
+    return Object.entries(colorSystem).map(([colorName, variations]) => ({
+      name: colorName,
+      colors: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map(stop => variations[stop])
+    }));
+  }, [colorSystem]);
+
   // Sincroniza stages internos quando o dialog abre (pega as cores salvas)
   useEffect(() => {
     if (open) {
