@@ -586,6 +586,35 @@ export default function MetaIngest() {
         </CardContent>
       </Card>
 
+      {/* Creatives Queue Status */}
+      {creativesQueue.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Image className="w-4 h-4 text-pink-500" />
+              Fila: Sincronização de Criativos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {creativesQueue.map((item, i) => (
+                <div key={item.id} className="flex items-center gap-3 py-2 border-b last:border-0">
+                  <span className="text-xs text-gray-400 w-4">{i + 1}</span>
+                  <StatusBadge status={item.status} />
+                  <span className="text-sm font-medium text-gray-800 flex-1">{item.label}</span>
+                  {item.rows_written > 0 && (
+                    <span className="text-xs text-gray-500">{item.rows_written} criativos</span>
+                  )}
+                  {item.error && (
+                    <span className={`text-xs max-w-xs truncate ${item.status === 'skipped' ? 'text-gray-400' : 'text-red-500'}`}>{item.error}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Creatives Sync History */}
       {creativesHistory.length > 0 && (
         <Card>
@@ -605,6 +634,11 @@ export default function MetaIngest() {
                   {entry.status === 'done' && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-700 border-green-200">
                       <CheckCircle2 className="w-3 h-3" /> {entry.rows_written} criativos
+                    </span>
+                  )}
+                  {entry.status === 'failed' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-100 text-red-700 border-red-200 max-w-xs truncate">
+                      <XCircle className="w-3 h-3" /> {entry.error}
                     </span>
                   )}
                   {entry.status === 'error' && (
