@@ -445,34 +445,44 @@ export default function MetaIngest() {
                 >Limpar</button>
               </div>
             </div>
+            <Input 
+              type="text" 
+              placeholder="Buscar unidade..." 
+              value={unitSearch} 
+              onChange={e => setUnitSearch(e.target.value)}
+              className="text-sm"
+            />
             <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-              {units.map(u => {
-                const selected = form.unit_ids.includes(u.id);
-                return (
-                  <label
-                    key={u.id}
-                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                  >
-                    <Checkbox
-                      checked={selected}
-                      onCheckedChange={checked => {
-                        setForm(f => ({
-                          ...f,
-                          unit_ids: checked
-                            ? [...f.unit_ids, u.id]
-                            : f.unit_ids.filter(id => id !== u.id)
-                        }));
-                      }}
-                    />
-                    <span className={`text-sm font-medium ${selected ? 'text-blue-800' : 'text-gray-800'}`}>{u.name}</span>
-                    {u.account_id
-                      ? <span className="text-xs text-gray-400 ml-auto">{u.account_id}</span>
-                      : <span className="text-xs text-red-400 ml-auto">⚠️ sem account_id</span>
-                    }
-                    {!u.secret_token && <span className="text-xs text-red-400">sem token</span>}
-                  </label>
-                );
-              })}
+              {[...units]
+                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                .filter(u => u.name.toLowerCase().includes(unitSearch.toLowerCase()))
+                .map(u => {
+                  const selected = form.unit_ids.includes(u.id);
+                  return (
+                    <label
+                      key={u.id}
+                      className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    >
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={checked => {
+                          setForm(f => ({
+                            ...f,
+                            unit_ids: checked
+                              ? [...f.unit_ids, u.id]
+                              : f.unit_ids.filter(id => id !== u.id)
+                          }));
+                        }}
+                      />
+                      <span className={`text-sm font-medium ${selected ? 'text-blue-800' : 'text-gray-800'}`}>{u.name}</span>
+                      {u.account_id
+                        ? <span className="text-xs text-gray-400 ml-auto">{u.account_id}</span>
+                        : <span className="text-xs text-red-400 ml-auto">⚠️ sem account_id</span>
+                      }
+                      {!u.secret_token && <span className="text-xs text-red-400">sem token</span>}
+                    </label>
+                  );
+                })}
             </div>
             {form.unit_ids.length > 0 && (
               <p className="text-xs text-blue-600">{form.unit_ids.length} unidade(s) selecionada(s)</p>
