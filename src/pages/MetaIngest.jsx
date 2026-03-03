@@ -147,6 +147,29 @@ export default function MetaIngest() {
     }
   };
 
+  // Retry a failed job
+  const handleRetry = async (job) => {
+    try {
+      const unit = units.find(u => u.account_id === job.account_id);
+      if (!unit) { toast.error('Unidade não encontrada'); return; }
+
+      toast.loading('Enfileirando job novamente...');
+      const res = await base44.functions.invoke('runMetaIngest', {
+        job_key: job.job_key,
+        meta_token: unit.secret_token,
+        unit_id: unit.id,
+        mode: job.mode,
+        force: true,
+      });
+
+      if (res.data?.error) { toast.error(res.data.error); return; }
+      toast.success('Job re-enfileirado! Verifique a fila.');
+      refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err.message || 'Erro ao retry');
+    }
+  };
+
   // Sincroniza criativos uma unidade
   const syncCreativeUnit = async (unit, queueId, updateItem) => {
     if (!unit?.account_id || !unit?.secret_token) {
