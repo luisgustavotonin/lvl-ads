@@ -402,21 +402,32 @@ export default function MetaIngest() {
 
       updateItem(item.id, { status: 'running' });
 
-      try {
-        const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
-        if (!ok) {
-          // stop on error
-          runningRef.current = false;
-          setRunningQueue(false);
-          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-            : q));
-          toast.error(`Erro em "${item.label}". Fila interrompida.`);
-          refetch();
-          return;
+      let success = false;
+      let lastError = null;
+
+      // Retry 2 vezes em caso de erro temporário (502, 503, etc)
+      for (let retry = 0; retry < 2; retry++) {
+        try {
+          const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
+          if (ok) {
+            success = true;
+            break;
+          } else {
+            lastError = 'Job já existe ou erro desconhecido';
+          }
+        } catch (err) {
+          lastError = err?.response?.status === 502 || err?.response?.status === 503 
+            ? `Erro temporário (${err?.response?.status}). Tentando novamente...`
+            : err.message;
+
+          if (retry < 1) {
+            await delay(3000); // aguarda 3s antes de retry
+          }
         }
-      } catch (err) {
-        updateItem(item.id, { status: 'failed', error: err.message });
+      }
+
+      if (!success) {
+        updateItem(item.id, { status: 'failed', error: lastError });
         runningRef.current = false;
         setRunningQueue(false);
         setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
