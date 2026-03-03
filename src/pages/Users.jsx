@@ -114,6 +114,31 @@ export default function Users() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: async (user) => {
+      // Remove UserProfile first
+      const up = userProfiles.find(p => p.user_id === user.id);
+      if (up) await base44.entities.UserProfile.delete(up.id);
+      await base44.entities.User.delete(user.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['userProfiles'] });
+      setDeleteDialog(null);
+    },
+  });
+
+  const toggleUserStatusMutation = useMutation({
+    mutationFn: ({ user }) => {
+      const newStatus = user.status === 'inactive' ? 'active' : 'inactive';
+      return base44.entities.User.update(user.id, { status: newStatus });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setInactivateDialog(null);
+    },
+  });
+
   const handleOpenEditDialog = (user) => {
     const userProfile = userProfiles.find(up => up.user_id === user.id);
     setEditingUser(user);
