@@ -97,14 +97,16 @@ export default function Profiles() {
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState(['operacao']);
-  const DEFAULT_PERIOD_OPTIONS = [
-    { value: 'last_7_days', label: 'Últimos 7 dias' },
-    { value: 'last_14_days', label: 'Últimos 14 dias' },
-    { value: 'last_30_days', label: 'Últimos 30 dias' },
-    { value: 'last_month', label: 'Mês passado' },
-    { value: 'mtd', label: 'Mês atual (MTD)' },
-    { value: 'yesterday', label: 'Ontem' },
-    { value: 'today', label: 'Hoje' },
+  const ALL_PERIOD_OPTIONS = [
+    { value: 'today',      label: 'Hoje' },
+    { value: 'yesterday',  label: 'Ontem' },
+    { value: 'last_7',     label: '7 dias' },
+    { value: 'last_14',    label: '14 dias' },
+    { value: 'last_28',    label: '28 dias' },
+    { value: 'last_30',    label: '30 dias' },
+    { value: 'mtd',        label: 'Mês atual' },
+    { value: 'last_month', label: 'Mês anterior' },
+    { value: 'custom',     label: 'Personalizado' },
   ];
 
   const [formData, setFormData] = useState({
