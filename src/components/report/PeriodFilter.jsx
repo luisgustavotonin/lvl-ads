@@ -13,13 +13,15 @@ const getBrasiliaToday = () => {
   return new Date(year, month - 1, day, 0, 0, 0, 0);
 };
 
-const PRESETS = [
-  { id: 'today',        label: 'Hoje',            getDates: () => { const t = getBrasiliaToday(); return { start: t, end: t }; } },
-  { id: 'yesterday',    label: 'Ontem',           getDates: () => { const t = getBrasiliaToday(); const y = subDays(t, 1); return { start: y, end: y }; } },
-  { id: 'last_7',       label: '7 dias',          getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 6), end: t }; } },
-  { id: 'last_14',      label: '14 dias',         getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 13), end: t }; } },
-  { id: 'last_28',      label: '28 dias',         getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 27), end: t }; } },
-  { id: 'last_30',      label: '30 dias',         getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 29), end: t }; } },
+export const ALL_PRESETS = [
+  { id: 'today',        label: 'Hoje',          getDates: () => { const t = getBrasiliaToday(); return { start: t, end: t }; } },
+  { id: 'yesterday',    label: 'Ontem',         getDates: () => { const t = getBrasiliaToday(); const y = subDays(t, 1); return { start: y, end: y }; } },
+  { id: 'last_7',       label: '7 dias',        getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 6), end: t }; } },
+  { id: 'last_14',      label: '14 dias',       getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 13), end: t }; } },
+  { id: 'last_28',      label: '28 dias',       getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 27), end: t }; } },
+  { id: 'last_30',      label: '30 dias',       getDates: () => { const t = getBrasiliaToday(); return { start: subDays(t, 29), end: t }; } },
+  { id: 'mtd',          label: 'Mês atual',     getDates: () => { const t = getBrasiliaToday(); const s = new Date(t.getFullYear(), t.getMonth(), 1); return { start: s, end: t }; } },
+  { id: 'last_month',   label: 'Mês anterior',  getDates: () => { const t = getBrasiliaToday(); const s = new Date(t.getFullYear(), t.getMonth() - 1, 1); const e = new Date(t.getFullYear(), t.getMonth(), 0); return { start: s, end: e }; } },
 ];
 
 const toInput = (date) => {
@@ -33,10 +35,18 @@ const fromInput = (str) => {
   return new Date(y, m - 1, d, 0, 0, 0, 0);
 };
 
-export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange }) {
+// allowedPresets: array of preset ids. If null/empty = show all
+export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange, allowedPresets }) {
   const [activePreset, setActivePreset] = React.useState('last_30');
   const [isCustomOpen, setIsCustomOpen] = React.useState(false);
   const [showComparison, setShowComparison] = React.useState(false);
+
+  const visiblePresets = React.useMemo(() => {
+    if (!allowedPresets || allowedPresets.length === 0) return ALL_PRESETS;
+    return ALL_PRESETS.filter(p => allowedPresets.includes(p.id));
+  }, [allowedPresets]);
+
+  const showCustom = !allowedPresets || allowedPresets.length === 0 || allowedPresets.includes('custom');
 
   const handlePreset = (preset) => {
     setActivePreset(preset.id);
@@ -61,7 +71,7 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
     <div className="flex flex-col gap-3 w-full">
       {/* Preset buttons */}
        <div className="flex flex-wrap items-center gap-2">
-         {PRESETS.map((p) => (
+         {visiblePresets.map((p) => (
            <Button
              key={p.id}
              variant={activePreset === p.id ? 'default' : 'outline'}
@@ -71,13 +81,15 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
              {p.label}
            </Button>
          ))}
-         <Button
-           variant={isCustomOpen || activePreset === 'custom' ? 'default' : 'outline'}
-           size="sm"
-           onClick={() => setIsCustomOpen(!isCustomOpen)}
-         >
-           Personalizado
-         </Button>
+         {showCustom && (
+           <Button
+             variant={isCustomOpen || activePreset === 'custom' ? 'default' : 'outline'}
+             size="sm"
+             onClick={() => setIsCustomOpen(!isCustomOpen)}
+           >
+             Personalizado
+           </Button>
+         )}
          {(isCustomOpen || showComparison) && (
            <Button
              variant={showComparison ? 'default' : 'outline'}
