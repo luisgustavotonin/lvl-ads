@@ -18,9 +18,20 @@ export default function WebhookLogViewer() {
     queryKey: ['webhookLogs', jobKeySearch, statusFilter],
     queryFn: async () => {
       const result = await base44.entities.WebhookLog.list('-created_date', 200);
-      return jobKeySearch.trim() 
-        ? result.filter(log => log.payload_received?.job_key?.includes(jobKeySearch.trim()) || log.integration_id?.includes(jobKeySearch.trim()))
-        : result;
+      if (!jobKeySearch.trim()) return result;
+      
+      const search = jobKeySearch.trim().toLowerCase();
+      return result.filter(log => {
+        // Busca em campos conhecidos
+        if (log.integration_id?.toLowerCase().includes(search)) return true;
+        if (log.job_key?.toLowerCase().includes(search)) return true;
+        
+        // Busca no payload
+        const payloadStr = JSON.stringify(log.payload_received || {}).toLowerCase();
+        if (payloadStr.includes(search)) return true;
+        
+        return false;
+      });
     },
     enabled: true,
   });
