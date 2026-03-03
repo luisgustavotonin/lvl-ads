@@ -421,7 +421,6 @@ export default function Profiles() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2" style={{display:'none'}}></div>
               <div className="space-y-2">
                 <Label>Cor</Label>
                 <div className="flex gap-2">
