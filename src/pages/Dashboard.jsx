@@ -93,7 +93,7 @@ export default function Dashboard() {
     if (currentUser === undefined) return;
     if (currentUser?.role !== 'admin' && userProfiles.length === 0) return; // esperando carregar
 
-    let defaultKey = 'last_7';
+    let defaultKey = currentUser?.role === 'admin' ? 'today' : 'last_7';
     if (userProfileData?.default_period) defaultKey = userProfileData.default_period;
     setPeriod(getDefaultPeriodDates(defaultKey));
     setPeriodInitialized(true);
