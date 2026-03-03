@@ -7,11 +7,11 @@ const MAX_RETRIES = 3;
 async function fetchWithRetry(url, retries = MAX_RETRIES) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      const response = await fetch(url, { signal: AbortSignal.timeout(60000) });
       return response;
     } catch (error) {
       if (attempt < retries) {
-        const backoff = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+        const backoff = Math.pow(2, attempt) * 2000 + Math.random() * 1000;
         console.warn(`Retry ${attempt + 1}/${retries} in ${backoff}ms:`, error?.message);
         await sleep(backoff);
       } else {
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
                 });
             }
             url = data.paging?.next || null;
-            if (url) await sleep(300);
+            if (url) await sleep(1000);
         }
 
         console.log(`📦 Coletados ${allRows.length} registros, salvando em batch...`);

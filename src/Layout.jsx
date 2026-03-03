@@ -157,15 +157,21 @@ export default function Layout({ children, currentPageName }) {
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              
-              
+          {/* Brand Header */}
+          <div className="px-4 py-6 border-b border-gray-100">
+            <div className="bg-slate-50 p-4 rounded-lg from-blue-50 to-blue-100 flex items-center gap-3">
+              <div className="w-14 h-14 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-200">
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/ede7e1dec_6824a59a24a8cd8416895e42_lvl.png"
+                  alt="LVL Logo"
+                  className="w-16 h-12 object-contain" />
+
+              </div>
+              <div>
+                
+                <p className="text-orange-600 text-lg font-bold">Insights</p>
+              </div>
             </div>
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
-              <X className="w-5 h-5" />
-            </Button>
           </div>
 
           {/* Navigation */}

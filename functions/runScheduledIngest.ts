@@ -106,22 +106,21 @@ Deno.serve(async (req) => {
       last_log: `Iniciado em ${nowBrasilia} (horário Brasília)`
     });
 
-    let totalRows = 0;
-    let hasError = false;
+    // Enfileirar em SEQUÊNCIA, por unidade em ordem alfabética
+    const sortedUnits = [...units].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    let enqueuedCount = 0;
 
-    for (const unit of units) {
+    for (const unit of sortedUnits) {
       if (!unit.account_id || !unit.secret_token) {
         scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id ou token' });
         continue;
       }
 
-      for (let modeIdx = 0; modeIdx < modes.length; modeIdx++) {
-        const mode = modes[modeIdx];
+      for (const mode of modes) {
         const job_key = simpleHash(`${unit.account_id}:${date_from}:${date_to}:${mode}:sched`);
-
+        
         try {
-          // Enqueue
-          const enqRes = await base44.asServiceRole.functions.invoke('enqueueMetaIngest', {
+          const result = await base44.asServiceRole.functions.invoke('enqueueMetaIngest', {
             account_id: unit.account_id,
             unit_id: unit.id,
             date_from,
@@ -137,82 +136,75 @@ Deno.serve(async (req) => {
             schedule_name: schedule.name,
           });
 
-          const enqData = enqRes.data;
-          if (enqData?.status === 'done' && !schedule.force) {
-            scheduleResult.jobs.push({ unit: unit.name, mode, status: 'skipped', reason: 'dados já existem' });
-            continue;
-          }
-
-          // Run
-          const runRes = await base44.asServiceRole.functions.invoke('runMetaIngest', {
-            job_key,
-            meta_token: unit.secret_token,
-            unit_id: unit.id,
-            mode,
-            force: schedule.force || false,
-          });
-
-          const runData = runRes.data;
-          if (runData?.error) {
-            scheduleResult.jobs.push({ unit: unit.name, mode, status: 'error', error: runData.error });
-            hasError = true;
-          } else {
-            scheduleResult.jobs.push({ unit: unit.name, mode, status: 'done', rows: runData?.rows_written || 0 });
-            totalRows += runData?.rows_written || 0;
-          }
-        } catch (e) {
-          scheduleResult.jobs.push({ unit: unit.name, mode, status: 'error', error: e.message });
-          hasError = true;
-        }
-
-        // Delay entre modos para evitar rate limit da Meta API
-        if (modeIdx < modes.length - 1) {
-          await new Promise(r => setTimeout(r, 10000)); // 10s entre cada breakdown
-        }
-      }
-    }
-
-    // Sync creatives if configured
-    if (schedule.sync_creatives) {
-      const creativeDOW = schedule.creatives_day_of_week;
-      const shouldSyncCreatives = force_all || schedule_id || (creativeDOW == null ? true : creativeDOW === todayDOW);
-
-      if (shouldSyncCreatives) {
-        for (const unit of units) {
-          if (!unit.account_id || !unit.secret_token) continue;
-          try {
-            const cRes = await base44.asServiceRole.functions.invoke('syncMetaCreatives', {
-              account_id: unit.account_id,
-              unit_id: unit.id,
-              meta_token: unit.secret_token,
-            });
-            const cData = cRes.data;
+          if (result.data?.status === 'queued') {
             scheduleResult.jobs.push({
               unit: unit.name,
-              mode: 'creatives',
-              status: cData?.success ? 'done' : 'error',
-              rows: cData?.rows_written || 0,
-              error: cData?.error || null,
+              mode: mode,
+              status: 'queued',
+              job_id: result.data.job_id
             });
-          } catch (e) {
-            scheduleResult.jobs.push({ unit: unit.name, mode: 'creatives', status: 'error', error: e.message });
-            hasError = true;
+            enqueuedCount++;
+          } else {
+            scheduleResult.jobs.push({
+              unit: unit.name,
+              mode: mode,
+              status: 'skipped',
+              reason: result.data?.status || 'status desconhecido'
+            });
           }
+        } catch (err) {
+          scheduleResult.jobs.push({
+            unit: unit.name,
+            mode: mode,
+            status: 'error',
+            error: err.message
+          });
         }
       }
     }
 
-    const logSummary = scheduleResult.jobs.map(j =>
-      `${j.unit}/${j.mode}: ${j.status}${j.rows ? ` (${j.rows} rows)` : ''}${j.error ? ` - ${j.error}` : ''}`
-    ).join('\n');
+     // Sync creatives if configured (também em paralelo, sem delay)
+     if (schedule.sync_creatives) {
+       const creativeDOW = schedule.creatives_day_of_week;
+       const shouldSyncCreatives = force_all || schedule_id || (creativeDOW == null ? true : creativeDOW === todayDOW);
 
-    await base44.asServiceRole.entities.IngestSchedule.update(schedule.id, {
-      last_status: hasError ? 'error' : 'success',
-      last_log: `${nowBrasilia} Brasília | ${date_from}→${date_to} | ${totalRows} rows\n${logSummary}`
-    });
+       if (shouldSyncCreatives) {
+         const creativeTasks = units
+           .filter(u => u.account_id && u.secret_token)
+           .map(unit =>
+             base44.asServiceRole.functions.invoke('syncMetaCreatives', {
+               account_id: unit.account_id,
+               unit_id: unit.id,
+               meta_token: unit.secret_token,
+             }).then(res => ({ unit, status: 'done', data: res.data }))
+               .catch(e => ({ unit, status: 'error', error: e.message }))
+           );
 
-    results.push(scheduleResult);
-  }
+         const creativesResults = await Promise.all(creativeTasks);
+         for (const cResult of creativesResults) {
+           scheduleResult.jobs.push({
+             unit: cResult.unit.name,
+             mode: 'creatives',
+             status: cResult.status,
+             rows: cResult.data?.rows_written || 0,
+             error: cResult.error || null,
+           });
+         }
+       }
+     }
 
-  return Response.json({ ok: true, ran: results.length, results });
-});
+     const logSummary = `${enqueuedCount} jobs enfileirados\n` + 
+       scheduleResult.jobs.map(j =>
+         `${j.unit}/${j.mode}: ${j.status}${j.job_id ? ` (${j.job_id})` : ''}${j.error ? ` - ${j.error}` : ''}`
+       ).join('\n');
+
+     await base44.asServiceRole.entities.IngestSchedule.update(schedule.id, {
+       last_status: 'success',
+       last_log: `${nowBrasilia} Brasília | ${date_from}→${date_to} | ${logSummary}`
+     });
+
+     results.push(scheduleResult);
+     }
+
+     return Response.json({ ok: true, ran: results.length, results, message: `${results.reduce((sum, r) => sum + r.jobs.filter(j => j.status === 'queued').length, 0)} jobs enfileirados` });
+     });
