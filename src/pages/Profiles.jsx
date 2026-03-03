@@ -156,6 +156,7 @@ export default function Profiles() {
         color: profile.color || COLORS[0],
         permissions: profile.permissions || {},
         status: profile.status || 'active',
+        default_period: profile.default_period || 'last_30_days',
       });
     } else {
       setEditingProfile(null);
