@@ -760,7 +760,16 @@ export default function MetaIngest() {
             <h2 className="font-semibold text-gray-800">Histórico Recente</h2>
             <p className="text-xs text-gray-400">Últimos 100 jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => refetch()} className="gap-1 text-gray-500">
+          <Button variant="ghost" size="sm" onClick={() => {
+            refetch();
+            // Se há fila local com erros, persiste no localStorage para não perder
+            if (localQueue.length > 0 && localQueue.some(q => q.status === 'failed' || q.status === 'skipped')) {
+              localStorage.setItem('ingestQueue', JSON.stringify({
+                running: runningQueue,
+                items: localQueue
+              }));
+            }
+          }} className="gap-1 text-gray-500">
             <RefreshCw className="w-4 h-4" />
             Atualizar
           </Button>
