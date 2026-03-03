@@ -641,7 +641,7 @@ export default function Reports() {
                     ))}
                   </div>
                 </SheetContent>
-              </Sheet>
+              </Sheet>}
             </div>
           </div>
 
