@@ -702,7 +702,7 @@ export default function Reports() {
                   <SelectValue placeholder="Selecione a unidade" />
                 </SelectTrigger>
                 <SelectContent>
-                  {units.map((u) => (
+                  {[...units].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map((u) => (
                     <SelectItem key={u.id} value={u.id}>
                       {u.name}
                     </SelectItem>
