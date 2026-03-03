@@ -60,6 +60,7 @@ const PERMISSION_CATEGORIES = {
       { id: 'export_reports', label: 'Exportar PDF', description: 'Exportar relatórios em PDF' },
       { id: 'edit_report_kpis', label: 'Editar KPIs', description: 'Customizar quais KPIs são exibidos' },
       { id: 'edit_report_funnel', label: 'Editar Funil', description: 'Personalizar estágios do funil' },
+      { id: 'edit_report_columns', label: 'Editar Colunas das Tabelas', description: 'Reorganizar colunas das tabelas de campanhas/anúncios' },
     ]
   },
   integracoes: {
