@@ -248,20 +248,21 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
                              </div>
 
                              {openColorPicker === stage.key && (
-                               <div className="absolute left-0 top-8 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-80 max-h-[50vh] overflow-y-auto"
+                               <div className="absolute left-0 top-8 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-96 max-h-[50vh] overflow-y-auto"
                                  onClick={e => e.stopPropagation()}
                                >
-                                 <div className="space-y-2">
-                                   {COLOR_GROUPS.map((group, idx) => (
-                                     <div key={idx}>
-                                       <div className="grid grid-cols-8 gap-1.5">
-                                         {group.map(c => (
+                                 <div className="space-y-3">
+                                   {colorGroups.map((group) => (
+                                     <div key={group.name}>
+                                       <div className="text-xs font-semibold text-gray-600 mb-1.5 capitalize">{group.name}</div>
+                                       <div className="grid grid-cols-11 gap-1">
+                                         {group.colors.map((color) => (
                                            <button
-                                             key={c}
-                                             onClick={() => setStageColor(stage.key, c)}
-                                             className="w-6 h-6 rounded-full border-2 hover:scale-110 transition-transform flex-shrink-0"
-                                             style={{ backgroundColor: c, borderColor: stage.color === c ? '#000' : '#D1D5DB' }}
-                                             title={c}
+                                             key={color}
+                                             onClick={() => setStageColor(stage.key, color)}
+                                             className="w-5 h-5 rounded-full border-2 hover:scale-110 transition-transform flex-shrink-0"
+                                             style={{ backgroundColor: color, borderColor: stage.color === color ? '#000' : '#D1D5DB' }}
+                                             title={color}
                                            />
                                          ))}
                                        </div>
