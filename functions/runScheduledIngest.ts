@@ -106,65 +106,62 @@ Deno.serve(async (req) => {
       last_log: `Iniciado em ${nowBrasilia} (horário Brasília)`
     });
 
-    // Enfileirar TODOS os jobs de uma vez, sem delays
-     const jobsToEnqueue = [];
+    // Enfileirar em SEQUÊNCIA, por unidade em ordem alfabética
+    const sortedUnits = [...units].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    let enqueuedCount = 0;
 
-     for (const unit of units) {
-       if (!unit.account_id || !unit.secret_token) {
-         scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id ou token' });
-         continue;
-       }
+    for (const unit of sortedUnits) {
+      if (!unit.account_id || !unit.secret_token) {
+        scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id ou token' });
+        continue;
+      }
 
-       for (const mode of modes) {
-         const job_key = simpleHash(`${unit.account_id}:${date_from}:${date_to}:${mode}:sched`);
-         jobsToEnqueue.push({
-           account_id: unit.account_id,
-           unit_id: unit.id,
-           date_from,
-           date_to,
-           job_type: 'insights',
-           level: 'ad',
-           breakdowns: [],
-           force: schedule.force || false,
-           meta_token: unit.secret_token,
-           mode,
-           job_key_override: job_key,
-           trigger_type: 'scheduled',
-           schedule_name: schedule.name,
-         });
-       }
-     }
+      for (const mode of modes) {
+        const job_key = simpleHash(`${unit.account_id}:${date_from}:${date_to}:${mode}:sched`);
+        
+        try {
+          const result = await base44.asServiceRole.functions.invoke('enqueueMetaIngest', {
+            account_id: unit.account_id,
+            unit_id: unit.id,
+            date_from,
+            date_to,
+            job_type: 'insights',
+            level: 'ad',
+            breakdowns: [],
+            force: schedule.force || false,
+            meta_token: unit.secret_token,
+            mode,
+            job_key_override: job_key,
+            trigger_type: 'scheduled',
+            schedule_name: schedule.name,
+          });
 
-     // Enfileirar todos em paralelo
-     const enqueueResults = await Promise.allSettled(
-       jobsToEnqueue.map(params =>
-         base44.asServiceRole.functions.invoke('enqueueMetaIngest', params)
-       )
-     );
-
-     // Processar resultados de enfileiramento
-     let enqueuedCount = 0;
-     for (let i = 0; i < jobsToEnqueue.length; i++) {
-       const params = jobsToEnqueue[i];
-       const result = enqueueResults[i];
-
-       if (result.status === 'fulfilled' && result.value?.data?.status === 'queued') {
-         scheduleResult.jobs.push({
-           unit: params.unit_id,
-           mode: params.mode,
-           status: 'queued',
-           job_id: result.value.data.job_id
-         });
-         enqueuedCount++;
-       } else {
-         scheduleResult.jobs.push({
-           unit: params.unit_id,
-           mode: params.mode,
-           status: 'error',
-           error: result.status === 'rejected' ? result.reason?.message : 'Falha ao enfileirar'
-         });
-       }
-     }
+          if (result.data?.status === 'queued') {
+            scheduleResult.jobs.push({
+              unit: unit.name,
+              mode: mode,
+              status: 'queued',
+              job_id: result.data.job_id
+            });
+            enqueuedCount++;
+          } else {
+            scheduleResult.jobs.push({
+              unit: unit.name,
+              mode: mode,
+              status: 'skipped',
+              reason: result.data?.status || 'status desconhecido'
+            });
+          }
+        } catch (err) {
+          scheduleResult.jobs.push({
+            unit: unit.name,
+            mode: mode,
+            status: 'error',
+            error: err.message
+          });
+        }
+      }
+    }
 
      // Sync creatives if configured (também em paralelo, sem delay)
      if (schedule.sync_creatives) {
