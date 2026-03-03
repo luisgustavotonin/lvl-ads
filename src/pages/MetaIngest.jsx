@@ -821,6 +821,11 @@ export default function MetaIngest() {
                         <StopCircle className="w-4 h-4" />
                       </button>
                     )}
+                    {job.status === 'failed' && (
+                      <button title="Tentar novamente" className="text-blue-400 hover:text-blue-600" onClick={() => handleRetry(job)}>
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    )}
                     <button title="Excluir registro" className="text-gray-300 hover:text-red-500" onClick={() => handleDelete(job)}>
                       <Trash2 className="w-4 h-4" />
                     </button>
