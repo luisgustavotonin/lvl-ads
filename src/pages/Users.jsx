@@ -526,6 +526,52 @@ export default function Users() {
         </CardContent>
       </Card>
 
+      {/* Inativar/Ativar Dialog */}
+      <AlertDialog open={!!inactivateDialog} onOpenChange={(open) => !open && setInactivateDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {inactivateDialog?.status === 'inactive' ? 'Ativar usuário?' : 'Inativar usuário?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {inactivateDialog?.status === 'inactive'
+                ? `O usuário ${inactivateDialog?.full_name || inactivateDialog?.email} voltará a ter acesso ao sistema.`
+                : `O usuário ${inactivateDialog?.full_name || inactivateDialog?.email} perderá o acesso ao sistema.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => toggleUserStatusMutation.mutate({ user: inactivateDialog })}
+              className={inactivateDialog?.status === 'inactive' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'}
+            >
+              {inactivateDialog?.status === 'inactive' ? 'Ativar' : 'Inativar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Excluir Dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. O usuário {deleteDialog?.full_name || deleteDialog?.email} será removido permanentemente do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteUserMutation.mutate(deleteDialog)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Edit User Profile Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
