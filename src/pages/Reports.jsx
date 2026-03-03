@@ -588,7 +588,7 @@ export default function Reports() {
               )}
               <div>
                 <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900">
-                  Relatório - {(selectedUnitData && selectedUnitData.name) || 'Cliente'}
+                  {(selectedUnitData && selectedUnitData.name) || 'Cliente'}
                 </h1>
                 <p className="text-sm sm:text-base lg:text-lg text-gray-600 mt-1">Análise completa de performance</p>
               </div>
