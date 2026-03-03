@@ -233,10 +233,31 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </header>
 
-        <main className="p-4 lg:p-6">
+        <main className="p-4 lg:p-6 pb-20 lg:pb-6">
           {children}
         </main>
       </div>
+
+      {/* Bottom nav mobile */}
+      {!loading && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex lg:hidden">
+          {BOTTOM_NAV.filter(item => canAccess(item.permission)).map((item) => {
+            const isActive = currentPageName === item.href;
+            return (
+              <Link
+                key={item.name}
+                to={createPageUrl(item.href)}
+                className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors ${
+                  isActive ? 'text-blue-600' : 'text-gray-500'
+                }`}
+              >
+                <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
     </div>
   );
 }
