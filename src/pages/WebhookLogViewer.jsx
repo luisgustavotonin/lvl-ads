@@ -10,23 +10,16 @@ import { Copy, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function WebhookLogViewer() {
-  const [jobIdSearch, setJobIdSearch] = useState('');
+  const [jobKeySearch, setJobKeySearch] = useState('');
   const [expandedLog, setExpandedLog] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
 
   const { data: logs = [] } = useQuery({
-    queryKey: ['webhookLogs', jobIdSearch, statusFilter],
+    queryKey: ['webhookLogs', jobKeySearch, statusFilter],
     queryFn: async () => {
-      const query = {};
-      if (jobIdSearch.trim()) {
-        query.integration_id = jobIdSearch.trim();
-      }
-      if (statusFilter !== 'all') {
-        query.status = statusFilter;
-      }
       const result = await base44.entities.WebhookLog.list('-created_date', 200);
-      return jobIdSearch.trim() 
-        ? result.filter(log => log.integration_id?.includes(jobIdSearch.trim()))
+      return jobKeySearch.trim() 
+        ? result.filter(log => log.payload_received?.job_key?.includes(jobKeySearch.trim()) || log.integration_id?.includes(jobKeySearch.trim()))
         : result;
     },
     enabled: true,
