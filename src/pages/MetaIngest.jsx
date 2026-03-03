@@ -343,20 +343,7 @@ export default function MetaIngest() {
     return true;
   };
 
-  // Monitor background queue status
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const stored = localStorage.getItem('ingestQueue');
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          setLocalQueue(data.items || []);
-          setRunningQueue(data.running || false);
-        } catch (e) {}
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   // Main: build queue (units x types) and run sequentially
   const handleRunQueue = async () => {
@@ -395,21 +382,8 @@ export default function MetaIngest() {
     setRunningQueue(true);
     runningRef.current = true;
 
-    // Persist to localStorage so queue continues even if user navigates
-    localStorage.setItem('ingestQueue', JSON.stringify({
-      running: true,
-      items: queueItems
-    }));
-
     const updateItem = (id, patch) => {
-      setLocalQueue(prev => {
-        const updated = prev.map(q => q.id === id ? { ...q, ...patch } : q);
-        localStorage.setItem('ingestQueue', JSON.stringify({
-          running: runningRef.current,
-          items: updated
-        }));
-        return updated;
-      });
+      setLocalQueue(prev => prev.map(q => q.id === id ? { ...q, ...patch } : q));
     };
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -458,7 +432,6 @@ export default function MetaIngest() {
 
     setRunningQueue(false);
     runningRef.current = false;
-    localStorage.removeItem('ingestQueue');
     toast.success('Fila concluída!');
     queryClient.invalidateQueries({ queryKey: ['metaIngestRuns'] });
   };
@@ -466,9 +439,7 @@ export default function MetaIngest() {
   const handleStopQueue = () => {
     runningRef.current = false;
     setRunningQueue(false);
-    const updated = localQueue.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q);
-    setLocalQueue(updated);
-    localStorage.removeItem('ingestQueue');
+    setLocalQueue(prev => prev.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q));
     toast('Fila interrompida', { icon: '⏹' });
   };
 
