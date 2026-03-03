@@ -41,12 +41,14 @@ export default function RankingTable({
   isPDF = false,
   canEditColumns = true
 }) {
+  const queryClient = useQueryClient();
   const [limit, setLimit] = useState(isPDF ? '5' : '10');
   const [statusFilter, setStatusFilter] = useState('all');
   const [columnOrder, setColumnOrder] = useState(ALL_COLUMNS.map((c) => c.key));
   const [visibleColumns, setVisibleColumns] = useState(ALL_COLUMNS.map((c) => c.key));
   const [sortConfig, setSortConfig] = useState({ key: 'conversations', direction: 'desc' });
   const [colWidths, setColWidths] = useState({});
+  const [saved, setSaved] = useState(false);
   const configLoadedRef = useRef(false);
   const resizingRef = useRef(null);
 
