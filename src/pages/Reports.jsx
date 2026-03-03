@@ -316,7 +316,7 @@ export default function Reports() {
 
       return data || [];
     },
-    enabled: !!selectedUnit && units.length > 0,
+    enabled: !!selectedUnit && units.length > 0 && !!period,
   });
 
   const { data: creatives = [] } = useQuery({
