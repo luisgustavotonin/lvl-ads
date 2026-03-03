@@ -291,6 +291,13 @@ export default function RankingTable({
                       }
                     </Droppable>
                   </DragDropContext>
+                  <Button
+                    onClick={handleSaveConfig}
+                    className={`mt-6 w-full gap-2 ${saved ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  >
+                    {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    {saved ? 'Salvo!' : 'Salvar para todos os usuários'}
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
