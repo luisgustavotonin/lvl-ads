@@ -238,7 +238,7 @@ export default function FunnelEditor({ unitId, currentStages, onSave }) {
             <Button onClick={addStage}>Adicionar</Button>
           </div>
 
-          <div className="border rounded-lg p-3">
+          <div className="border rounded-lg p-3 max-h-96 overflow-y-auto">
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId="funnel-stages">
                 {(provided) => (
