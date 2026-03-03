@@ -376,26 +376,12 @@ export default function MetaIngest() {
       try {
         const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
         if (!ok) {
-          // stop on error
-          runningRef.current = false;
-          setRunningQueue(false);
-          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-            : q));
-          toast.error(`Erro em "${item.label}". Fila interrompida.`);
-          refetch();
-          return;
+          // continua a fila, marcando este item como failed/skipped
+          toast.error(`Erro em "${item.label}". Continuando com próximos...`);
         }
       } catch (err) {
         updateItem(item.id, { status: 'failed', error: err.message });
-        runningRef.current = false;
-        setRunningQueue(false);
-        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-          : q));
-        toast.error(`Erro em "${item.label}". Fila interrompida.`);
-        refetch();
-        return;
+        toast.error(`Erro em "${item.label}". Continuando com próximos...`);
       }
 
       refetch();
