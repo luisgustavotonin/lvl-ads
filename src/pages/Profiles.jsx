@@ -42,21 +42,39 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const PERMISSION_CATEGORIES = {
-  operacao: {
-    label: 'Operação',
+  dashboard: {
+    label: 'Dashboard',
     permissions: [
       { id: 'view_dashboard', label: 'Visualizar Dashboard', description: 'Acesso ao painel principal' },
-      { id: 'view_reports', label: 'Ver Relatórios', description: 'Visualizar relatórios de métricas' },
-      { id: 'export_reports', label: 'Exportar Relatórios', description: 'Exportar relatórios em PDF' },
+    ]
+  },
+  relatorios: {
+    label: 'Relatórios',
+    permissions: [
+      { id: 'view_reports', label: 'Visualizar Relatórios', description: 'Acesso à página de relatórios' },
+      { id: 'reports_tab_overview', label: 'Aba Visão Geral', description: 'Ver aba de visão geral / funil' },
+      { id: 'reports_tab_platforms', label: 'Aba Plataformas', description: 'Ver aba de plataformas' },
+      { id: 'reports_tab_device', label: 'Aba Dispositivos', description: 'Ver aba de dispositivos' },
+      { id: 'reports_tab_demographic', label: 'Aba Demográfico', description: 'Ver aba de dados demográficos' },
+      { id: 'reports_tab_creatives', label: 'Aba Criativos', description: 'Ver aba de criativos' },
+      { id: 'export_reports', label: 'Exportar PDF', description: 'Exportar relatórios em PDF' },
+      { id: 'edit_report_kpis', label: 'Editar KPIs', description: 'Customizar quais KPIs são exibidos' },
+      { id: 'edit_report_funnel', label: 'Editar Funil', description: 'Personalizar estágios do funil' },
+    ]
+  },
+  integracoes: {
+    label: 'Integrações & Dados',
+    permissions: [
+      { id: 'manage_integrations', label: 'Gerenciar Integrações', description: 'Conectar contas de anúncios' },
+      { id: 'manage_schedules', label: 'Gerenciar Agendamentos', description: 'Configurar importações automáticas' },
       { id: 'refresh_data', label: 'Atualizar Dados', description: 'Forçar atualização de dados' },
+      { id: 'manage_data', label: 'Gestão de Dados', description: 'Limpeza e manutenção de dados' },
     ]
   },
   cadastros: {
     label: 'Cadastros',
     permissions: [
       { id: 'manage_units', label: 'Gerenciar Unidades', description: 'Criar e editar unidades' },
-      { id: 'manage_integrations', label: 'Gerenciar Integrações', description: 'Conectar contas de anúncios' },
-      { id: 'manage_schedules', label: 'Gerenciar Agendamentos', description: 'Configurar importações automáticas' },
     ]
   },
   administracao: {
@@ -64,9 +82,8 @@ const PERMISSION_CATEGORIES = {
     permissions: [
       { id: 'manage_users', label: 'Gerenciar Usuários', description: 'Criar e editar usuários' },
       { id: 'manage_profiles', label: 'Gerenciar Perfis', description: 'Criar e editar perfis de acesso' },
-      { id: 'manage_permissions', label: 'Gerenciar Permissões', description: 'Configurar permissões' },
+      { id: 'manage_permissions', label: 'Gerenciar Parâmetros & Alertas', description: 'Configurar KPIs e alertas' },
       { id: 'view_audit_log', label: 'Ver Auditoria', description: 'Visualizar logs de auditoria' },
-      { id: 'manage_data', label: 'Gestão de Dados', description: 'Limpeza e manutenção de dados' },
     ]
   },
 };
