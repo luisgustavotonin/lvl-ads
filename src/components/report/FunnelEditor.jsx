@@ -10,13 +10,31 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 const STAGE_COLORS = [
-  '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#EF4444', '#6366F1'
+  '#3B82F6', '#EF4444', '#F97316', '#FBBF24', '#10B981', '#8B5CF6', '#EC4899', '#06B6D4', '#6366F1', '#6B7280'
 ];
 
-const COLOR_OPTIONS = [
-  '#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#06B6D4',
-  '#EF4444','#6366F1','#EAB308','#84CC16','#14B8A6','#D946EF',
-  '#F97316','#1D4ED8','#7C3AED','#059669','#D97706','#6B7280',
+// Cores organizadas por grupo primário com variações decrescentes de intensidade
+const COLOR_GROUPS = [
+  // Azul
+  ['#1E3A8A', '#1E40AF', '#1D4ED8', '#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE'],
+  // Vermelho
+  ['#7F1D1D', '#991B1B', '#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA', '#FEE2E2'],
+  // Laranja
+  ['#7C2D12', '#9A3412', '#EA580C', '#F97316', '#FB923C', '#FDBA74', '#FED7AA', '#FFEDD5'],
+  // Amarelo
+  ['#78350F', '#92400E', '#FBBF24', '#FCD34D', '#FDE047', '#FEFCE8', '#FEFFF0', '#FFFEF2'],
+  // Verde
+  ['#064E3B', '#047857', '#059669', '#10B981', '#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5'],
+  // Roxo
+  ['#4C1D95', '#6D28D9', '#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#F3E8FF'],
+  // Rosa/Magenta
+  ['#831843', '#BE185D', '#DB2777', '#EC4899', '#F472B6', '#F8B4D6', '#FBE7F3', '#FDF5F8'],
+  // Cyan
+  ['#06202A', '#024E51', '#06B6D4', '#06B6D4', '#22D3EE', '#67E8F9', '#A5F3FC', '#CFFAFE'],
+  // Indigo
+  ['#312E81', '#3730A3', '#4F46E5', '#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF'],
+  // Cinza
+  ['#1F2937', '#374151', '#4B5563', '#6B7280', '#9CA3AF', '#D1D5DB', '#E5E7EB', '#F3F4F6'],
 ];
 
 const AVAILABLE_METRICS = [
