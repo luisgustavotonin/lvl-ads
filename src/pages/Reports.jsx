@@ -211,7 +211,7 @@ export default function Reports() {
     if (periodInitialized) return;
     if (userPermissions === null) return; // ainda carregando
 
-    let defaultPeriodKey = 'last_30';
+    let defaultPeriodKey = userPermissions === 'ADMIN' ? 'today' : 'last_30';
     if (userPermissions !== 'ADMIN' && userProfileData?.default_period) {
       defaultPeriodKey = userProfileData.default_period;
     }
