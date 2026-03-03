@@ -66,6 +66,8 @@ export default function MetaIngest() {
     force: false,
   });
 
+  const [unitSearch, setUnitSearch] = useState('');
+
   // selected types — single by default, multi with "select all"
   const [selectedTypes, setSelectedTypes] = useState(['base']);
   const [multiMode, setMultiMode] = useState(false);
