@@ -236,6 +236,7 @@ export default function RankingTable({
               </SelectContent>
             </Select>
 
+            {canEditColumns && (
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs sm:text-sm">
@@ -292,6 +293,7 @@ export default function RankingTable({
                 </div>
               </SheetContent>
             </Sheet>
+            )}
             </div>}
             </div>
             </CardHeader>
