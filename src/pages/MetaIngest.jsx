@@ -292,57 +292,33 @@ export default function MetaIngest() {
     toast.success('Fila de criativos concluída!');
   };
 
-  // Enqueue and run a single unit+mode job - sequencialmente, um por vez
-  const enqueueAndRun = async (unit, mode, queueId, updateItem) => {
-    const account_id = unit.account_id;
-    const job_key = buildJobKey(account_id, form.date_from, form.date_to, mode);
+  // Executar um único job - um por vez, sem paralelização
+  const runSingleJob = async (unit, mode, queueId, updateItem) => {
+    updateItem(queueId, { status: 'running' });
 
-    // Passo 1: Enfileirar o job
-    const enqRes = await base44.functions.invoke('enqueueMetaIngest', {
-      account_id,
-      unit_id: unit.id,
-      date_from: form.date_from,
-      date_to: form.date_to,
-      job_type: 'insights',
-      level: 'ad',
-      breakdowns: [],
-      force: form.force,
-      meta_token: unit.secret_token,
-      mode,
-      job_key_override: job_key,
-    });
+    try {
+      const result = await base44.functions.invoke('runMetaIngest', {
+        account_id: unit.account_id,
+        unit_id: unit.id,
+        date_from: form.date_from,
+        date_to: form.date_to,
+        meta_token: unit.secret_token,
+        mode,
+        force: form.force,
+      });
 
-    const enqData = { job_key, ...enqRes.data };
+      const data = result.data;
+      if (data?.error) {
+        updateItem(queueId, { status: 'failed', error: data.error });
+        return false;
+      }
 
-    if (enqData.status === 'running') {
-      updateItem(queueId, { status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução".' });
-      return false;
-    }
-
-    if (enqData.status === 'done' && !form.force) {
-      updateItem(queueId, { status: 'skipped', rows_written: enqData.rows_written || 0, error: `Dados já existem. Use "Forçar re-execução".` });
+      updateItem(queueId, { status: 'done', rows_written: data?.rows_written || 0 });
       return true;
-    }
-
-    updateItem(queueId, { job_key, status: 'running' });
-
-    // Passo 2: Executar o job (aguarda completamente)
-    const runResult = await base44.functions.invoke('runMetaIngest', {
-      job_key,
-      meta_token: unit.secret_token,
-      unit_id: unit.id,
-      mode,
-      force: form.force,
-    });
-
-    const data = runResult.data;
-    if (data.error) {
-      updateItem(queueId, { status: 'failed', error: data.error });
+    } catch (err) {
+      updateItem(queueId, { status: 'failed', error: err.message });
       return false;
     }
-
-    updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
-    return true;
   };
 
 
@@ -404,10 +380,9 @@ export default function MetaIngest() {
 
       updateItem(item.id, { status: 'running' });
 
-        try {
-        await enqueueAndRun(unit, item.mode, item.id, updateItem);
-      } catch (err) {
-        updateItem(item.id, { status: 'failed', error: err.message });
+        const ok = await runSingleJob(unit, item.mode, item.id, updateItem);
+      
+      if (!ok) {
         runningRef.current = false;
         setRunningQueue(false);
         setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
