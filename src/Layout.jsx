@@ -64,7 +64,8 @@ export default function Layout({ children, currentPageName }) {
         const myUserProfile = allUserProfiles.find(up => up.user_id === me.id);
 
         if (!myUserProfile || !myUserProfile.profile_id) {
-          setAuthState({ user: me, permissions: {}, loading: false });
+          // Usuário sem perfil atribuído = pendente
+          setAuthState({ user: me, permissions: null, loading: false });
           return;
         }
 
