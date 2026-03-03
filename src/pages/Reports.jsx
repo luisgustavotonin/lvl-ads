@@ -715,6 +715,7 @@ export default function Reports() {
                 onChange={setPeriod}
                 comparisonPeriod={customComparisonPeriod}
                 onComparisonChange={setCustomComparisonPeriod}
+                allowedPresets={allowedPeriods}
               />
             </div>
 
