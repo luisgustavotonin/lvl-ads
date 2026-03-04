@@ -18,7 +18,8 @@ import {
   LogOut,
   Bell,
   Zap,
-  Clock } from
+  Clock,
+  Key } from
 'lucide-react';
 
 const BOTTOM_NAV = [
