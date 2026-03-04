@@ -265,25 +265,10 @@ export default function MetaIngest() {
       updateItem(item.id, { status: 'running' });
 
       try {
-        const ok = await syncCreativeUnit(unit, item.id, updateItem);
-        if (!ok) {
-          runningCreativesRef.current = false;
-          setRunningCreativesQueue(false);
-          setCreativesQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-            : q));
-          toast.error(`Erro em "${item.label}". Fila interrompida.`);
-          return;
-        }
+        await syncCreativeUnit(unit, item.id, updateItem);
       } catch (err) {
         updateItem(item.id, { status: 'failed', error: err.message });
-        runningCreativesRef.current = false;
-        setRunningCreativesQueue(false);
-        setCreativesQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-          : q));
-        toast.error(`Erro em "${item.label}". Fila interrompida.`);
-        return;
+        toast.error(`Erro em "${item.label}". Continuando fila...`);
       }
     }
 
