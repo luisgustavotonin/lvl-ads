@@ -217,13 +217,13 @@ export default function Reports() {
       return;
     }
 
-    // Para não-admin: aguarda userPermissions
-    if (userPermissions === null) return;
+    // Para não-admin: aguarda as queries terminarem (mesmo que vazias)
+    if (userProfiles === undefined || allProfiles === undefined) return;
 
-    const defaultPeriodKey = userProfileData?.default_period || 'last_30';
+    const defaultPeriodKey = userProfileData?.default_period || 'today';
     setPeriod(getDefaultPeriodDates(defaultPeriodKey));
     setPeriodInitialized(true);
-  }, [user, userPermissions, userProfileData, periodInitialized]);
+  }, [user, userProfiles, allProfiles, userProfileData, periodInitialized]);
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
