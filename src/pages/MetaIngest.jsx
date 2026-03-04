@@ -211,12 +211,6 @@ export default function MetaIngest() {
     if (!form.unit_ids.length) { toast.error('Selecione ao menos uma unidade'); return; }
 
     const selectedUnits = units.filter(u => form.unit_ids.includes(u.id));
-    const invalidUnits = selectedUnits.filter(u => !u.account_id || !u.secret_token);
-    if (invalidUnits.length) {
-      toast.error(`Unidades sem configuração: ${invalidUnits.map(u => u.name).join(', ')}`);
-      return;
-    }
-
     // Build queue
     const queueItems = selectedUnits.map(u => ({
       id: `creative-${u.id}-${Date.now()}`,
