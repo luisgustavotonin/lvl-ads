@@ -67,7 +67,6 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
   const handleMainDate = (field, str) => {
     const date = fromInput(str);
     if (!date) return;
-    setActivePreset('custom');
     onChange({ start: field === 'start' ? date : value.start, end: field === 'end' ? date : value.end });
   };
 
