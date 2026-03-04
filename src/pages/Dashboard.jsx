@@ -111,7 +111,7 @@ export default function Dashboard() {
   const units = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'admin') return allUnits;
-    const myProfile = userProfiles.find(up => up.user_id === currentUser.id);
+    const myProfile = (userProfiles || []).find(up => up.user_id === currentUser.id);
     if (!myProfile || !myProfile.unit_ids || myProfile.unit_ids.length === 0) return allUnits;
     return allUnits.filter(u => myProfile.unit_ids.includes(u.id));
   }, [currentUser, allUnits, userProfiles]);
