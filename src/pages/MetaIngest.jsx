@@ -190,7 +190,6 @@ export default function MetaIngest() {
       const res = await base44.functions.invoke('syncMetaCreatives', {
         account_id: unit.account_id,
         unit_id: unit.id,
-        meta_token: unit.secret_token,
       });
       const data = res.data;
       if (data?.error) {
