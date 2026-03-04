@@ -67,6 +67,9 @@ export default function Layout({ children, currentPageName }) {
           return;
         }
 
+        // Aplica perfil pendente se houver (quando usuário loga pela primeira vez)
+        await base44.functions.invoke('applyPendingUserProfile', {}).catch(() => {});
+
         // Busca todos UserProfiles e filtra pelo user_id = me.id
         const allUserProfiles = await base44.entities.UserProfile.list();
         const myUserProfile = allUserProfiles.find((up) => up.user_id === me.id);
