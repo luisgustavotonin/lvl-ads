@@ -460,10 +460,10 @@ Deno.serve(async (req) => {
     bodyData = {};
   }
 
-  const { job_key, meta_token, unit_id, mode, force } = bodyData;
+  const { job_key, unit_id, mode, force } = bodyData;
 
-  if (!job_key || !meta_token) {
-    return Response.json({ error: 'job_key e meta_token obrigatórios' }, { status: 400 });
+  if (!job_key) {
+    return Response.json({ error: 'job_key obrigatório' }, { status: 400 });
   }
 
   try {
@@ -474,6 +474,13 @@ Deno.serve(async (req) => {
     if (!jobs.length) return Response.json({ error: 'job_key não encontrado' }, { status: 404 });
 
     const job = jobs[0];
+    const effectiveUnitId = unit_id || job.unit_id || '';
+
+    // Busca token pelo unit_id na MetaToken
+    const allTokens = await base44.asServiceRole.entities.MetaToken.list();
+    const tokenRecord = allTokens.find(t => t.status === 'active' && Array.isArray(t.unit_ids) && t.unit_ids.includes(effectiveUnitId));
+    if (!tokenRecord) return Response.json({ error: `Nenhum token ativo encontrado para a unidade ${effectiveUnitId}` }, { status: 404 });
+    const meta_token = tokenRecord.token;
     if (job.status === 'running') return Response.json({ status: 'already_running', job_key });
 
     await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
