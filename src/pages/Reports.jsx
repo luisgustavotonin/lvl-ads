@@ -219,13 +219,13 @@ export default function Reports() {
       return;
     }
 
-    // Para não-admin: aguarda as queries terminarem (mesmo que vazias)
-    if (userProfiles === undefined || allProfiles === undefined) return;
+    // Para não-admin: aguarda as queries terminarem
+    if (!userProfilesLoaded || !allProfilesLoaded) return;
 
     const defaultPeriodKey = userProfileData?.default_period || 'today';
     setPeriod(getDefaultPeriodDates(defaultPeriodKey));
     setPeriodInitialized(true);
-  }, [user, userProfiles, allProfiles, userProfileData, periodInitialized]);
+  }, [user, userProfilesLoaded, allProfilesLoaded, userProfileData, periodInitialized]);
 
   // Filtra unidades conforme permissão do usuário
   const units = useMemo(() => {
