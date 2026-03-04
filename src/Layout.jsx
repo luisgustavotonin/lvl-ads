@@ -40,6 +40,7 @@ const navigation = [
 { name: 'Unidades', href: 'Units', icon: Building2, permission: 'manage_units' },
 { name: 'Integrações', href: 'Integrations', icon: Link2, permission: 'manage_integrations' },
 { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap, permission: 'manage_data' },
+{ name: 'Tokens Meta', href: 'MetaTokens', icon: Key, permission: 'manage_data' },
 { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell, permission: 'manage_permissions' },
 { name: 'Perfis', href: 'Profiles', icon: Shield, permission: 'manage_profiles' },
 { name: 'Usuários', href: 'Users', icon: Users, permission: 'manage_users' },
