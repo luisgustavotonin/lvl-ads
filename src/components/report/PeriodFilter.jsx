@@ -61,7 +61,6 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
   const showCustom = !allowedPresets || allowedPresets.length === 0 || allowedPresets.includes('custom');
 
   const handlePreset = (preset) => {
-    setActivePreset(preset.id);
     onChange(preset.getDates());
   };
 
