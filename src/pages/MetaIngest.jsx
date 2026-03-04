@@ -314,7 +314,6 @@ export default function MetaIngest() {
       level: 'ad',
       breakdowns: [],
       force: form.force,
-      meta_token: unit.secret_token,
       mode,
       job_key_override: job_key,
     });

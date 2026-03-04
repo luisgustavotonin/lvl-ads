@@ -52,6 +52,7 @@ import DataManagement from './pages/DataManagement';
 import IngestSchedules from './pages/IngestSchedules';
 import Integrations from './pages/Integrations';
 import MetaIngest from './pages/MetaIngest';
+import MetaTokens from './pages/MetaTokens';
 import ParametersAlerts from './pages/ParametersAlerts';
 import Profiles from './pages/Profiles';
 import QueueManagement from './pages/QueueManagement';
@@ -61,7 +62,6 @@ import Schedules from './pages/Schedules';
 import Settings from './pages/Settings';
 import Units from './pages/Units';
 import Users from './pages/Users';
-import MetaTokens from './pages/MetaTokens';
 import __Layout from './Layout.jsx';
 
 
@@ -71,6 +71,7 @@ export const PAGES = {
     "IngestSchedules": IngestSchedules,
     "Integrations": Integrations,
     "MetaIngest": MetaIngest,
+    "MetaTokens": MetaTokens,
     "ParametersAlerts": ParametersAlerts,
     "Profiles": Profiles,
     "QueueManagement": QueueManagement,
@@ -80,7 +81,6 @@ export const PAGES = {
     "Settings": Settings,
     "Units": Units,
     "Users": Users,
-    "MetaTokens": MetaTokens,
 }
 
 export const pagesConfig = {
