@@ -77,6 +77,7 @@ export default function Dashboard() {
 
   const userProfileData = useMemo(() => {
     if (!currentUser || currentUser.role === 'admin') return null;
+    if (!userProfiles || !allProfiles) return null;
     const myUserProfile = userProfiles.find(up => up.user_id === currentUser.id);
     if (!myUserProfile) return null;
     return allProfiles.find(p => p.id === myUserProfile.profile_id) || null;
