@@ -53,11 +53,28 @@ async function fetchAllPages(url) {
   let next = url;
 
   while (next) {
-    const res = await fetch(next);
-    const data = await res.json();
+    let res, data;
+    let attempt = 0;
 
-    if (!res.ok || data.error) {
-      throw new Error(data.error?.message || `Meta API HTTP ${res.status}`);
+    while (attempt < MAX_RETRIES) {
+      try {
+        res = await fetch(next);
+        data = await res.json();
+        if (res.ok && !data.error) break;
+        // Rate limit or server error — wait and retry
+        const waitMs = data?.error?.code === 17 || res.status === 429 ? 60000 : 5000;
+        console.warn(`[fetchAllPages] attempt ${attempt + 1} failed (${res.status}): ${data?.error?.message}. Retrying in ${waitMs}ms...`);
+        await sleep(waitMs);
+        attempt++;
+      } catch (e) {
+        console.warn(`[fetchAllPages] attempt ${attempt + 1} network error: ${e.message}. Retrying in 5000ms...`);
+        await sleep(5000);
+        attempt++;
+      }
+    }
+
+    if (!res?.ok || data?.error) {
+      throw new Error(data?.error?.message || `Meta API HTTP ${res?.status}`);
     }
 
     results.push(...(data.data || []));
