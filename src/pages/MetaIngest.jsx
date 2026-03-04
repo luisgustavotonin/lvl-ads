@@ -146,13 +146,16 @@ export default function MetaIngest() {
     }
   };
 
-  // Retry a failed job
+  // Retry a failed job — roda diretamente e atualiza no histórico
   const handleRetry = async (job) => {
     try {
-      const unit = units.find(u => u.account_id === job.account_id);
+      const unit = units.find(u => u.account_id === job.account_id) || units.find(u => u.id === job.unit_id);
       if (!unit) { toast.error('Unidade não encontrada'); return; }
 
-      toast.loading('Enfileirando job novamente...');
+      // Marca como running no banco imediatamente para aparecer no histórico
+      await base44.entities.MetaIngestRun.update(job.id, { status: 'running', error_message: null, rows_written: 0 });
+      refetch();
+
       const res = await base44.functions.invoke('runMetaIngest', {
         job_key: job.job_key,
         meta_token: unit.secret_token,
@@ -161,11 +164,17 @@ export default function MetaIngest() {
         force: true,
       });
 
-      if (res.data?.error) { toast.error(res.data.error); return; }
-      toast.success('Job re-enfileirado! Verifique a fila.');
+      if (res.data?.error) {
+        await base44.entities.MetaIngestRun.update(job.id, { status: 'failed', error_message: res.data.error });
+        toast.error(res.data.error);
+      } else {
+        toast.success('Job concluído!');
+      }
       refetch();
     } catch (err) {
+      await base44.entities.MetaIngestRun.update(job.id, { status: 'failed', error_message: err.message });
       toast.error(err?.response?.data?.error || err.message || 'Erro ao retry');
+      refetch();
     }
   };
 
