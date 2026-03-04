@@ -179,8 +179,8 @@ export default function MetaIngest() {
 
   // Sincroniza criativos uma unidade
   const syncCreativeUnit = async (unit, queueId, updateItem) => {
-    if (!unit?.account_id || !unit?.secret_token) {
-      updateItem(queueId, { status: 'failed', error: 'Unidade sem Account ID ou Token' });
+    if (!unit?.account_id) {
+      updateItem(queueId, { status: 'failed', error: 'Unidade sem Account ID' });
       return false;
     }
 
