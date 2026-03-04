@@ -181,6 +181,7 @@ export default function Reports() {
   // Perfil do usuário atual (para filtros de período)
   const userProfileData = useMemo(() => {
     if (!user || user.role === 'admin') return null;
+    if (!userProfiles || !allProfiles) return null;
     const myUserProfile = userProfiles.find(up => up.user_id === user.id);
     if (!myUserProfile) return null;
     return allProfiles.find(p => p.id === myUserProfile.profile_id) || null;
@@ -195,6 +196,7 @@ export default function Reports() {
   const userPermissions = useMemo(() => {
     if (!user) return null;
     if (user.role === 'admin') return 'ADMIN';
+    if (!userProfiles || !allProfiles) return null;
     const myUserProfile = userProfiles.find(up => up.user_id === user.id);
     if (!myUserProfile) return {};
     const myProfile = allProfiles.find(p => p.id === myUserProfile.profile_id);
