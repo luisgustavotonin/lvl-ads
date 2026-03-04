@@ -238,6 +238,17 @@ export default function Layout({ children, currentPageName }) {
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="w-5 h-5" />
             </Button>
+            {/* Logo centralizado no mobile */}
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 lg:hidden">
+              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-sm border border-blue-200">
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/ede7e1dec_6824a59a24a8cd8416895e42_lvl.png"
+                  alt="LVL Logo"
+                  className="w-8 h-7 object-contain"
+                />
+              </div>
+              <p className="text-orange-600 text-base font-bold">Ads</p>
+            </div>
             <div className="flex-1" />
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="relative">
