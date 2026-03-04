@@ -158,7 +158,6 @@ export default function MetaIngest() {
 
       const res = await base44.functions.invoke('runMetaIngest', {
         job_key: job.job_key,
-        meta_token: unit.secret_token,
         unit_id: unit.id,
         mode: job.mode,
         force: true,
