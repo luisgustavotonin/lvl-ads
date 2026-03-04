@@ -312,9 +312,28 @@ export default function MetaIngest() {
 
     const enqData = { job_key, ...enqRes.data };
 
+    // Se o job está travado como "running" (de uma execução anterior que falhou),
+    // força o status para failed e continua normalmente
     if (enqData.status === 'running') {
-      updateItem(queueId, { status: 'failed', error: 'Job ainda está rodando. Use "Forçar re-execução".' });
-      return false;
+      if (enqData.job_id) {
+        await base44.entities.MetaIngestRun.update(enqData.job_id, {
+          status: 'failed',
+          error_message: 'Job travado — reiniciando automaticamente',
+        });
+      }
+      // Reenfileira forçando
+      await base44.functions.invoke('enqueueMetaIngest', {
+        account_id,
+        unit_id: unit.id,
+        date_from: form.date_from,
+        date_to: form.date_to,
+        job_type: 'insights',
+        level: 'ad',
+        breakdowns: [],
+        force: true,
+        mode,
+        job_key_override: job_key,
+      });
     }
 
     if (enqData.status === 'done' && !form.force) {
@@ -324,21 +343,38 @@ export default function MetaIngest() {
 
     updateItem(queueId, { job_key });
 
-    const runResult = await base44.functions.invoke('runMetaIngest', {
-      job_key,
-      meta_token: unit.secret_token,
-      unit_id: unit.id,
-      mode,
-      force: form.force,
-    });
-
-    const data = runResult.data;
-    if (data.error) {
-      updateItem(queueId, { status: 'failed', error: data.error });
+    let runData;
+    try {
+      const runResult = await base44.functions.invoke('runMetaIngest', {
+        job_key,
+        unit_id: unit.id,
+        mode,
+        force: form.force,
+      });
+      runData = runResult.data;
+    } catch (httpErr) {
+      // Erro HTTP (504, 500, etc.) — garante que o banco é atualizado para 'failed'
+      const errMsg = httpErr?.response?.data?.error || httpErr?.message || `HTTP error`;
+      // Tenta marcar o job no banco como failed
+      try {
+        const jobs = await base44.entities.MetaIngestRun.filter({ job_key }, null, 1);
+        if (jobs.length) {
+          await base44.entities.MetaIngestRun.update(jobs[0].id, {
+            status: 'failed',
+            error_message: errMsg,
+          });
+        }
+      } catch (_) {}
+      updateItem(queueId, { status: 'failed', error: errMsg });
       return false;
     }
 
-    updateItem(queueId, { status: 'done', rows_written: data.rows_written || 0 });
+    if (runData?.error) {
+      updateItem(queueId, { status: 'failed', error: runData.error });
+      return false;
+    }
+
+    updateItem(queueId, { status: 'done', rows_written: runData?.rows_written || 0 });
     return true;
   };
 
