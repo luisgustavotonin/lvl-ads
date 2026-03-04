@@ -184,28 +184,22 @@ export default function Users() {
     try {
       await base44.users.inviteUser(inviteEmail, inviteRole, { full_name: inviteName || undefined });
 
-      // Tenta até 5x com 1s de intervalo para o usuário aparecer no sistema
-      let newUser = null;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        await new Promise((r) => setTimeout(r, 1000));
-        const freshUsers = await base44.entities.User.list();
-        newUser = freshUsers.find((u) => u.email === inviteEmail);
-        if (newUser) break;
-      }
-
-      if (newUser && (inviteProfileId || inviteUnitIds.length > 0)) {
-        // Verifica se já existe UserProfile para evitar duplicatas
-        const existingProfiles = await base44.entities.UserProfile.filter({ user_id: newUser.id });
-        if (existingProfiles.length > 0) {
-          await base44.entities.UserProfile.update(existingProfiles[0].id, {
-            profile_id: inviteProfileId || existingProfiles[0].profile_id,
+      // Salva perfil pendente para ser aplicado quando o usuário logar
+      if (inviteProfileId || inviteUnitIds.length > 0) {
+        // Remove qualquer pendente anterior para esse email
+        const allPending = await base44.entities.PendingUserProfile.list();
+        const oldPending = allPending.find(p => p.email === inviteEmail && !p.applied);
+        if (oldPending) {
+          await base44.entities.PendingUserProfile.update(oldPending.id, {
+            profile_id: inviteProfileId,
             unit_ids: inviteUnitIds,
           });
         } else {
-          await base44.entities.UserProfile.create({
-            user_id: newUser.id,
-            profile_id: inviteProfileId || undefined,
+          await base44.entities.PendingUserProfile.create({
+            email: inviteEmail,
+            profile_id: inviteProfileId,
             unit_ids: inviteUnitIds,
+            applied: false,
           });
         }
       }
