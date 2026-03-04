@@ -51,7 +51,6 @@ export default function Units() {
     default_period: 'last_30_days',
     status: 'active',
     account_id: '',
-    secret_token: '',
   });
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
