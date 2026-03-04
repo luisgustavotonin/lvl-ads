@@ -49,7 +49,6 @@ Deno.serve(async (req) => {
       const created = await base44.asServiceRole.entities.MetaIngestRun.create({
         job_key, account_id, unit_id: unit_id || '', date_from, date_to, job_type, level,
         breakdowns, status: 'queued', progress: 0, rows_written: 0,
-        meta_token_hint: meta_token.substring(0, 8),
         mode: modeStr,
         trigger_type,
         schedule_name,
