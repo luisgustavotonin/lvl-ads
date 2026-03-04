@@ -98,10 +98,12 @@ export default function Dashboard() {
       return;
     }
 
-    // Para não-admin: aguarda userProfiles e allProfiles carregarem
-    if (userProfiles.length === 0 && allProfiles.length === 0) return;
+    // Para não-admin: aguarda um pouco para as queries carregarem, mas não bloqueia infinitamente
+    // Se userProfileData ainda não carregou mas as queries já terminaram, usa o fallback
+    const queriesLoaded = userProfiles !== undefined && allProfiles !== undefined;
+    if (!queriesLoaded) return;
 
-    const defaultKey = userProfileData?.default_period || 'last_7';
+    const defaultKey = userProfileData?.default_period || 'today';
     setPeriod(getDefaultPeriodDates(defaultKey));
     setPeriodInitialized(true);
   }, [currentUser, userProfileData, periodInitialized, userProfiles, allProfiles]);
