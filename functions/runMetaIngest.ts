@@ -492,7 +492,6 @@ Deno.serve(async (req) => {
 
     const { account_id, date_from, date_to } = job;
     const actId = normalizeActId(account_id);
-    const effectiveUnitId = unit_id || job.unit_id || '';
 
     const ctx = {
       account_id,
