@@ -17,13 +17,10 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { account_id, unit_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, meta_token, mode, job_key_override, trigger_type = 'manual', schedule_name = null } = body;
+    const { account_id, unit_id, date_from, date_to, job_type = 'insights', level = 'ad', breakdowns = [], force = false, mode, job_key_override, trigger_type = 'manual', schedule_name = null } = body;
 
     if (!account_id || !date_from || !date_to) {
       return Response.json({ error: 'account_id, date_from, date_to obrigatórios' }, { status: 400 });
-    }
-    if (!meta_token) {
-      return Response.json({ error: 'meta_token obrigatório' }, { status: 400 });
     }
 
     const modeStr = mode || 'all';
