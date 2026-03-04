@@ -61,14 +61,14 @@ export default function Dashboard() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: userProfiles = [] } = useQuery({
+  const { data: userProfiles, isSuccess: userProfilesLoaded } = useQuery({
     queryKey: ['userProfiles'],
     queryFn: () => base44.entities.UserProfile.list(),
     enabled: !!currentUser && currentUser.role !== 'admin',
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: allProfiles = [] } = useQuery({
+  const { data: allProfiles, isSuccess: allProfilesLoaded } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => base44.entities.Profile.list(),
     enabled: !!currentUser && currentUser.role !== 'admin',
