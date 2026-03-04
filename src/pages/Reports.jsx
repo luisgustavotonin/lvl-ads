@@ -144,13 +144,13 @@ export default function Reports() {
     queryFn: () => base44.entities.Unit.list(),
   });
 
-  const { data: userProfiles = [] } = useQuery({
+  const { data: userProfiles, isSuccess: userProfilesLoaded } = useQuery({
     queryKey: ['userProfiles'],
     queryFn: () => base44.entities.UserProfile.list(),
     enabled: !!user && user.role !== 'admin',
   });
 
-  const { data: allProfiles = [] } = useQuery({
+  const { data: allProfiles, isSuccess: allProfilesLoaded } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => base44.entities.Profile.list(),
     enabled: !!user && user.role !== 'admin',
