@@ -347,17 +347,7 @@ export default function Units() {
               <p className="text-xs text-gray-500">ID da conta Meta Ads (act_...)</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="secret_token">Token Secreto</Label>
-              <Input
-                id="secret_token"
-                type="password"
-                value={formData.secret_token}
-                onChange={(e) => setFormData({ ...formData, secret_token: e.target.value })}
-                placeholder="Digite o token secreto"
-              />
-              <p className="text-xs text-gray-500">Token para autenticação de webhooks/integrações</p>
-            </div>
+
           </div>
 
           <DialogFooter>
