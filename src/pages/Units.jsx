@@ -98,7 +98,6 @@ export default function Units() {
         default_period: unit.default_period || 'last_30_days',
         status: unit.status || 'active',
         account_id: unit.account_id || '',
-        secret_token: unit.secret_token || '',
       });
     } else {
       setEditingUnit(null);
