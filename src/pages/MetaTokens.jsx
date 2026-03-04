@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Plus, Key, Pencil, Trash2, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Key, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,9 @@ import {
 } from '@/components/ui/dialog';
 import toast from 'react-hot-toast';
 
+const invoke = (action, params = {}) =>
+  base44.functions.invoke('manageMetaTokens', { action, ...params });
+
 export default function MetaTokens() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -25,7 +28,10 @@ export default function MetaTokens() {
 
   const { data: tokens = [], isLoading: loadingTokens } = useQuery({
     queryKey: ['metaTokens'],
-    queryFn: () => base44.entities.MetaToken.list('-created_date'),
+    queryFn: async () => {
+      const res = await invoke('list');
+      return res.data.tokens || [];
+    },
   });
 
   const { data: units = [] } = useQuery({
@@ -43,12 +49,7 @@ export default function MetaTokens() {
 
   const openEdit = (t) => {
     setEditing(t);
-    setForm({
-      name: t.name || '',
-      token: t.token || '',
-      unit_ids: t.unit_ids || [],
-      notes: t.notes || '',
-    });
+    setForm({ name: t.name || '', token: '', unit_ids: t.unit_ids || [], notes: t.notes || '' });
     setShowToken(false);
     setUnitSearch('');
     setDialogOpen(true);
@@ -56,14 +57,14 @@ export default function MetaTokens() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Informe um nome'); return; }
-    if (!form.token.trim()) { toast.error('Informe o token'); return; }
+    if (!editing && !form.token.trim()) { toast.error('Informe o token'); return; }
     setSaving(true);
     try {
       if (editing) {
-        await base44.entities.MetaToken.update(editing.id, form);
+        await invoke('update', { id: editing.id, ...form });
         toast.success('Token atualizado!');
       } else {
-        await base44.entities.MetaToken.create(form);
+        await invoke('create', form);
         toast.success('Token criado!');
       }
       queryClient.invalidateQueries({ queryKey: ['metaTokens'] });
@@ -76,7 +77,7 @@ export default function MetaTokens() {
 
   const handleDelete = async (t) => {
     if (!window.confirm(`Excluir token "${t.name}"?`)) return;
-    await base44.entities.MetaToken.delete(t.id);
+    await invoke('delete', { id: t.id });
     queryClient.invalidateQueries({ queryKey: ['metaTokens'] });
     toast.success('Token excluído');
   };
@@ -102,7 +103,7 @@ export default function MetaTokens() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tokens Meta</h1>
-          <p className="text-gray-500 mt-1 text-sm">Gerencie tokens de acesso da Meta Ads API de forma segura</p>
+          <p className="text-gray-500 mt-1 text-sm">Tokens de acesso armazenados com segurança — nunca expostos no frontend</p>
         </div>
         <Button onClick={openNew} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" />
@@ -187,11 +188,11 @@ export default function MetaTokens() {
             </div>
 
             <div className="space-y-1">
-              <Label>Token de Acesso *</Label>
+              <Label>{editing ? 'Novo Token (deixe vazio para manter o atual)' : 'Token de Acesso *'}</Label>
               <div className="relative">
                 <Input
                   type={showToken ? 'text' : 'password'}
-                  placeholder="Cole o token da Meta Ads API"
+                  placeholder={editing ? 'Cole um novo token para substituir...' : 'Cole o token da Meta Ads API'}
                   value={form.token}
                   onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
                   className="pr-10 font-mono text-sm"
@@ -204,7 +205,9 @@ export default function MetaTokens() {
                   {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-400">O token é armazenado de forma segura e nunca será exibido novamente.</p>
+              <p className="text-xs text-gray-400">
+                O token é enviado diretamente ao backend e nunca é retornado para o navegador.
+              </p>
             </div>
 
             <div className="space-y-2">
