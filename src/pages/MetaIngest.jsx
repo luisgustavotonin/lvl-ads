@@ -552,7 +552,7 @@ export default function MetaIngest() {
                         ? <span className="text-xs text-gray-400 ml-auto">{u.account_id}</span>
                         : <span className="text-xs text-red-400 ml-auto">⚠️ sem account_id</span>
                       }
-                      {!u.secret_token && <span className="text-xs text-red-400">sem token</span>}
+
                     </label>
                   );
                 })}
