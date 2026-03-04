@@ -281,6 +281,14 @@ export default function Layout({ children, currentPageName }) {
               </Link>);
 
         })}
+          {/* Botão Sair no canto direito da bottom nav */}
+          <button
+            onClick={() => base44.auth.logout()}
+            className="flex flex-col items-center justify-center px-3 py-2 gap-0.5 text-xs font-medium text-red-500 transition-colors hover:text-red-600"
+          >
+            <LogOut className="w-5 h-5" />
+            Sair
+          </button>
         </nav>
       }
     </div>);
