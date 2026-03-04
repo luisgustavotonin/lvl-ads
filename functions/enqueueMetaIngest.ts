@@ -42,7 +42,6 @@ Deno.serve(async (req) => {
     if (existing.length > 0) {
       await base44.asServiceRole.entities.MetaIngestRun.update(existing[0].id, {
         status: 'queued', progress: 0, rows_written: 0, error_message: null,
-        meta_token_hint: meta_token.substring(0, 8),
         unit_id: unit_id || existing[0].unit_id || '',
       });
       jobId = existing[0].id;
