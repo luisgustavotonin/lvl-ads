@@ -386,11 +386,6 @@ export default function MetaIngest() {
     if (selectedTypes.length === 0) { toast.error('Selecione ao menos um tipo'); return; }
 
     const selectedUnits = units.filter(u => form.unit_ids.includes(u.id));
-    const invalidUnits = selectedUnits.filter(u => !u.account_id || !u.secret_token);
-    if (invalidUnits.length) {
-      toast.error(`Unidades sem configuração: ${invalidUnits.map(u => u.name).join(', ')}`);
-      return;
-    }
 
     // Build flat queue: unit x type
     const queueItems = [];
