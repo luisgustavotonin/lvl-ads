@@ -343,20 +343,42 @@ export default function MetaIngest() {
     return true;
   };
 
-  // Monitor background queue status
+  // Sincroniza localQueue com o status real do banco de dados
   useEffect(() => {
-    const interval = setInterval(() => {
-      const stored = localStorage.getItem('ingestQueue');
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          setLocalQueue(data.items || []);
-          setRunningQueue(data.running || false);
-        } catch (e) {}
+    if (!jobs.length || !localQueue.length) return;
+    // Só sincroniza quando não está rodando ativamente (para não interferir)
+    if (runningRef.current) return;
+
+    setLocalQueue(prev => {
+      let changed = false;
+      const updated = prev.map(item => {
+        if (item.status !== 'running' && item.status !== 'queued') return item;
+        // Buscar job correspondente no banco pelo job_key
+        if (!item.job_key) return item;
+        const dbJob = jobs.find(j => j.job_key === item.job_key);
+        if (dbJob && (dbJob.status === 'done' || dbJob.status === 'failed')) {
+          changed = true;
+          return {
+            ...item,
+            status: dbJob.status,
+            rows_written: dbJob.rows_written || item.rows_written,
+            error: dbJob.status === 'failed' ? (dbJob.error_message || item.error) : null,
+          };
+        }
+        return item;
+      });
+      if (changed) {
+        const stillRunning = updated.some(q => q.status === 'running' || q.status === 'queued');
+        if (!stillRunning) {
+          localStorage.removeItem('ingestQueue');
+          setRunningQueue(false);
+        } else {
+          localStorage.setItem('ingestQueue', JSON.stringify({ running: stillRunning, items: updated }));
+        }
       }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+      return changed ? updated : prev;
+    });
+  }, [jobs]);
 
   // Main: build queue (units x types) and run sequentially
   const handleRunQueue = async () => {
