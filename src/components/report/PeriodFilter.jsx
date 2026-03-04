@@ -37,13 +37,12 @@ const fromInput = (str) => {
 
 // allowedPresets: array of preset ids. If null/empty = show all
 export default function PeriodFilter({ value, onChange, comparisonPeriod, onComparisonChange, allowedPresets, defaultPreset }) {
-  const [activePreset, setActivePreset] = React.useState(defaultPreset || 'last_30');
   const [isCustomOpen, setIsCustomOpen] = React.useState(false);
   const [showComparison, setShowComparison] = React.useState(false);
 
-  // Sincroniza o activePreset quando o valor externo muda (ex: inicialização assíncrona)
-  React.useEffect(() => {
-    if (!value) return;
+  // Detecta o preset ativo com base no value atual (não usa estado interno fixo)
+  const activePreset = React.useMemo(() => {
+    if (!value) return null;
     const matched = ALL_PRESETS.find(p => {
       const d = p.getDates();
       return (
@@ -51,7 +50,7 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
         format(d.end, 'yyyy-MM-dd') === format(value.end, 'yyyy-MM-dd')
       );
     });
-    if (matched) setActivePreset(matched.id);
+    return matched ? matched.id : 'custom';
   }, [value]);
 
   const visiblePresets = React.useMemo(() => {
