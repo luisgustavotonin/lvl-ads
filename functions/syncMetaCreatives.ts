@@ -71,11 +71,7 @@ async function fetchAllPages(url) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { job_key, meta_token, unit_id, account_id } = await req.json();
-
-    if (!meta_token) {
-      return Response.json({ error: 'meta_token obrigatório' }, { status: 400 });
-    }
+    const { job_key, unit_id, account_id } = await req.json();
 
     let accountId, unitId;
 
@@ -85,12 +81,18 @@ Deno.serve(async (req) => {
       const job = jobs[0];
       accountId = job.account_id;
       unitId = unit_id || job.unit_id || '';
-    } else if (account_id) {
+    } else if (account_id && unit_id) {
       accountId = account_id;
-      unitId = unit_id || '';
+      unitId = unit_id;
     } else {
-      return Response.json({ error: 'job_key ou account_id obrigatório' }, { status: 400 });
+      return Response.json({ error: 'job_key ou (account_id + unit_id) obrigatório' }, { status: 400 });
     }
+
+    // Busca token pelo unit_id na MetaToken
+    const allTokens = await base44.asServiceRole.entities.MetaToken.list();
+    const tokenRecord = allTokens.find(t => t.status === 'active' && Array.isArray(t.unit_ids) && t.unit_ids.includes(unitId));
+    if (!tokenRecord) return Response.json({ error: `Nenhum token ativo encontrado para a unidade ${unitId}` }, { status: 404 });
+    const meta_token = tokenRecord.token;
 
     const actId = normalizeActId(accountId);
 
