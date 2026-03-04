@@ -93,7 +93,7 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
          ))}
          {showCustom && (
            <Button
-             variant={isCustomOpen || activePreset === 'custom' ? 'default' : 'outline'}
+             variant={isCustomOpen || activePreset === 'custom' || !activePreset ? 'default' : 'outline'}
              size="sm"
              onClick={() => setIsCustomOpen(!isCustomOpen)}
            >
