@@ -95,9 +95,8 @@ export default function MetaIngest() {
     refetchInterval: 2000,
   });
 
-  // Separar jobs pendentes/rodando do histórico
-  const pendingJobs = jobs.filter(j => j.status === 'queued' || j.status === 'running');
-  const historyJobs = jobs.filter(j => j.status !== 'queued' && j.status !== 'running');
+  // Todos os jobs do banco aparecem no histórico (inclusive running/queued do banco)
+  const historyJobs = jobs;
 
   const selectedUnit = units.find(u => u.id === form.unit_ids[0]); // for creatives (single)
 
