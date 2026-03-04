@@ -265,7 +265,8 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Bottom nav mobile */}
       {!loading &&
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden">
+          <div className="flex items-stretch justify-around px-4 max-w-md mx-auto">
           {BOTTOM_NAV.filter((item) => canAccess(item.permission)).map((item) => {
           const isActive = currentPageName === item.href;
           return (
@@ -275,20 +276,18 @@ export default function Layout({ children, currentPageName }) {
               className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors ${
               isActive ? 'text-blue-600' : 'text-gray-500'}`
               }>
-
                 <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
                 {item.name}
               </Link>);
-
         })}
-          {/* Botão Sair no canto direito da bottom nav */}
           <button
             onClick={() => base44.auth.logout()}
-            className="flex flex-col items-center justify-center px-3 py-2 gap-0.5 text-xs font-medium text-red-500 transition-colors hover:text-red-600"
+            className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium text-red-500 transition-colors hover:text-red-600"
           >
             <LogOut className="w-5 h-5" />
             Sair
           </button>
+          </div>
         </nav>
       }
     </div>);
