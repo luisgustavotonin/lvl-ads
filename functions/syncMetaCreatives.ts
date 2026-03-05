@@ -116,10 +116,14 @@ Deno.serve(async (req) => {
 
     const fields = 'id,campaign_id,effective_status,status,creative{id,object_type,thumbnail_url,image_url,video_id}';
 
+    // Busca anúncios ativos + pausados + arquivados dos últimos 90 dias
+    // Isso cobre criativos de campanhas que rodaram recentemente mas foram pausadas
+    const effectiveStatuses = encodeURIComponent(JSON.stringify(["ACTIVE", "PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "ADSET_PAUSED"]));
     const url =
       `${META_BASE}/act_${actId}/ads?` +
       `fields=${encodeURIComponent(fields)}` +
-      `&effective_status=["ACTIVE"]` +
+      `&effective_status=${effectiveStatuses}` +
+      `&date_preset=last_90_days` +
       `&limit=${PAGE_LIMIT}` +
       `&access_token=${encodeURIComponent(meta_token)}`;
 
