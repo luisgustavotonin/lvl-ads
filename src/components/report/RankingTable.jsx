@@ -160,6 +160,11 @@ export default function RankingTable({
         };
       }
 
+      // Atualiza thumbnail se o item atual tiver uma URL válida e o grupo ainda não tiver
+      if (!groups[key].thumbnail && item.creative_thumbnail_url) {
+        groups[key].thumbnail = item.creative_thumbnail_url;
+      }
+
       groups[key].spend += item.spend || 0;
        groups[key].impressions += item.impressions || 0;
        groups[key].reach += item.reach || 0;
