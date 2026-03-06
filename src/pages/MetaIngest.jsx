@@ -454,7 +454,7 @@ export default function MetaIngest() {
     for (let i = 0; i < queueItems.length; i++) {
       if (!runningRef.current) break;
 
-      // Aguarda 5 segundos entre jobs (exceto o primeiro)
+      // Aguarda entre jobs (exceto o primeiro)
       if (i > 0) {
         await delay(5000);
         if (!runningRef.current) break;
@@ -468,26 +468,33 @@ export default function MetaIngest() {
       try {
         const ok = await enqueueAndRun(unit, item.mode, item.id, updateItem);
         if (!ok) {
-          // stop on error
-          runningRef.current = false;
-          setRunningQueue(false);
-          setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-            ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-            : q));
-          toast.error(`Erro em "${item.label}". Fila interrompida.`);
-          refetch();
-          return;
+          // Verifica se foi rate limit para aguardar mais tempo antes do próximo
+          const currentItem = localQueue.find(q => q.id === item.id) || item;
+          const isRateLimit = (currentItem.error || '').toLowerCase().includes('rate limit') ||
+                              (currentItem.error || '').toLowerCase().includes('rate_limit') ||
+                              (currentItem.error || '').toLowerCase().includes('too many');
+          if (isRateLimit) {
+            toast(`Rate limit em "${item.label}". Aguardando 60s antes do próximo...`, { icon: '⏳' });
+            await delay(60000);
+          } else {
+            toast.error(`Erro em "${item.label}". Continuando fila...`);
+            await delay(5000);
+          }
+          if (!runningRef.current) break;
         }
       } catch (err) {
         updateItem(item.id, { status: 'failed', error: err.message });
-        runningRef.current = false;
-        setRunningQueue(false);
-        setLocalQueue(prev => prev.map((q, idx) => idx > i && q.status === 'queued'
-          ? { ...q, status: 'skipped', error: 'Parado por erro anterior' }
-          : q));
-        toast.error(`Erro em "${item.label}". Fila interrompida.`);
-        refetch();
-        return;
+        const isRateLimit = err.message.toLowerCase().includes('rate limit') ||
+                            err.message.toLowerCase().includes('rate_limit') ||
+                            err.message.toLowerCase().includes('too many');
+        if (isRateLimit) {
+          toast(`Rate limit em "${item.label}". Aguardando 60s antes do próximo...`, { icon: '⏳' });
+          await delay(60000);
+        } else {
+          toast.error(`Erro em "${item.label}". Continuando fila...`);
+          await delay(5000);
+        }
+        if (!runningRef.current) break;
       }
     }
 
