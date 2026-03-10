@@ -197,10 +197,26 @@ Deno.serve(async (req) => {
        }
      }
 
-     const logSummary = `${enqueuedCount} jobs enfileirados\n` + 
-       scheduleResult.jobs.map(j =>
-         `${j.unit}/${j.mode}: ${j.status}${j.job_id ? ` (${j.job_id})` : ''}${j.error ? ` - ${j.error}` : ''}`
-       ).join('\n');
+     const skippedByReason = scheduleResult.jobs.reduce((acc, j) => {
+       if (j.status === 'skipped') {
+         acc[j.reason] = (acc[j.reason] || 0) + 1;
+       }
+       return acc;
+     }, {});
+
+     const logLines = [`${enqueuedCount} jobs enfileirados (${scheduleResult.jobs.filter(j => j.status === 'queued').length} sucesso, ${scheduleResult.jobs.filter(j => j.status === 'skipped').length} pulados)`];
+
+     Object.entries(skippedByReason).forEach(([reason, count]) => {
+       logLines.push(`${count} unidades puladas: ${reason}`);
+     });
+
+     scheduleResult.jobs.forEach(j => {
+       if (j.status === 'queued' || j.status === 'error') {
+         logLines.push(`${j.unit}/${j.mode}: ${j.status}${j.job_id ? ` (${j.job_id})` : ''}${j.error ? ` - ${j.error}` : ''}`);
+       }
+     });
+
+     const logSummary = logLines.join('\n');
 
      await base44.asServiceRole.entities.IngestSchedule.update(schedule.id, {
        last_status: 'success',
