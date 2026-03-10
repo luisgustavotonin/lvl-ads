@@ -111,8 +111,12 @@ Deno.serve(async (req) => {
     let enqueuedCount = 0;
 
     for (const unit of sortedUnits) {
-      if (!unit.account_id || !unit.secret_token) {
-        scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id ou token' });
+      if (!unit.account_id) {
+        scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id (configure em Unidades)' });
+        continue;
+      }
+      if (!unit.secret_token || !unit.secret_token.trim()) {
+        scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem token Meta (configure em Tokens Meta)' });
         continue;
       }
 
