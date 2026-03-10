@@ -110,12 +110,23 @@ Deno.serve(async (req) => {
     const sortedUnits = [...units].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     let enqueuedCount = 0;
 
+    // Buscar tokens Meta associados às unidades
+    const allMetaTokens = await base44.asServiceRole.entities.MetaToken.filter({ status: 'active' });
+    const unitTokenMap = {};
+    allMetaTokens.forEach(mt => {
+      mt.unit_ids?.forEach(uid => {
+        unitTokenMap[uid] = mt.token;
+      });
+    });
+
     for (const unit of sortedUnits) {
       if (!unit.account_id) {
         scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem account_id (configure em Unidades)' });
         continue;
       }
-      if (!unit.secret_token || !unit.secret_token.trim()) {
+      
+      const metaToken = unitTokenMap[unit.id];
+      if (!metaToken) {
         scheduleResult.jobs.push({ unit: unit.name, status: 'skipped', reason: 'sem token Meta (configure em Tokens Meta)' });
         continue;
       }
@@ -133,7 +144,7 @@ Deno.serve(async (req) => {
             level: 'ad',
             breakdowns: [],
             force: schedule.force || false,
-            meta_token: unit.secret_token,
+            meta_token: metaToken,
             mode,
             job_key_override: job_key,
             trigger_type: 'scheduled',
