@@ -70,6 +70,17 @@ export default function IngestSchedules() {
     queryFn: () => base44.entities.Unit.list(),
   });
 
+  const { data: metaTokens = [] } = useQuery({
+    queryKey: ['metaTokens'],
+    queryFn: () => base44.entities.MetaToken.filter({ status: 'active' }),
+  });
+
+  const unitsWithToken = React.useMemo(() => {
+    const set = new Set();
+    metaTokens.forEach(mt => mt.unit_ids?.forEach(uid => set.add(uid)));
+    return set;
+  }, [metaTokens]);
+
   const { data: schedules = [], refetch } = useQuery({
     queryKey: ['ingestSchedules'],
     queryFn: () => base44.entities.IngestSchedule.list('-created_date'),
