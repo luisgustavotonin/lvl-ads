@@ -185,12 +185,12 @@ Deno.serve(async (req) => {
 
        if (shouldSyncCreatives) {
          const creativeTasks = units
-           .filter(u => u.account_id && u.secret_token)
+           .filter(u => u.account_id && unitTokenMap[u.id])
            .map(unit =>
              base44.asServiceRole.functions.invoke('syncMetaCreatives', {
                account_id: unit.account_id,
                unit_id: unit.id,
-               meta_token: unit.secret_token,
+               meta_token: unitTokenMap[unit.id],
              }).then(res => ({ unit, status: 'done', data: res.data }))
                .catch(e => ({ unit, status: 'error', error: e.message }))
            );
