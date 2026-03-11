@@ -75,7 +75,7 @@ export default function IngestSchedules() {
     queryFn: () => base44.entities.MetaToken.filter({ status: 'active' }),
   });
 
-  const unitsWithToken = React.useMemo(() => {
+  const unitsWithToken = useMemo(() => {
     const set = new Set();
     metaTokens.forEach(mt => mt.unit_ids?.forEach(uid => set.add(uid)));
     return set;
