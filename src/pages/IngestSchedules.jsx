@@ -235,17 +235,19 @@ export default function IngestSchedules() {
               </div>
               <div className="border rounded-lg divide-y max-h-44 overflow-y-auto">
                 {units.map(u => {
-                  const hasAllRequirements = u.account_id && u.secret_token?.trim();
+                  const hasToken = unitsWithToken.has(u.id);
+                  const hasAllRequirements = u.account_id && hasToken;
                   return (
-                    <label key={u.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${form.unit_ids.includes(u.id) ? 'bg-blue-50' : 'hover:bg-gray-50'} ${!hasAllRequirements ? 'opacity-50' : ''}`} title={!hasAllRequirements ? 'Unidade não configurada: faltam token Meta' : ''}>
-                      <Checkbox checked={form.unit_ids.includes(u.id)} onCheckedChange={() => toggleUnit(u.id)} disabled={!hasAllRequirements} />
+                    <label key={u.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${form.unit_ids.includes(u.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`} title={!hasAllRequirements ? 'Unidade não configurada: falta account_id ou token Meta' : ''}>
+                      <Checkbox checked={form.unit_ids.includes(u.id)} onCheckedChange={() => toggleUnit(u.id)} />
                       <span className="text-sm font-medium flex-1">{u.name}</span>
-                      {!hasAllRequirements && <span className="text-xs text-red-500 font-semibold">⚠ Sem Token</span>}
+                      {!hasToken && <span className="text-xs text-amber-500 font-semibold">⚠ Sem Token</span>}
+                      {!u.account_id && <span className="text-xs text-red-500 font-semibold">⚠ Sem Account ID</span>}
                     </label>
                   );
                 })}
               </div>
-              {units.some(u => !u.account_id || !u.secret_token?.trim()) && (
+              {units.some(u => !unitsWithToken.has(u.id)) && (
                 <p className="text-xs bg-red-50 text-red-600 border border-red-200 rounded p-2">
                   ⚠️ Algumas unidades não têm token Meta configurado. Configure em Tokens Meta antes de usar agendamentos.
                 </p>
