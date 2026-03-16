@@ -89,9 +89,9 @@ async function fetchAllPages(url) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { job_key, unit_id, account_id } = await req.json();
+    const { job_key, unit_id, account_id, date_from, date_to } = await req.json();
 
-    let accountId, unitId;
+    let accountId, unitId, dateFrom, dateTo;
 
     if (job_key) {
       const jobs = await base44.asServiceRole.entities.MetaIngestRun.filter({ job_key }, null, 1);
@@ -99,9 +99,13 @@ Deno.serve(async (req) => {
       const job = jobs[0];
       accountId = job.account_id;
       unitId = unit_id || job.unit_id || '';
+      dateFrom = date_from || job.date_from;
+      dateTo = date_to || job.date_to;
     } else if (account_id && unit_id) {
       accountId = account_id;
       unitId = unit_id;
+      dateFrom = date_from;
+      dateTo = date_to;
     } else {
       return Response.json({ error: 'job_key ou (account_id + unit_id) obrigatório' }, { status: 400 });
     }
@@ -116,20 +120,80 @@ Deno.serve(async (req) => {
 
     const fields = 'id,campaign_id,effective_status,status,creative{id,object_type,thumbnail_url,image_url,video_id}';
 
-    // Busca anúncios ativos + pausados + arquivados dos últimos 90 dias
-    // Isso cobre criativos de campanhas que rodaram recentemente mas foram pausadas
-    const effectiveStatuses = encodeURIComponent(JSON.stringify(["ACTIVE", "PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "ADSET_PAUSED"]));
-    const url =
-      `${META_BASE}/act_${actId}/ads?` +
-      `fields=${encodeURIComponent(fields)}` +
-      `&effective_status=${effectiveStatuses}` +
-      `&date_preset=last_90_days` +
-      `&limit=${PAGE_LIMIT}` +
-      `&access_token=${encodeURIComponent(meta_token)}`;
+    let ads = [];
 
-    console.log(`[syncMetaCreatives] job_key=${job_key} act_${actId} unit=${unitId} fetching ads...`);
+    if (dateFrom && dateTo) {
+      // Estratégia: buscar via insights do período para pegar exatamente os ad_ids que rodaram
+      // A API de insights com breakdown por ad retorna todos os anúncios que tiveram impressões no período
+      console.log(`[syncMetaCreatives] fetching ad_ids from insights period=${dateFrom}→${dateTo}`);
 
-    const ads = await fetchAllPages(url);
+      const insightsUrl =
+        `${META_BASE}/act_${actId}/insights?` +
+        `fields=${encodeURIComponent('ad_id')}` +
+        `&level=ad` +
+        `&time_range=${encodeURIComponent(JSON.stringify({ since: dateFrom, until: dateTo }))}` +
+        `&limit=${PAGE_LIMIT}` +
+        `&access_token=${encodeURIComponent(meta_token)}`;
+
+      const insightPages = await fetchAllPages(insightsUrl);
+      const adIds = [...new Set(insightPages.map(r => r.ad_id).filter(Boolean))];
+
+      console.log(`[syncMetaCreatives] ad_ids from insights=${adIds.length}`);
+
+      if (adIds.length === 0) {
+        return Response.json({ success: true, job_key, rows_written: 0, message: 'Nenhum anúncio com dados no período' });
+      }
+
+      // Busca os detalhes dos anúncios em lotes de 50 (batch requests via ?ids=)
+      const BATCH = 50;
+      for (let i = 0; i < adIds.length; i += BATCH) {
+        const batch = adIds.slice(i, i + BATCH);
+        const batchUrl =
+          `${META_BASE}?ids=${encodeURIComponent(batch.join(','))}` +
+          `&fields=${encodeURIComponent(fields)}` +
+          `&access_token=${encodeURIComponent(meta_token)}`;
+
+        let res, data;
+        let attempt = 0;
+        while (attempt < MAX_RETRIES) {
+          try {
+            res = await fetch(batchUrl);
+            data = await res.json();
+            if (res.ok && !data.error) break;
+            const waitMs = data?.error?.code === 17 || res.status === 429 ? 60000 : 5000;
+            console.warn(`[syncMetaCreatives] batch attempt ${attempt + 1} failed: ${data?.error?.message}. Retrying in ${waitMs}ms...`);
+            await sleep(waitMs);
+            attempt++;
+          } catch (e) {
+            console.warn(`[syncMetaCreatives] batch network error: ${e.message}. Retrying...`);
+            await sleep(5000);
+            attempt++;
+          }
+        }
+
+        if (!res?.ok || data?.error) {
+          throw new Error(data?.error?.message || `Meta API HTTP ${res?.status}`);
+        }
+
+        // Response é um objeto { ad_id: adObject, ... }
+        const batchAds = Object.values(data).filter(a => a?.id && a?.creative?.id);
+        ads.push(...batchAds);
+
+        if (i + BATCH < adIds.length) await sleep(DELAY_BETWEEN_PAGES);
+      }
+    } else {
+      // Fallback sem período: busca todos os anúncios ativos/pausados/arquivados
+      const effectiveStatuses = encodeURIComponent(JSON.stringify(["ACTIVE", "PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "ADSET_PAUSED"]));
+      const url =
+        `${META_BASE}/act_${actId}/ads?` +
+        `fields=${encodeURIComponent(fields)}` +
+        `&effective_status=${effectiveStatuses}` +
+        `&limit=${PAGE_LIMIT}` +
+        `&access_token=${encodeURIComponent(meta_token)}`;
+
+      ads = await fetchAllPages(url);
+    }
+
     console.log(`[syncMetaCreatives] ads fetched=${ads.length}`);
 
     const nowIso = new Date().toISOString();
