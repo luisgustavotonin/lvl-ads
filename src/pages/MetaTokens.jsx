@@ -59,9 +59,10 @@ export default function MetaTokens() {
     if (!form.name.trim()) { toast.error('Informe um nome'); return; }
     if (!editing && !form.token.trim()) { toast.error('Informe o token'); return; }
     setSaving(true);
+    const payload = { ...form, token: form.token.trim(), name: form.name.trim() };
     try {
       if (editing) {
-        await invoke('update', { id: editing.id, ...form });
+        await invoke('update', { id: editing.id, ...payload });
         toast.success('Token atualizado!');
       } else {
         await invoke('create', form);
