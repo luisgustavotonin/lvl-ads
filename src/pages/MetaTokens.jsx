@@ -65,7 +65,7 @@ export default function MetaTokens() {
         await invoke('update', { id: editing.id, ...payload });
         toast.success('Token atualizado!');
       } else {
-        await invoke('create', form);
+        await invoke('create', payload);
         toast.success('Token criado!');
       }
       queryClient.invalidateQueries({ queryKey: ['metaTokens'] });
