@@ -191,6 +191,8 @@ Deno.serve(async (req) => {
                account_id: unit.account_id,
                unit_id: unit.id,
                meta_token: unitTokenMap[unit.id],
+               date_from,
+               date_to,
              }).then(res => ({ unit, status: 'done', data: res.data }))
                .catch(e => ({ unit, status: 'error', error: e.message }))
            );
