@@ -3,11 +3,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
-const PAGE_LIMIT = 200;
-const CHUNK_SIZE = 50;
-const DELAY_BETWEEN_PAGES = 500;
-const DELAY_BETWEEN_CHUNKS = 500;
-const MAX_RETRIES = 3;
+const PAGE_LIMIT = 100;
+const CHUNK_SIZE = 25;
+const DELAY_BETWEEN_PAGES = 2000;
+const DELAY_BETWEEN_CHUNKS = 1500;
+const MAX_RETRIES = 8;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
