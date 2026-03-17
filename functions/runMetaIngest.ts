@@ -281,8 +281,8 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
 
       if (!isTransientMetaError(res, data) || attempt === META_MAX_RETRIES) throw lastErr;
 
-      // Exponencial backoff: 10s, 20s, 40s, 80s, 160s, ...
-      const backoff = jitter(10000 * Math.pow(2, attempt));
+      // Exponencial backoff: 15s, 30s, 60s, 120s, ...
+      const backoff = jitter(15000 * Math.pow(2, attempt));
       console.warn(`Meta transient error (attempt ${attempt + 1}/${META_MAX_RETRIES + 1}) -> retry in ${(backoff/1000).toFixed(1)}s: ${lastErr.message}`);
       await sleep(backoff);
     }
