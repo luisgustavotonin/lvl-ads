@@ -18,8 +18,8 @@ const DELETE_BATCH = 200;
 const DELETE_CONCURRENCY = 10;
 
 // Meta fetch robusto
-const META_TIMEOUT_MS = 60000;
-const META_MAX_RETRIES = 5;
+const META_TIMEOUT_MS = 120000; // aumentado para dar mais tempo
+const META_MAX_RETRIES = 8; // mais tentativas com backoff exponencial
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const jitter = (ms) => ms + Math.floor(Math.random() * 200);
