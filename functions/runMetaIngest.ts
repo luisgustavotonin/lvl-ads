@@ -6,9 +6,9 @@ const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 // -----------------------
 // Tuning
 // -----------------------
-const PAGE_LIMIT = 100; // reduzido para evitar rate limit
-const DELAY_BETWEEN_PAGES = 2000; // aumentado significativamente
-const DELAY_BETWEEN_MODES = 3000; // delay maior entre breakdowns
+const PAGE_LIMIT = 50; // bem reduzido para ser conservador
+const DELAY_BETWEEN_PAGES = 3000; // 3 segundos entre cada página
+const DELAY_BETWEEN_MODES = 5000; // 5 segundos entre breakdowns
 
 // Persistência
 const CHUNK_SIZE = 200;          // chunk para $in (seguro)
