@@ -162,13 +162,15 @@ Deno.serve(async (req) => {
             res = await fetch(batchUrl);
             data = await res.json();
             if (res.ok && !data.error) break;
-            const waitMs = data?.error?.code === 17 || res.status === 429 ? 60000 : 5000;
-            console.warn(`[syncMetaCreatives] batch attempt ${attempt + 1} failed: ${data?.error?.message}. Retrying in ${waitMs}ms...`);
+            const baseWait = data?.error?.code === 17 || res.status === 429 ? 60000 : 10000;
+            const waitMs = baseWait * Math.pow(2, attempt);
+            console.warn(`[syncMetaCreatives] batch attempt ${attempt + 1} failed: ${data?.error?.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
             await sleep(waitMs);
             attempt++;
           } catch (e) {
-            console.warn(`[syncMetaCreatives] batch network error: ${e.message}. Retrying...`);
-            await sleep(5000);
+            const waitMs = 10000 * Math.pow(2, attempt);
+            console.warn(`[syncMetaCreatives] batch network error: ${e.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
+            await sleep(waitMs);
             attempt++;
           }
         }
