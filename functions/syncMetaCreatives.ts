@@ -61,14 +61,16 @@ async function fetchAllPages(url) {
         res = await fetch(next);
         data = await res.json();
         if (res.ok && !data.error) break;
-        // Rate limit or server error — wait and retry
-        const waitMs = data?.error?.code === 17 || res.status === 429 ? 60000 : 5000;
-        console.warn(`[fetchAllPages] attempt ${attempt + 1} failed (${res.status}): ${data?.error?.message}. Retrying in ${waitMs}ms...`);
+        // Rate limit or server error — wait and retry com backoff exponencial
+        const baseWait = data?.error?.code === 17 || res.status === 429 ? 60000 : 10000;
+        const waitMs = baseWait * Math.pow(2, attempt);
+        console.warn(`[fetchAllPages] attempt ${attempt + 1} failed (${res.status}): ${data?.error?.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
         await sleep(waitMs);
         attempt++;
       } catch (e) {
-        console.warn(`[fetchAllPages] attempt ${attempt + 1} network error: ${e.message}. Retrying in 5000ms...`);
-        await sleep(5000);
+        const waitMs = 10000 * Math.pow(2, attempt);
+        console.warn(`[fetchAllPages] attempt ${attempt + 1} network error: ${e.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
+        await sleep(waitMs);
         attempt++;
       }
     }
