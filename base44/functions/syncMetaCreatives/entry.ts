@@ -159,79 +159,18 @@ Deno.serve(async (req) => {
 
     let ads = [];
 
-    if (dateFrom && dateTo) {
-      // Estratégia: buscar via insights do período para pegar exatamente os ad_ids que rodaram
-      // A API de insights com breakdown por ad retorna todos os anúncios que tiveram impressões no período
-      console.log(`[syncMetaCreatives] fetching ad_ids from insights period=${dateFrom}→${dateTo}`);
+    // Sempre busca TODOS os anúncios (ativos, pausados, arquivados)
+    // Não filtra por período — criativos são dados estáticos e precisam estar todos disponíveis
+    console.log(`[syncMetaCreatives] fetching ALL ads for account=${actId}`);
+    const effectiveStatuses = encodeURIComponent(JSON.stringify(["ACTIVE", "PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "ADSET_PAUSED"]));
+    const url =
+      `${META_BASE}/act_${actId}/ads?` +
+      `fields=${encodeURIComponent(fields)}` +
+      `&effective_status=${effectiveStatuses}` +
+      `&limit=${PAGE_LIMIT}` +
+      `&access_token=${encodeURIComponent(meta_token)}`;
 
-      const insightsUrl =
-        `${META_BASE}/act_${actId}/insights?` +
-        `fields=${encodeURIComponent('ad_id')}` +
-        `&level=ad` +
-        `&time_range=${encodeURIComponent(JSON.stringify({ since: dateFrom, until: dateTo }))}` +
-        `&limit=${PAGE_LIMIT}` +
-        `&access_token=${encodeURIComponent(meta_token)}`;
-
-      const insightPages = await fetchAllPages(insightsUrl);
-      const adIds = [...new Set(insightPages.map(r => r.ad_id).filter(Boolean))];
-
-      console.log(`[syncMetaCreatives] ad_ids from insights=${adIds.length}`);
-
-      if (adIds.length === 0) {
-        return Response.json({ success: true, job_key, rows_written: 0, message: 'Nenhum anúncio com dados no período' });
-      }
-
-      // Busca os detalhes dos anúncios em lotes de 50 (batch requests via ?ids=)
-      const BATCH = 50;
-      for (let i = 0; i < adIds.length; i += BATCH) {
-        const batch = adIds.slice(i, i + BATCH);
-        const batchUrl =
-          `${META_BASE}?ids=${encodeURIComponent(batch.join(','))}` +
-          `&fields=${encodeURIComponent(fields)}` +
-          `&access_token=${encodeURIComponent(meta_token)}`;
-
-        let res, data;
-        let attempt = 0;
-        while (attempt < MAX_RETRIES) {
-          try {
-            res = await fetch(batchUrl);
-            data = await res.json();
-            if (res.ok && !data.error) break;
-            const baseWait = data?.error?.code === 17 || res.status === 429 ? 60000 : 10000;
-            const waitMs = baseWait * Math.pow(2, attempt);
-            console.warn(`[syncMetaCreatives] batch attempt ${attempt + 1} failed: ${data?.error?.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
-            await sleep(waitMs);
-            attempt++;
-          } catch (e) {
-            const waitMs = 10000 * Math.pow(2, attempt);
-            console.warn(`[syncMetaCreatives] batch network error: ${e.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
-            await sleep(waitMs);
-            attempt++;
-          }
-        }
-
-        if (!res?.ok || data?.error) {
-          throw new Error(data?.error?.message || `Meta API HTTP ${res?.status}`);
-        }
-
-        // Response é um objeto { ad_id: adObject, ... }
-        const batchAds = Object.values(data).filter(a => a?.id && a?.creative?.id);
-        ads.push(...batchAds);
-
-        if (i + BATCH < adIds.length) await sleep(DELAY_BETWEEN_PAGES);
-      }
-    } else {
-      // Fallback sem período: busca todos os anúncios ativos/pausados/arquivados
-      const effectiveStatuses = encodeURIComponent(JSON.stringify(["ACTIVE", "PAUSED", "ARCHIVED", "CAMPAIGN_PAUSED", "ADSET_PAUSED"]));
-      const url =
-        `${META_BASE}/act_${actId}/ads?` +
-        `fields=${encodeURIComponent(fields)}` +
-        `&effective_status=${effectiveStatuses}` +
-        `&limit=${PAGE_LIMIT}` +
-        `&access_token=${encodeURIComponent(meta_token)}`;
-
-      ads = await fetchAllPages(url);
-    }
+    ads = await fetchAllPages(url);
 
     console.log(`[syncMetaCreatives] ads fetched=${ads.length}`);
 
