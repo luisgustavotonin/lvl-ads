@@ -18,13 +18,8 @@ async function mirrorImage(base44, url) {
     const resp = await fetch(url);
     if (!resp.ok) return null;
     const buffer = await resp.arrayBuffer();
-    const contentType = resp.headers.get('content-type') || 'image/jpeg';
-    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : 'jpg';
-    const blob = new Blob([buffer], { type: contentType });
-    // Build a FormData-like file for UploadFile
-    const form = new FormData();
-    form.append('file', new File([blob], `creative.${ext}`, { type: contentType }));
-    const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: blob });
+    const bytes = new Uint8Array(buffer);
+    const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: bytes });
     return result?.file_url || null;
   } catch (e) {
     console.warn(`[mirrorImage] failed to mirror ${url}: ${e.message}`);
