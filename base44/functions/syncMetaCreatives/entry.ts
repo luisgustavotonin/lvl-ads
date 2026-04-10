@@ -184,51 +184,63 @@ Deno.serve(async (req) => {
 
     const nowIso = new Date().toISOString();
 
-    // Busca quais ad_ids já têm URL permanente salva (evita re-download)
+    // Busca todos os registros existentes para esta conta
     const adIds = [...new Set(ads.filter(a => a?.id || a?.ad_id).map(a => a.id || a.ad_id))];
     const existingCreatives = await base44.asServiceRole.entities.MetaAdsCreative.filter(
-      { account_id: accountId, ad_id: { $in: adIds } }, null, adIds.length
+      { account_id: accountId }, null, 5000
     ).catch(() => []);
 
-    // Mapa: ad_id -> URL permanente já salva (URLs do supabase são permanentes, CDN Meta não)
-    const alreadyMirrored = {};
+    // Mapas: ad_id -> registro existente
+    const existingMap = {}; // ad_id -> { id, thumbnail_url }
     for (const ec of existingCreatives) {
-      if (ec.ad_id && ec.thumbnail_url && ec.thumbnail_url.includes('supabase')) {
-        alreadyMirrored[ec.ad_id] = ec.thumbnail_url;
+      if (ec.ad_id) existingMap[ec.ad_id] = ec;
+    }
+
+    const isPermanent = (url) => url && (url.includes('supabase') || url.includes('base44'));
+
+    // Separa: já completos (pula), precisam de mirror, novos sem imagem
+    const toMirror = [];
+    const toCreateNoImage = [];
+    let skipped = 0;
+
+    for (const a of ads) {
+      const adId = a.id || a.ad_id;
+      if (!adId || !a.creative?.id) continue;
+      const existing = existingMap[adId];
+      if (existing && isPermanent(existing.thumbnail_url)) {
+        skipped++;
+        continue; // já tem URL permanente, pula completamente
+      }
+      const rawUrl = a.creative?.image_url || a.creative?.thumbnail_url || null;
+      if (rawUrl) {
+        toMirror.push(a);
+      } else {
+        toCreateNoImage.push(a);
       }
     }
 
-    const needsMirror = ads.filter(a => {
-      const adId = a.id || a.ad_id;
-      return !alreadyMirrored[adId] && (a.creative?.image_url || a.creative?.thumbnail_url);
-    });
+    console.log(`[syncMetaCreatives] total=${ads.length} skipped=${skipped} to_mirror=${toMirror.length} no_image=${toCreateNoImage.length}`);
 
-    // Limita mirrors por execução para evitar timeout
-    const MAX_MIRRORS_PER_RUN = 15;
-    const needsMirrorBatch = needsMirror.slice(0, MAX_MIRRORS_PER_RUN);
-    console.log(`[syncMetaCreatives] total=${ads.length} already_mirrored=${Object.keys(alreadyMirrored).length} needs_mirror=${needsMirror.length} processing_now=${needsMirrorBatch.length}`);
-
-    // Mirror images sequencialmente com delay para evitar rate limit do UploadFile
-    const mirroredMap = { ...alreadyMirrored };
-    for (const a of needsMirrorBatch) {
+    // Mirror apenas os que precisam (sequencial com delay)
+    const mirroredMap = {};
+    for (const a of toMirror.slice(0, 15)) {
       const c = a.creative;
       const adId = a.id || a.ad_id;
-      const rawUrl = c.image_url || c.thumbnail_url || null;
-      if (rawUrl) {
-        const mirrored = await mirrorImage(base44, rawUrl, meta_token);
-        if (mirrored) mirroredMap[adId] = mirrored;
-      }
+      const rawUrl = c.image_url || c.thumbnail_url;
+      const mirrored = await mirrorImage(base44, rawUrl, meta_token);
+      if (mirrored) mirroredMap[adId] = mirrored;
       await sleep(500);
     }
 
-    const rows = ads
-      .filter((a) => (a?.id || a?.ad_id) && a?.creative?.id)
-      .map((a) => {
+    // Monta rows apenas para o que precisa ser criado/atualizado
+    const toProcess = [...toMirror.slice(0, 15), ...toCreateNoImage];
+    const rows = toProcess
+      .filter(a => (a?.id || a?.ad_id) && a?.creative?.id)
+      .map(a => {
         const c = a.creative;
         const adId = a.id || a.ad_id;
         const permanentUrl = mirroredMap[adId] || null;
         const fallbackUrl = c.image_url || c.thumbnail_url || null;
-
         return {
           unique_key: `${accountId}:${unitId}:${adId}:${c.id}`,
           creative_id: c.id,
@@ -247,11 +259,12 @@ Deno.serve(async (req) => {
         };
       });
 
-    const written = await upsertBatch(base44.asServiceRole.entities.MetaAdsCreative, rows);
+    const written = rows.length > 0 ? await upsertBatch(base44.asServiceRole.entities.MetaAdsCreative, rows) : 0;
+    const remaining = toMirror.length - Math.min(toMirror.length, 15);
 
-    console.log(`[syncMetaCreatives] rows to upsert=${rows.length} written=${written}`);
+    console.log(`[syncMetaCreatives] skipped=${skipped} written=${written} remaining_for_next_run=${remaining}`);
 
-    return Response.json({ success: true, job_key, rows_written: written });
+    return Response.json({ success: true, job_key, skipped, rows_written: written, remaining_for_next_run: remaining });
   } catch (error) {
     console.error('syncMetaCreatives error:', error?.message || error);
     return Response.json({ error: String(error?.message || error) }, { status: 500 });
