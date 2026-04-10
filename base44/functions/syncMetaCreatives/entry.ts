@@ -176,17 +176,42 @@ Deno.serve(async (req) => {
 
     const nowIso = new Date().toISOString();
 
-    // Mirror images to permanent storage
-    const mirroredMap = {};
-    for (const a of ads.filter(a => (a?.id || a?.ad_id) && a?.creative?.id)) {
-      const c = a.creative;
-      const adId = a.id || a.ad_id;
-      const rawUrl = c.image_url || c.thumbnail_url || null;
-      if (rawUrl) {
-        const mirrored = await mirrorImage(base44, rawUrl, meta_token);
-        if (mirrored) mirroredMap[adId] = mirrored;
+    // Busca quais ad_ids já têm URL permanente salva (evita re-download)
+    const adIds = [...new Set(ads.filter(a => a?.id || a?.ad_id).map(a => a.id || a.ad_id))];
+    const existingCreatives = await base44.asServiceRole.entities.MetaAdsCreative.filter(
+      { account_id: accountId, ad_id: { $in: adIds } }, null, adIds.length
+    ).catch(() => []);
+
+    // Mapa: ad_id -> URL permanente já salva (URLs do supabase são permanentes, CDN Meta não)
+    const alreadyMirrored = {};
+    for (const ec of existingCreatives) {
+      if (ec.ad_id && ec.thumbnail_url && ec.thumbnail_url.includes('supabase')) {
+        alreadyMirrored[ec.ad_id] = ec.thumbnail_url;
       }
-      await sleep(200);
+    }
+
+    const needsMirror = ads.filter(a => {
+      const adId = a.id || a.ad_id;
+      return !alreadyMirrored[adId] && (a.creative?.image_url || a.creative?.thumbnail_url);
+    });
+
+    console.log(`[syncMetaCreatives] total=${ads.length} already_mirrored=${Object.keys(alreadyMirrored).length} needs_mirror=${needsMirror.length}`);
+
+    // Mirror images em lotes paralelos de 5
+    const mirroredMap = { ...alreadyMirrored };
+    const MIRROR_BATCH = 5;
+    for (let i = 0; i < needsMirror.length; i += MIRROR_BATCH) {
+      const batch = needsMirror.slice(i, i + MIRROR_BATCH);
+      await Promise.all(batch.map(async (a) => {
+        const c = a.creative;
+        const adId = a.id || a.ad_id;
+        const rawUrl = c.image_url || c.thumbnail_url || null;
+        if (rawUrl) {
+          const mirrored = await mirrorImage(base44, rawUrl, meta_token);
+          if (mirrored) mirroredMap[adId] = mirrored;
+        }
+      }));
+      if (i + MIRROR_BATCH < needsMirror.length) await sleep(300);
     }
 
     const rows = ads
