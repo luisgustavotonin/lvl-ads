@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 const META_API_VERSION = 'v24.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -10,6 +10,27 @@ const DELAY_BETWEEN_CHUNKS = 1500;
 const MAX_RETRIES = 8;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Download a URL and re-upload to permanent storage
+async function mirrorImage(base44, url) {
+  if (!url) return null;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const buffer = await resp.arrayBuffer();
+    const contentType = resp.headers.get('content-type') || 'image/jpeg';
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : 'jpg';
+    const blob = new Blob([buffer], { type: contentType });
+    // Build a FormData-like file for UploadFile
+    const form = new FormData();
+    form.append('file', new File([blob], `creative.${ext}`, { type: contentType }));
+    const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: blob });
+    return result?.file_url || null;
+  } catch (e) {
+    console.warn(`[mirrorImage] failed to mirror ${url}: ${e.message}`);
+    return null;
+  }
+}
 
 function normalizeActId(id) {
   if (!id) return '';
@@ -202,11 +223,26 @@ Deno.serve(async (req) => {
 
     const nowIso = new Date().toISOString();
 
+    // Mirror images to permanent storage
+    const mirroredMap = {};
+    for (const a of ads.filter(a => (a?.id || a?.ad_id) && a?.creative?.id)) {
+      const c = a.creative;
+      const adId = a.id || a.ad_id;
+      const rawUrl = c.image_url || c.thumbnail_url || null;
+      if (rawUrl) {
+        const mirrored = await mirrorImage(base44, rawUrl);
+        if (mirrored) mirroredMap[adId] = mirrored;
+      }
+      await sleep(200);
+    }
+
     const rows = ads
       .filter((a) => (a?.id || a?.ad_id) && a?.creative?.id)
       .map((a) => {
         const c = a.creative;
         const adId = a.id || a.ad_id;
+        const permanentUrl = mirroredMap[adId] || null;
+        const fallbackUrl = c.image_url || c.thumbnail_url || null;
 
         return {
           unique_key: `${accountId}:${unitId}:${adId}:${c.id}`,
@@ -217,8 +253,8 @@ Deno.serve(async (req) => {
           unit_id: unitId,
           effective_status: a.effective_status || null,
           status: a.status || null,
-          image_url: c.image_url || null,
-          thumbnail_url: c.thumbnail_url || null,
+          image_url: permanentUrl || fallbackUrl,
+          thumbnail_url: permanentUrl || fallbackUrl,
           video_id: c.video_id || null,
           object_type: c.object_type || null,
           last_updated: nowIso,
