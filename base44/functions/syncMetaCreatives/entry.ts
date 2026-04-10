@@ -15,18 +15,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function mirrorImage(base44, url, accessToken) {
   if (!url) return null;
   try {
-    // Try with token first (needed for some Meta CDN URLs)
     const headers = {};
     if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-
     let resp = await fetch(url, { headers });
-
-    // Fallback: try appending token as query param (Meta CDN style)
     if (!resp.ok && accessToken) {
       const urlWithToken = url.includes('?') ? `${url}&access_token=${accessToken}` : `${url}?access_token=${accessToken}`;
       resp = await fetch(urlWithToken);
     }
-
     if (!resp.ok) {
       console.warn(`[mirrorImage] HTTP ${resp.status} for ${url}`);
       return null;
@@ -34,12 +29,25 @@ async function mirrorImage(base44, url, accessToken) {
     const buffer = await resp.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
     const base64 = btoa(binary);
-    const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: base64 });
-    return result?.file_url || null;
+
+    // Upload com retry em caso de rate limit
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: base64 });
+        return result?.file_url || null;
+      } catch (e) {
+        if (e?.message?.includes('Rate limit') || e?.status === 429) {
+          const wait = 3000 * Math.pow(2, attempt);
+          console.warn(`[mirrorImage] rate limit, retry ${attempt + 1} em ${wait}ms`);
+          await sleep(wait);
+        } else {
+          throw e;
+        }
+      }
+    }
+    return null;
   } catch (e) {
     console.warn(`[mirrorImage] failed to mirror ${url}: ${e.message}`);
     return null;
@@ -197,21 +205,17 @@ Deno.serve(async (req) => {
 
     console.log(`[syncMetaCreatives] total=${ads.length} already_mirrored=${Object.keys(alreadyMirrored).length} needs_mirror=${needsMirror.length}`);
 
-    // Mirror images em lotes paralelos de 5
+    // Mirror images sequencialmente com delay para evitar rate limit do UploadFile
     const mirroredMap = { ...alreadyMirrored };
-    const MIRROR_BATCH = 5;
-    for (let i = 0; i < needsMirror.length; i += MIRROR_BATCH) {
-      const batch = needsMirror.slice(i, i + MIRROR_BATCH);
-      await Promise.all(batch.map(async (a) => {
-        const c = a.creative;
-        const adId = a.id || a.ad_id;
-        const rawUrl = c.image_url || c.thumbnail_url || null;
-        if (rawUrl) {
-          const mirrored = await mirrorImage(base44, rawUrl, meta_token);
-          if (mirrored) mirroredMap[adId] = mirrored;
-        }
-      }));
-      if (i + MIRROR_BATCH < needsMirror.length) await sleep(300);
+    for (const a of needsMirror) {
+      const c = a.creative;
+      const adId = a.id || a.ad_id;
+      const rawUrl = c.image_url || c.thumbnail_url || null;
+      if (rawUrl) {
+        const mirrored = await mirrorImage(base44, rawUrl, meta_token);
+        if (mirrored) mirroredMap[adId] = mirrored;
+      }
+      await sleep(800);
     }
 
     const rows = ads
