@@ -72,6 +72,20 @@ export default function RankingTable({
     document.addEventListener('mouseup', onMouseUp);
   }, [colWidths]);
 
+  // Carregar thumbnails permanentes de MetaAdsCreative
+  const { data: creativesData = [] } = useQuery({
+    queryKey: ['creativesForRanking', unitId],
+    queryFn: () => base44.entities.MetaAdsCreative.filter({ unit_id: unitId }, null, 2000),
+    enabled: !!unitId && showThumbnail,
+    staleTime: 60000,
+  });
+
+  const creativesThumbMap = useMemo(() => {
+    const map = {};
+    creativesData.forEach(c => { if (c.ad_id) map[c.ad_id] = c.thumbnail_url || c.image_url || null; });
+    return map;
+  }, [creativesData]);
+
   // Carregar configurações salvas
    const { data: config } = useQuery({
      queryKey: ['rankingTableConfig', unitId, groupKey],
@@ -160,9 +174,9 @@ export default function RankingTable({
         };
       }
 
-      // Atualiza thumbnail se o item atual tiver uma URL válida e o grupo ainda não tiver
-      if (!groups[key].thumbnail && item.creative_thumbnail_url) {
-        groups[key].thumbnail = item.creative_thumbnail_url;
+      // Usa thumbnail permanente de MetaAdsCreative, fallback para URL do insight
+      if (!groups[key].thumbnail) {
+        groups[key].thumbnail = creativesThumbMap[key] || item.creative_thumbnail_url || null;
       }
 
       groups[key].spend += item.spend || 0;
@@ -198,7 +212,7 @@ export default function RankingTable({
     });
 
     return filtered.slice(0, parseInt(limit));
-  }, [data, groupKey, nameKey, limit, statusFilter, sortConfig]);
+  }, [data, groupKey, nameKey, limit, statusFilter, sortConfig, creativesThumbMap]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({

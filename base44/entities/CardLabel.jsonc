@@ -1,0 +1,26 @@
+{
+  "name": "CardLabel",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "card_key": {
+      "type": "string",
+      "description": "Chave do KPI card (ex: spend, ctr_link)"
+    },
+    "custom_label": {
+      "type": "string",
+      "description": "Nome customizado do card"
+    },
+    "default_label": {
+      "type": "string",
+      "description": "Nome padr\u00e3o do card"
+    }
+  },
+  "required": [
+    "unit_id",
+    "card_key",
+    "custom_label"
+  ]
+}

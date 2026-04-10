@@ -18,8 +18,14 @@ async function mirrorImage(base44, url) {
     const resp = await fetch(url);
     if (!resp.ok) return null;
     const buffer = await resp.arrayBuffer();
+    // Convert to base64 string — required format for UploadFile integration
     const bytes = new Uint8Array(buffer);
-    const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: bytes });
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: base64 });
     return result?.file_url || null;
   } catch (e) {
     console.warn(`[mirrorImage] failed to mirror ${url}: ${e.message}`);
