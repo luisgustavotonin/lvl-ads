@@ -12,13 +12,26 @@ const MAX_RETRIES = 8;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Download a URL and re-upload to permanent storage
-async function mirrorImage(base44, url) {
+async function mirrorImage(base44, url, accessToken) {
   if (!url) return null;
   try {
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
+    // Try with token first (needed for some Meta CDN URLs)
+    const headers = {};
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+    let resp = await fetch(url, { headers });
+
+    // Fallback: try appending token as query param (Meta CDN style)
+    if (!resp.ok && accessToken) {
+      const urlWithToken = url.includes('?') ? `${url}&access_token=${accessToken}` : `${url}?access_token=${accessToken}`;
+      resp = await fetch(urlWithToken);
+    }
+
+    if (!resp.ok) {
+      console.warn(`[mirrorImage] HTTP ${resp.status} for ${url}`);
+      return null;
+    }
     const buffer = await resp.arrayBuffer();
-    // Convert to base64 string — required format for UploadFile integration
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
@@ -231,7 +244,7 @@ Deno.serve(async (req) => {
       const adId = a.id || a.ad_id;
       const rawUrl = c.image_url || c.thumbnail_url || null;
       if (rawUrl) {
-        const mirrored = await mirrorImage(base44, rawUrl);
+        const mirrored = await mirrorImage(base44, rawUrl, meta_token);
         if (mirrored) mirroredMap[adId] = mirrored;
       }
       await sleep(200);
