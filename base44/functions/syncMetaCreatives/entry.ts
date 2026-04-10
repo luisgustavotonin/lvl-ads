@@ -199,7 +199,8 @@ Deno.serve(async (req) => {
     const isPermanent = (url) => url && (url.includes('supabase') || url.includes('base44'));
 
     // Separa: já completos (pula), precisam de mirror, novos sem imagem
-    const toMirror = [];
+    const toMirrorExisting = []; // já no banco mas sem URL permanente (prioridade)
+    const toMirrorNew = [];      // novos anuncios
     const toCreateNoImage = [];
     let skipped = 0;
 
@@ -213,11 +214,15 @@ Deno.serve(async (req) => {
       }
       const rawUrl = a.creative?.image_url || a.creative?.thumbnail_url || null;
       if (rawUrl) {
-        toMirror.push(a);
+        if (existing) toMirrorExisting.push(a); // já no banco, prioridade
+        else toMirrorNew.push(a);
       } else {
         toCreateNoImage.push(a);
       }
     }
+
+    // Existentes sem URL permanente vêm primeiro
+    const toMirror = [...toMirrorExisting, ...toMirrorNew];
 
     console.log(`[syncMetaCreatives] total=${ads.length} skipped=${skipped} to_mirror=${toMirror.length} no_image=${toCreateNoImage.length}`);
 
