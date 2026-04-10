@@ -203,11 +203,14 @@ Deno.serve(async (req) => {
       return !alreadyMirrored[adId] && (a.creative?.image_url || a.creative?.thumbnail_url);
     });
 
-    console.log(`[syncMetaCreatives] total=${ads.length} already_mirrored=${Object.keys(alreadyMirrored).length} needs_mirror=${needsMirror.length}`);
+    // Limita mirrors por execução para evitar timeout
+    const MAX_MIRRORS_PER_RUN = 15;
+    const needsMirrorBatch = needsMirror.slice(0, MAX_MIRRORS_PER_RUN);
+    console.log(`[syncMetaCreatives] total=${ads.length} already_mirrored=${Object.keys(alreadyMirrored).length} needs_mirror=${needsMirror.length} processing_now=${needsMirrorBatch.length}`);
 
     // Mirror images sequencialmente com delay para evitar rate limit do UploadFile
     const mirroredMap = { ...alreadyMirrored };
-    for (const a of needsMirror) {
+    for (const a of needsMirrorBatch) {
       const c = a.creative;
       const adId = a.id || a.ad_id;
       const rawUrl = c.image_url || c.thumbnail_url || null;
@@ -215,7 +218,7 @@ Deno.serve(async (req) => {
         const mirrored = await mirrorImage(base44, rawUrl, meta_token);
         if (mirrored) mirroredMap[adId] = mirrored;
       }
-      await sleep(800);
+      await sleep(500);
     }
 
     const rows = ads
