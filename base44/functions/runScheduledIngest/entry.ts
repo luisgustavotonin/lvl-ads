@@ -152,13 +152,33 @@ Deno.serve(async (req) => {
           });
 
           if (result.data?.status === 'queued') {
-            scheduleResult.jobs.push({
-              unit: unit.name,
-              mode: mode,
-              status: 'queued',
-              job_id: result.data.job_id
-            });
             enqueuedCount++;
+            // Após enfileirar, executa imediatamente o job
+            try {
+              const runResult = await base44.asServiceRole.functions.invoke('runMetaIngest', {
+                job_key,
+                unit_id: unit.id,
+                mode,
+                force: schedule.force || false,
+              });
+              const rowsWritten = runResult.data?.rows_written || 0;
+              scheduleResult.jobs.push({
+                unit: unit.name,
+                mode,
+                status: runResult.data?.error ? 'error' : 'done',
+                job_id: result.data.job_id,
+                rows_written: rowsWritten,
+                error: runResult.data?.error || null,
+              });
+            } catch (runErr) {
+              scheduleResult.jobs.push({
+                unit: unit.name,
+                mode,
+                status: 'error',
+                job_id: result.data.job_id,
+                error: runErr.message,
+              });
+            }
           } else {
             scheduleResult.jobs.push({
               unit: unit.name,
