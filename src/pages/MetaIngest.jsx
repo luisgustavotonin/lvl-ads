@@ -78,6 +78,8 @@ export default function MetaIngest() {
   const [loadingCreatives, setLoadingCreatives] = useState(false);
   const [creativesHistory, setCreativesHistory] = useState([]); // [{id, ts, unit, account_id, status, rows_written, error}]
   const [expandedJob, setExpandedJob] = useState(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 15;
   const [creativesQueue, setCreativesQueue] = useState([]); // fila de sincronizações de criativos
   const [runningCreativesQueue, setRunningCreativesQueue] = useState(false);
 
@@ -91,12 +93,14 @@ export default function MetaIngest() {
 
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['metaIngestRuns'],
-    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 100),
+    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 500),
     refetchInterval: 2000,
   });
 
   // Todos os jobs do banco aparecem no histórico (inclusive running/queued do banco)
   const historyJobs = jobs;
+  const totalHistoryPages = Math.max(1, Math.ceil(historyJobs.length / HISTORY_PAGE_SIZE));
+  const pagedHistoryJobs = historyJobs.slice((historyPage - 1) * HISTORY_PAGE_SIZE, historyPage * HISTORY_PAGE_SIZE);
 
   const selectedUnit = units.find(u => u.id === form.unit_ids[0]); // for creatives (single)
 
@@ -804,7 +808,7 @@ export default function MetaIngest() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-gray-800">Histórico Recente</h2>
-            <p className="text-xs text-gray-400">Últimos 100 jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
+            <p className="text-xs text-gray-400">{historyJobs.length} jobs · Histórico completo em <strong>Gestão de Dados → Jobs</strong></p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => {
             // Refetch dos jobs reais
@@ -836,7 +840,7 @@ export default function MetaIngest() {
           <p className="text-sm text-gray-400 text-center py-8">Nenhum job completo ainda</p>
         )}
 
-        {historyJobs.map(job => {
+        {pagedHistoryJobs.map(job => {
           const isExpanded = expandedJob === job.id;
           const unitName = units.find(u => u.account_id === job.account_id)?.name
             || units.find(u => u.id === job.unit_id)?.name
@@ -914,6 +918,33 @@ export default function MetaIngest() {
             </Card>
           );
         })}
+
+        {/* Pagination */}
+        {totalHistoryPages > 1 && (
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-gray-400">
+              Página {historyPage} de {totalHistoryPages} ({historyJobs.length} jobs)
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={historyPage === 1}
+                onClick={() => setHistoryPage(p => p - 1)}
+              >
+                ← Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={historyPage === totalHistoryPages}
+                onClick={() => setHistoryPage(p => p + 1)}
+              >
+                Próxima →
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
