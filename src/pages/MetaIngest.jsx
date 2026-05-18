@@ -102,6 +102,8 @@ export default function MetaIngest() {
     enabled: !!user && user.role !== 'admin',
   });
 
+  const isAdmin = user?.role === 'admin';
+
   // IDs das unidades que o usuário tem acesso (para filtrar jobs)
   const allowedUnitIds = useMemo(() => {
     if (!user) return [];
@@ -634,68 +636,72 @@ export default function MetaIngest() {
             </div>
           </div>
 
-          {/* Type selector */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Tipo de Dado *</Label>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                  <Checkbox
-                    checked={multiMode}
-                    onCheckedChange={toggleMultiMode}
-                  />
-                  Selecionar múltiplos
-                </label>
-                {multiMode && (
-                  <button
-                    onClick={selectAll}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Selecionar todos
-                  </button>
-                )}
+          {/* Type selector — only for admin */}
+          {isAdmin && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Tipo de Dado *</Label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                    <Checkbox
+                      checked={multiMode}
+                      onCheckedChange={toggleMultiMode}
+                    />
+                    Selecionar múltiplos
+                  </label>
+                  {multiMode && (
+                    <button
+                      onClick={selectAll}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Selecionar todos
+                    </button>
+                  )}
+                </div>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                {INSIGHT_TYPES.map(type => {
+                  const selected = selectedTypes.includes(type.id);
+                  return (
+                    <button
+                      key={type.id}
+                      onClick={() => toggleType(type.id)}
+                      className={`text-left p-3 rounded-lg border-2 transition-colors ${
+                        selected
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <div className={`text-sm font-semibold ${selected ? 'text-blue-700' : 'text-gray-800'}`}>
+                        {type.label}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">{type.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              {multiMode && selectedTypes.length > 1 && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <ListOrdered className="w-3 h-3" />
+                  {selectedTypes.length} tipos serão executados em sequência (1 por vez)
+                </p>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {INSIGHT_TYPES.map(type => {
-                const selected = selectedTypes.includes(type.id);
-                return (
-                  <button
-                    key={type.id}
-                    onClick={() => toggleType(type.id)}
-                    className={`text-left p-3 rounded-lg border-2 transition-colors ${
-                      selected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className={`text-sm font-semibold ${selected ? 'text-blue-700' : 'text-gray-800'}`}>
-                      {type.label}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">{type.desc}</div>
-                  </button>
-                );
-              })}
-            </div>
-            {multiMode && selectedTypes.length > 1 && (
-              <p className="text-xs text-amber-600 flex items-center gap-1">
-                <ListOrdered className="w-3 h-3" />
-                {selectedTypes.length} tipos serão executados em sequência (1 por vez)
-              </p>
-            )}
-          </div>
+          )}
 
-          {/* Force re-run */}
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="force"
-              checked={form.force}
-              onCheckedChange={v => setForm(f => ({ ...f, force: !!v }))}
-            />
-            <label htmlFor="force" className="text-sm cursor-pointer text-gray-600">
-              Forçar re-execução (mesmo se job já existir como done)
-            </label>
-          </div>
+          {/* Force re-run — only for admin */}
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="force"
+                checked={form.force}
+                onCheckedChange={v => setForm(f => ({ ...f, force: !!v }))}
+              />
+              <label htmlFor="force" className="text-sm cursor-pointer text-gray-600">
+                Forçar re-execução (mesmo se job já existir como done)
+              </label>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 flex-wrap">
@@ -711,21 +717,23 @@ export default function MetaIngest() {
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Play className="w-4 h-4 mr-2" />
-                {form.unit_ids.length > 1 || selectedTypes.length > 1
+                {isAdmin && (form.unit_ids.length > 1 || selectedTypes.length > 1)
                   ? `Executar Fila (${form.unit_ids.length * selectedTypes.length} jobs)`
                   : 'Executar'}
               </Button>
             )}
-            {runningCreativesQueue ? (
-              <Button onClick={() => { runningCreativesRef.current = false; setRunningCreativesQueue(false); setCreativesQueue(prev => prev.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q)); toast('Fila de criativos interrompida', { icon: '⏹' }); }} variant="destructive">
-                <StopCircle className="w-4 h-4 mr-2" />
-                Parar Criativos
-              </Button>
-            ) : (
-              <Button onClick={handleSyncCreatives} disabled={!form.unit_ids.length} variant="outline">
-                <Image className="w-4 h-4 mr-2" />
-                Sincronizar Criativos {form.unit_ids.length > 1 ? `(${form.unit_ids.length})` : ''}
-              </Button>
+            {isAdmin && (
+              runningCreativesQueue ? (
+                <Button onClick={() => { runningCreativesRef.current = false; setRunningCreativesQueue(false); setCreativesQueue(prev => prev.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q)); toast('Fila de criativos interrompida', { icon: '⏹' }); }} variant="destructive">
+                  <StopCircle className="w-4 h-4 mr-2" />
+                  Parar Criativos
+                </Button>
+              ) : (
+                <Button onClick={handleSyncCreatives} disabled={!form.unit_ids.length} variant="outline">
+                  <Image className="w-4 h-4 mr-2" />
+                  Sincronizar Criativos {form.unit_ids.length > 1 ? `(${form.unit_ids.length})` : ''}
+                </Button>
+              )
             )}
           </div>
         </CardContent>

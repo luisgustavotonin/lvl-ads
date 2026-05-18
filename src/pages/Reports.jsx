@@ -231,6 +231,7 @@ export default function Reports() {
   const units = useMemo(() => {
     if (!user) return allUnits;
     if (user.role === 'admin') return allUnits;
+    if (!userProfiles) return []; // aguarda carregar
     const myProfile = userProfiles.find(up => up.user_id === user.id);
     if (!myProfile || !myProfile.unit_ids || myProfile.unit_ids.length === 0) return allUnits;
     return allUnits.filter(u => myProfile.unit_ids.includes(u.id));
