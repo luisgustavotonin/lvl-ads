@@ -889,25 +889,25 @@ export default function Reports() {
                   nameKey="campaign_name"
                   showThumbnail={false}
                   unitId={selectedUnit}
-                  canEditColumns={canDo('edit_report_columns')}
-                />
-                <RankingTable
+                  canEditColumns={user?.role === 'admin'}
+                  />
+                  <RankingTable
                   title="Conjuntos de Anúncios em Destaque"
                   data={currentMetrics}
                   groupKey="adset_id"
                   nameKey="adset_name"
                   showThumbnail={false}
                   unitId={selectedUnit}
-                  canEditColumns={canDo('edit_report_columns')}
-                />
-                <RankingTable
+                  canEditColumns={user?.role === 'admin'}
+                  />
+                  <RankingTable
                   title="Anúncios em Destaque"
                   data={enrichedMetrics}
                   groupKey="ad_id"
                   nameKey="ad_name"
                   showThumbnail={true}
                   unitId={selectedUnit}
-                  canEditColumns={canDo('edit_report_columns')}
+                  canEditColumns={user?.role === 'admin'}
                 />
               </div>
             </>
