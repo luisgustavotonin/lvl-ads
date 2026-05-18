@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
@@ -91,10 +91,36 @@ export default function MetaIngest() {
     queryFn: () => base44.entities.Unit.list(),
   });
 
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
+  const { data: userProfiles = [] } = useQuery({
+    queryKey: ['userProfilesIngest'],
+    queryFn: () => base44.entities.UserProfile.list(),
+    enabled: !!user && user.role !== 'admin',
+  });
+
+  // IDs das unidades que o usuário tem acesso (para filtrar jobs)
+  const allowedUnitIds = useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return null; // null = todas
+    const myProfile = userProfiles.find(up => up.user_id === user.id);
+    return myProfile?.unit_ids || [];
+  }, [user, userProfiles]);
+
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['metaIngestRuns'],
-    queryFn: () => base44.entities.MetaIngestRun.list('-created_date', 500),
+    queryFn: async () => {
+      const data = await base44.entities.MetaIngestRun.list('-created_date', 500);
+      // Filtra por unidades permitidas para não-admin
+      if (allowedUnitIds === null) return data;
+      const allowedAccountIds = units.filter(u => allowedUnitIds.includes(u.id)).map(u => u.account_id).filter(Boolean);
+      return data.filter(j => allowedUnitIds.includes(j.unit_id) || allowedAccountIds.includes(j.account_id));
+    },
     refetchInterval: 2000,
+    retry: false,
   });
 
   // Todos os jobs do banco aparecem no histórico (inclusive running/queued do banco)
