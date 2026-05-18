@@ -68,6 +68,7 @@ const PERMISSION_CATEGORIES = {
     permissions: [
       { id: 'manage_integrations', label: 'Gerenciar Integrações', description: 'Conectar contas de anúncios' },
       { id: 'manage_schedules', label: 'Gerenciar Agendamentos', description: 'Configurar importações automáticas' },
+      { id: 'run_manual_ingest', label: 'Ingestão Manual Meta', description: 'Executar ingestão manual de dados da Meta Ads' },
       { id: 'refresh_data', label: 'Atualizar Dados', description: 'Forçar atualização de dados' },
       { id: 'manage_data', label: 'Gestão de Dados', description: 'Limpeza e manutenção de dados' },
     ]
