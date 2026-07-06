@@ -185,17 +185,10 @@ export default function Layout({ children, currentPageName }) {
         <div className="flex flex-col h-full">
           {/* Brand Header */}
           <div className="px-5 py-5 border-b border-border">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 bg-card rounded-lg flex items-center justify-center flex-shrink-0 border border-border">
-                <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/ede7e1dec_6824a59a24a8cd8416895e42_lvl.png"
-                  alt="LVL Logo"
-                  className="w-7 h-6 object-contain" />
-              </div>
-              <div>
-                <p className="text-base font-bold leading-tight text-foreground">LVL <span className="text-primary">Ads</span></p>
-                <p className="text-[11px] text-muted-foreground leading-tight">by IDK</p>
-              </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold text-primary leading-none">Ads</span>
+              <span className="text-[11px] font-medium text-muted-foreground leading-none translate-y-[-3px]">by</span>
+              <span className="text-xl font-bold text-foreground leading-none">IDK</span>
             </div>
           </div>
 
@@ -268,15 +261,10 @@ export default function Layout({ children, currentPageName }) {
               <Menu className="w-5 h-5" />
             </Button>
             {/* Logo centralizado no mobile */}
-            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 lg:hidden">
-              <div className="w-9 h-9 bg-card rounded-lg flex items-center justify-center border border-border">
-                <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/ede7e1dec_6824a59a24a8cd8416895e42_lvl.png"
-                  alt="LVL Logo"
-                  className="w-8 h-7 object-contain"
-                />
-              </div>
-              <p className="text-primary text-base font-bold">Ads</p>
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline gap-1 lg:hidden">
+              <span className="text-base font-bold text-primary leading-none">Ads</span>
+              <span className="text-[9px] font-medium text-muted-foreground leading-none translate-y-[-2px]">by</span>
+              <span className="text-base font-bold text-foreground leading-none">IDK</span>
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-2">
