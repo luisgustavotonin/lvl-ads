@@ -186,7 +186,7 @@ export default function Layout({ children, currentPageName }) {
           {/* Brand Header */}
           <div className="px-5 py-5 border-b border-border">
             <div className="text-xl font-semibold text-[#f85d07]">
-              CRC Odonto <span className="inline-flex items-baseline gap-[1px]"><span className="text-[13px] text-[#7e6951] font-medium [font-family:'Albert_Sans',_sans-serif] translate-y-[2px]">by</span><span className="text-[#312b1d]">IDK</span></span>
+              ADS <span className="inline-flex items-baseline gap-[1px]"><span className="text-[13px] text-[#7e6951] font-medium [font-family:'Albert_Sans',_sans-serif] translate-y-[2px]">by</span><span className="text-[#312b1d]">IDK</span></span>
             </div>
           </div>
 
