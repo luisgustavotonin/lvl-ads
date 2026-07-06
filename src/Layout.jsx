@@ -185,10 +185,8 @@ export default function Layout({ children, currentPageName }) {
         <div className="flex flex-col h-full">
           {/* Brand Header */}
           <div className="px-5 py-5 border-b border-border">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-xl font-bold text-primary leading-none">Ads</span>
-              <span className="text-[11px] font-medium text-muted-foreground leading-none translate-y-[-3px]">by</span>
-              <span className="text-xl font-bold text-foreground leading-none">IDK</span>
+            <div className="text-xl font-semibold text-[#f85d07]">
+              CRC Odonto <span className="inline-flex items-baseline gap-[1px]"><span className="text-[13px] text-[#7e6951] font-medium [font-family:'Albert_Sans',_sans-serif] translate-y-[2px]">by</span><span className="text-[#312b1d]">IDK</span></span>
             </div>
           </div>
 
@@ -261,10 +259,10 @@ export default function Layout({ children, currentPageName }) {
               <Menu className="w-5 h-5" />
             </Button>
             {/* Logo centralizado no mobile */}
-            <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline gap-1 lg:hidden">
-              <span className="text-base font-bold text-primary leading-none">Ads</span>
-              <span className="text-[9px] font-medium text-muted-foreground leading-none translate-y-[-2px]">by</span>
-              <span className="text-base font-bold text-foreground leading-none">IDK</span>
+            <div className="absolute left-1/2 -translate-x-1/2 lg:hidden">
+              <div className="text-base font-semibold text-[#f85d07]">
+                CRC Odonto <span className="inline-flex items-baseline gap-[1px]"><span className="text-[10px] text-[#7e6951] font-medium [font-family:'Albert_Sans',_sans-serif] translate-y-[2px]">by</span><span className="text-[#312b1d]">IDK</span></span>
+              </div>
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-2">
