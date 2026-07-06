@@ -1,0 +1,76 @@
+{
+  "name": "Schedule",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "platform_id": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ]
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "hourly",
+        "daily",
+        "custom"
+      ],
+      "default": "daily"
+    },
+    "times": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Hor\u00e1rios de execu\u00e7\u00e3o (ex: 09:00, 13:00)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "last_run": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error",
+        "pending"
+      ]
+    },
+    "log": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data inicial para importa\u00e7\u00e3o manual"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data final para importa\u00e7\u00e3o manual"
+    },
+    "date_range_mode": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "manual"
+      ],
+      "default": "auto",
+      "description": "auto = \u00faltimos 7 dias, manual = per\u00edodo definido"
+    }
+  },
+  "required": [
+    "unit_id",
+    "platform_id"
+  ]
+}

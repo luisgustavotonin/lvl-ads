@@ -4,6 +4,13 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			heading: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			body: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			display: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas'],
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
@@ -43,6 +50,15 @@ module.exports = {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
+  			tag: {
+  				fechamento: 'hsl(var(--tag-fechamento))',
+  				objecoes: 'hsl(var(--tag-objecoes))',
+  				abertura: 'hsl(var(--tag-abertura))',
+  				reativacao: 'hsl(var(--tag-reativacao))',
+  				qualificacao: 'hsl(var(--tag-qualificacao))',
+  				ok: 'hsl(var(--tag-ok))',
+  				nok: 'hsl(var(--tag-nok))',
+  			},
   			chart: {
   				'1': 'hsl(var(--chart-1))',
   				'2': 'hsl(var(--chart-2))',

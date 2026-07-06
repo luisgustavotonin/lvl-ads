@@ -1,0 +1,54 @@
+{
+  "name": "Unit",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome da unidade/cliente"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "URL do logo"
+    },
+    "color": {
+      "type": "string",
+      "description": "Cor principal da unidade"
+    },
+    "default_period": {
+      "type": "string",
+      "enum": [
+        "today",
+        "yesterday",
+        "mtd",
+        "last_7_days",
+        "last_30_days",
+        "last_month",
+        "custom"
+      ],
+      "default": "last_30_days"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "ID da conta de an\u00fancios (ex: act_1234567890)"
+    },
+    "secret_token": {
+      "type": "string",
+      "description": "Token secreto para webhooks/integra\u00e7\u00f5es"
+    },
+    "settings": {
+      "type": "object",
+      "description": "Configura\u00e7\u00f5es adicionais"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "name": "MetaJobsQueue",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "description": "ID \u00fanico do job na fila"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "ID do RUN pai (obrigat\u00f3rio)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "processing",
+        "completed",
+        "failed"
+      ],
+      "default": "queued"
+    },
+    "queue_key": {
+      "type": "string"
+    },
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "ID da conta Meta (act_xxxxx)"
+    },
+    "access_token": {
+      "type": "string"
+    },
+    "job_type": {
+      "type": "string",
+      "enum": [
+        "insights",
+        "ads_light",
+        "creative_delta",
+        "consolidate"
+      ]
+    },
+    "breakdown": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string",
+      "default": "America/Sao_Paulo"
+    },
+    "date_mode": {
+      "type": "string",
+      "enum": [
+        "TODAY",
+        "YESTERDAY",
+        "LAST_7D",
+        "LAST_14D",
+        "LAST_28D",
+        "LAST_30D",
+        "CUSTOM"
+      ]
+    },
+    "since": {
+      "type": "string",
+      "format": "date"
+    },
+    "until": {
+      "type": "string",
+      "format": "date"
+    },
+    "attempts": {
+      "type": "number",
+      "default": 0
+    },
+    "max_attempts": {
+      "type": "number",
+      "default": 3
+    },
+    "available_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "locked_by": {
+      "type": "string"
+    },
+    "locked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "locked_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_error": {
+      "type": "string"
+    },
+    "last_error_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "idempotency_key": {
+      "type": "string"
+    },
+    "payload_json": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "job_id",
+    "run_id",
+    "status",
+    "unit_id",
+    "account_id",
+    "job_type",
+    "timezone",
+    "date_mode"
+  ]
+}

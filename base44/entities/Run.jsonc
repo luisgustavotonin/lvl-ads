@@ -1,0 +1,106 @@
+{
+  "name": "Run",
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "UUID \u00fanico da execu\u00e7\u00e3o (batch)"
+    },
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ],
+      "description": "Plataforma de origem"
+    },
+    "date_start": {
+      "type": "string",
+      "description": "Data inicial (YYYY-MM-DD) ou date_mode (ex: YESTERDAY)"
+    },
+    "date_end": {
+      "type": "string",
+      "description": "Data final (YYYY-MM-DD), opcional"
+    },
+    "date_filter_type": {
+      "type": "string",
+      "enum": [
+        "ad_date",
+        "job_created_at"
+      ],
+      "default": "ad_date",
+      "description": "Tipo de filtro de data aplicado"
+    },
+    "trigger_type": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "scheduled"
+      ],
+      "default": "manual",
+      "description": "Como foi disparado"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "partial",
+        "success",
+        "failed"
+      ],
+      "default": "queued",
+      "description": "Status da execu\u00e7\u00e3o"
+    },
+    "total_jobs": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de jobs neste run"
+    },
+    "completed_jobs": {
+      "type": "number",
+      "default": 0,
+      "description": "Jobs conclu\u00eddos"
+    },
+    "failed_jobs": {
+      "type": "number",
+      "default": 0,
+      "description": "Jobs com falha"
+    },
+    "total_records": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de registros importados"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Mensagem de erro se falhou"
+    },
+    "started_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando iniciou (UTC)"
+    },
+    "finished_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando finalizou (UTC)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Metadados adicionais da execu\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "run_id",
+    "unit_id",
+    "platform",
+    "date_start"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "name": "MetaAdsCreative",
+  "type": "object",
+  "properties": {
+    "unique_key": {
+      "type": "string",
+      "description": "account_id:unit_id:ad_id:creative_id"
+    },
+    "creative_id": {
+      "type": "string"
+    },
+    "ad_id": {
+      "type": "string"
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "unit_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "video_id": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "call_to_action_type": {
+      "type": "string"
+    },
+    "object_type": {
+      "type": "string"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "raw": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "unique_key",
+    "creative_id",
+    "ad_id",
+    "account_id",
+    "unit_id"
+  ]
+}

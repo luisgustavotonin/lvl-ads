@@ -1,0 +1,29 @@
+{
+  "name": "PendingUserProfile",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "Email do usu\u00e1rio convidado"
+    },
+    "profile_id": {
+      "type": "string",
+      "description": "ID do perfil a ser atribu\u00eddo"
+    },
+    "unit_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs das unidades a serem atribu\u00eddas"
+    },
+    "applied": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se j\u00e1 foi aplicado ao usu\u00e1rio"
+    }
+  },
+  "required": [
+    "email"
+  ]
+}

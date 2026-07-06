@@ -1,0 +1,40 @@
+{
+  "name": "Video",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "platform_id": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ]
+    },
+    "video_id": {
+      "type": "string",
+      "description": "ID do v\u00eddeo na plataforma"
+    },
+    "video_length": {
+      "type": "number",
+      "description": "Dura\u00e7\u00e3o em segundos"
+    },
+    "video_title": {
+      "type": "string"
+    },
+    "video_permalink": {
+      "type": "string"
+    },
+    "video_thumbnail_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "unit_id",
+    "platform_id",
+    "video_id"
+  ]
+}

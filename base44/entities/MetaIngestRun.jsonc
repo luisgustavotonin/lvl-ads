@@ -1,0 +1,97 @@
+{
+  "name": "MetaIngestRun",
+  "type": "object",
+  "properties": {
+    "job_key": {
+      "type": "string",
+      "description": "Chave \u00fanica determin\u00edstica do job"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "unit_id": {
+      "type": "string"
+    },
+    "date_from": {
+      "type": "string",
+      "format": "date"
+    },
+    "date_to": {
+      "type": "string",
+      "format": "date"
+    },
+    "job_type": {
+      "type": "string",
+      "enum": [
+        "insights"
+      ],
+      "default": "insights"
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "account",
+        "campaign",
+        "adset",
+        "ad"
+      ],
+      "default": "ad"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "breakdowns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "done",
+        "failed"
+      ],
+      "default": "queued"
+    },
+    "progress": {
+      "type": "number",
+      "default": 0,
+      "description": "P\u00e1ginas processadas"
+    },
+    "rows_written": {
+      "type": "number",
+      "default": 0
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "meta_token_hint": {
+      "type": "string",
+      "description": "Primeiros 8 chars do token usado"
+    },
+    "trigger_type": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "scheduled"
+      ],
+      "default": "manual",
+      "description": "Como o job foi disparado"
+    },
+    "schedule_name": {
+      "type": "string",
+      "description": "Nome do agendamento (se trigger_type=scheduled)"
+    }
+  },
+  "required": [
+    "job_key",
+    "account_id",
+    "date_from",
+    "date_to",
+    "job_type",
+    "level"
+  ]
+}

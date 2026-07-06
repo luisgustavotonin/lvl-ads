@@ -1,0 +1,135 @@
+{
+  "name": "Integration",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade (legado - usar unit_ids)"
+    },
+    "unit_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs das unidades associadas a este webhook"
+    },
+    "platform_id": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ]
+    },
+    "webhook_type": {
+      "type": "string",
+      "enum": [
+        "insights",
+        "creatives",
+        "general"
+      ],
+      "description": "Tipo do webhook: insights, creatives ou geral"
+    },
+    "auth_type": {
+      "type": "string",
+      "enum": [
+        "token",
+        "oauth",
+        "api_key",
+        "n8n_webhook"
+      ]
+    },
+    "integration_purpose": {
+      "type": "string",
+      "description": "Nome/prop\u00f3sito da integra\u00e7\u00e3o (ex: Insights, Criativos)"
+    },
+    "account_reference": {
+      "type": "string",
+      "description": "ID da conta de an\u00fancios"
+    },
+    "account_name": {
+      "type": "string",
+      "description": "Nome da conta"
+    },
+    "connection_status": {
+      "type": "string",
+      "enum": [
+        "connected",
+        "disconnected",
+        "error"
+      ],
+      "default": "disconnected"
+    },
+    "last_test": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "settings": {
+      "type": "object"
+    },
+    "n8n_webhook_insights_url": {
+      "type": "string",
+      "description": "URL do webhook N8n para insights"
+    },
+    "n8n_webhook_creatives_url": {
+      "type": "string",
+      "description": "URL do webhook N8n para criativos"
+    },
+    "schedule_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "schedule_date_mode": {
+      "type": "string",
+      "enum": [
+        "TODAY",
+        "YESTERDAY",
+        "LAST_7D",
+        "LAST_14D",
+        "LAST_28D",
+        "LAST_30D",
+        "CUSTOM"
+      ],
+      "default": "YESTERDAY"
+    },
+    "schedule_since": {
+      "type": "string",
+      "format": "date"
+    },
+    "schedule_until": {
+      "type": "string",
+      "format": "date"
+    },
+    "schedule_frequency": {
+      "type": "string",
+      "enum": [
+        "hourly",
+        "daily",
+        "weekly"
+      ],
+      "default": "daily"
+    },
+    "schedule_time": {
+      "type": "string"
+    },
+    "last_execution": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_execution_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error",
+        "pending"
+      ]
+    }
+  },
+  "required": [
+    "platform_id"
+  ]
+}

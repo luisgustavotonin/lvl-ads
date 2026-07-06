@@ -1,0 +1,30 @@
+{
+  "name": "MetaIngestPage",
+  "type": "object",
+  "properties": {
+    "job_key": {
+      "type": "string"
+    },
+    "page_num": {
+      "type": "number",
+      "default": 0
+    },
+    "cursor_after": {
+      "type": "string"
+    },
+    "page_hash": {
+      "type": "string"
+    },
+    "rows_in_page": {
+      "type": "number",
+      "default": 0
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "job_key"
+  ]
+}

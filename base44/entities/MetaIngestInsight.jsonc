@@ -1,0 +1,147 @@
+{
+  "name": "MetaIngestInsight",
+  "type": "object",
+  "properties": {
+    "unique_key": {
+      "type": "string",
+      "description": "Chave idempotente"
+    },
+    "job_key": {
+      "type": "string"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "level": {
+      "type": "string"
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "campaign_name": {
+      "type": "string"
+    },
+    "adset_id": {
+      "type": "string"
+    },
+    "adset_name": {
+      "type": "string"
+    },
+    "ad_id": {
+      "type": "string"
+    },
+    "ad_name": {
+      "type": "string"
+    },
+    "spend": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "reach": {
+      "type": "number",
+      "default": 0
+    },
+    "frequency": {
+      "type": "number",
+      "default": 0
+    },
+    "ctr": {
+      "type": "number",
+      "default": 0
+    },
+    "cpc": {
+      "type": "number",
+      "default": 0
+    },
+    "cpm": {
+      "type": "number",
+      "default": 0
+    },
+    "publisher_platform": {
+      "type": "string"
+    },
+    "platform_position": {
+      "type": "string"
+    },
+    "age": {
+      "type": "string"
+    },
+    "gender": {
+      "type": "string"
+    },
+    "link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "ctr_link": {
+      "type": "number",
+      "default": 0
+    },
+    "cpc_link": {
+      "type": "number",
+      "default": 0
+    },
+    "contacts": {
+      "type": "number",
+      "default": 0
+    },
+    "conversations_started": {
+      "type": "number",
+      "default": 0
+    },
+    "first_conversation": {
+      "type": "number",
+      "default": 0
+    },
+    "first_response": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_contact": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_conversation": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_first_conversation": {
+      "type": "number",
+      "default": 0
+    },
+    "conv_rate_conversations_started": {
+      "type": "number",
+      "default": 0
+    },
+    "conversations_per_contact": {
+      "type": "number",
+      "default": 0
+    },
+    "first_response_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "raw_json": {
+      "type": "object",
+      "description": "Payload bruto para auditoria"
+    }
+  },
+  "required": [
+    "unique_key",
+    "account_id",
+    "date",
+    "level"
+  ]
+}

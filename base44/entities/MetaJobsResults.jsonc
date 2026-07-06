@@ -1,0 +1,37 @@
+{
+  "name": "MetaJobsResults",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "description": "ID do job relacionado"
+    },
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "ID da conta Meta"
+    },
+    "result_json": {
+      "type": "object",
+      "description": "Resultado completo do job em JSON"
+    },
+    "row_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade de registros processados"
+    },
+    "payload_hash": {
+      "type": "string",
+      "description": "Hash do payload para deduplica\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "job_id",
+    "unit_id",
+    "account_id",
+    "result_json"
+  ]
+}

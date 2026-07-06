@@ -1,0 +1,80 @@
+{
+  "name": "MetricsEntity",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "platform_id": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ]
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "entity_level": {
+      "type": "string",
+      "enum": [
+        "campaign",
+        "adset",
+        "ad",
+        "keyword",
+        "creative",
+        "video"
+      ]
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "entity_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "deleted"
+      ]
+    },
+    "spend": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "results": {
+      "type": "number",
+      "default": 0
+    },
+    "cpr": {
+      "type": "number",
+      "default": 0
+    },
+    "extras": {
+      "type": "object"
+    },
+    "source_run_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "unit_id",
+    "platform_id",
+    "date",
+    "entity_level",
+    "entity_id"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "FunnelTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do modelo de funil (ex: Modelo 1, Modelo 2)"
+    },
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade associada"
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Est\u00e1gios do funil com cores"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se este \u00e9 o template padr\u00e3o para a unidade"
+    }
+  },
+  "required": [
+    "name",
+    "unit_id",
+    "stages"
+  ]
+}

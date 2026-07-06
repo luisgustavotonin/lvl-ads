@@ -1,0 +1,31 @@
+{
+  "name": "ReportPreference",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "selected_kpis": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de KPIs selecionados"
+    },
+    "card_order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ordem dos cards de KPI"
+    },
+    "ranking_table_configs": {
+      "type": "object",
+      "description": "Configura\u00e7\u00f5es por tabela de ranking (campanhas, adsets, ads)"
+    }
+  },
+  "required": [
+    "unit_id"
+  ]
+}

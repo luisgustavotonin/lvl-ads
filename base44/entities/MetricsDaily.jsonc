@@ -1,0 +1,118 @@
+{
+  "name": "MetricsDaily",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "meta"
+      ],
+      "default": "meta"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "spend_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "reach_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "link_clicks_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "wa_conversations_started_7d_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "wa_total_messaging_connection_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "wa_messaging_first_reply_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "page_engagement_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "post_engagement_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "video_view_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "post_interaction_gross_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "post_reaction_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "post_net_like_sum": {
+      "type": "number",
+      "default": 0
+    },
+    "frequency_calc": {
+      "type": "number",
+      "default": 0
+    },
+    "ctr_link_calc": {
+      "type": "number",
+      "default": 0
+    },
+    "cpc_link_calc": {
+      "type": "number",
+      "default": 0
+    },
+    "cpm_calc": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_conversation_calc": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_total_contact_calc": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_first_reply_calc": {
+      "type": "number",
+      "default": 0
+    },
+    "aggregated_from_records": {
+      "type": "number",
+      "default": 0,
+      "description": "N\u00famero de registros MetaAdDaily agregados"
+    }
+  },
+  "required": [
+    "unit_id",
+    "account_id",
+    "provider",
+    "date"
+  ]
+}

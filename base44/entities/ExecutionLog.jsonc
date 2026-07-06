@@ -1,0 +1,109 @@
+{
+  "name": "ExecutionLog",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "log_type": {
+      "type": "string",
+      "enum": [
+        "integration_execution",
+        "alert_sent",
+        "alert_scheduled"
+      ],
+      "description": "Tipo de execu\u00e7\u00e3o registrada"
+    },
+    "execution_type": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "scheduled"
+      ],
+      "default": "manual",
+      "description": "Como foi disparado (manual ou agendado)"
+    },
+    "execution_status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "failed"
+      ],
+      "default": "completed",
+      "description": "Resultado da execu\u00e7\u00e3o (completed ou failed)"
+    },
+    "trigger_type": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "scheduled",
+        "webhook"
+      ],
+      "default": "manual",
+      "description": "DEPRECATED - usar execution_type"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error",
+        "pending",
+        "scheduled"
+      ],
+      "default": "success",
+      "description": "DEPRECATED - usar execution_status"
+    },
+    "execution_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Hor\u00e1rio da execu\u00e7\u00e3o"
+    },
+    "scheduled_for": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Hor\u00e1rio agendado (se agendado)"
+    },
+    "integration_id": {
+      "type": "string",
+      "description": "ID da integra\u00e7\u00e3o (se aplic\u00e1vel)"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ],
+      "description": "Plataforma relacionada"
+    },
+    "alert_channel": {
+      "type": "string",
+      "enum": [
+        "whatsapp",
+        "telegram",
+        "email"
+      ],
+      "description": "Canal do alerta (se log_type = alert_sent)"
+    },
+    "message": {
+      "type": "string",
+      "description": "Mensagem ou resumo da execu\u00e7\u00e3o"
+    },
+    "error_details": {
+      "type": "string",
+      "description": "Detalhes do erro (se execution_status = failed)"
+    },
+    "records_processed": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade de registros processados"
+    }
+  },
+  "required": [
+    "unit_id",
+    "log_type",
+    "execution_time"
+  ]
+}

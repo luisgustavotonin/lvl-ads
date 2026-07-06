@@ -1,0 +1,38 @@
+{
+  "name": "MetaToken",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome/apelido do token (ex: Conta Jo\u00e3o Silva)"
+    },
+    "token": {
+      "type": "string",
+      "description": "Token de acesso da Meta Ads API"
+    },
+    "unit_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs das unidades associadas a este token"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active",
+      "description": "Status do token"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es opcionais"
+    }
+  },
+  "required": [
+    "name",
+    "token"
+  ]
+}

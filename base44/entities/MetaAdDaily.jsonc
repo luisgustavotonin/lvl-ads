@@ -1,0 +1,350 @@
+{
+  "name": "MetaAdDaily",
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "ID do RUN (obrigat\u00f3rio)"
+    },
+    "job_id": {
+      "type": "string",
+      "description": "ID do JOB (obrigat\u00f3rio)"
+    },
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "META"
+      ],
+      "default": "META"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "ID da conta de an\u00fancios"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do an\u00fancio (YYYY-MM-DD)"
+    },
+    "ad_id": {
+      "type": "string"
+    },
+    "ad_name": {
+      "type": "string"
+    },
+    "ad_effective_status": {
+      "type": "string"
+    },
+    "creative_id": {
+      "type": "string"
+    },
+    "creative_thumbnail_url": {
+      "type": "string"
+    },
+    "adset_id": {
+      "type": "string"
+    },
+    "adset_name": {
+      "type": "string"
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "campaign_name": {
+      "type": "string"
+    },
+    "spend": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "reach": {
+      "type": "number",
+      "default": 0
+    },
+    "frequency": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "ctr_link": {
+      "type": "number",
+      "default": 0
+    },
+    "cpc_link": {
+      "type": "number",
+      "default": 0
+    },
+    "cpm": {
+      "type": "number",
+      "default": 0
+    },
+    "wa_conversations_started_7d": {
+      "type": "number",
+      "default": 0
+    },
+    "wa_total_messaging_connection": {
+      "type": "number",
+      "default": 0
+    },
+    "wa_messaging_first_reply": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_conversation": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_total_contact": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_first_reply": {
+      "type": "number",
+      "default": 0
+    },
+    "facebook_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "facebook_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "facebook_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "facebook_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "instagram_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "instagram_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "instagram_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "instagram_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "audience_network_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "audience_network_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "audience_network_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "audience_network_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "messenger_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "messenger_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "messenger_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "messenger_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "android_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "android_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "android_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "android_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "iphone_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "iphone_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "iphone_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "iphone_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "ipad_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "ipad_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "ipad_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "ipad_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "desktop_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "desktop_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "desktop_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "desktop_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "age_13_17_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "age_18_24_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "age_25_34_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "age_35_44_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "age_45_54_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "age_55_64_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "age_65_plus_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "age_13_17_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "age_18_24_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "age_25_34_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "age_35_44_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "age_45_54_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "age_55_64_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "age_65_plus_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "male_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "male_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "male_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "female_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "female_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "female_spend": {
+      "type": "number",
+      "default": 0
+    },
+    "unknown_gender_impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "unknown_gender_reach": {
+      "type": "number",
+      "default": 0
+    },
+    "imported_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "run_id",
+    "job_id",
+    "unit_id",
+    "platform",
+    "account_id",
+    "date",
+    "ad_id"
+  ]
+}

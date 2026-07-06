@@ -1,0 +1,75 @@
+{
+  "name": "ReportLayout",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "platforms_active": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cards_config": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "order": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "charts_config": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "order": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "sections_order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "unit_id",
+    "name"
+  ]
+}

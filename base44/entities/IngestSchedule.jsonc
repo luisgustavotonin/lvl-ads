@@ -1,0 +1,80 @@
+{
+  "name": "IngestSchedule",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do agendamento"
+    },
+    "unit_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs das unidades"
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tipos de dado: base, platform, device, demographic"
+    },
+    "sync_creatives": {
+      "type": "boolean",
+      "default": false,
+      "description": "Sincronizar criativos junto com os insights"
+    },
+    "creatives_day_of_week": {
+      "type": "number",
+      "description": "Dia da semana para sincronizar criativos (0=Dom, 1=Seg ... 6=S\u00e1b). Null = sempre que rodar."
+    },
+    "schedule_times": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Hor\u00e1rios de execu\u00e7\u00e3o no hor\u00e1rio de Bras\u00edlia (ex: ['08:00', '14:00'])"
+    },
+    "date_mode": {
+      "type": "string",
+      "enum": [
+        "yesterday",
+        "today",
+        "yesterday_and_today"
+      ],
+      "default": "yesterday",
+      "description": "Per\u00edodo a buscar"
+    },
+    "force": {
+      "type": "boolean",
+      "default": false,
+      "description": "For\u00e7ar re-execu\u00e7\u00e3o mesmo se dados j\u00e1 existirem"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "last_run": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error",
+        "running"
+      ]
+    },
+    "last_log": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "unit_ids",
+    "modes",
+    "schedule_times"
+  ]
+}

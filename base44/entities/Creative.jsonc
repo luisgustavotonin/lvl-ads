@@ -1,0 +1,69 @@
+{
+  "name": "Creative",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "platform_id": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ]
+    },
+    "ad_id": {
+      "type": "string"
+    },
+    "ad_name": {
+      "type": "string"
+    },
+    "creative_type": {
+      "type": "string",
+      "enum": [
+        "image",
+        "video",
+        "carousel",
+        "collection"
+      ]
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "media_url": {
+      "type": "string"
+    },
+    "headline": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "call_to_action": {
+      "type": "string"
+    },
+    "spend": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "results": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "unit_id",
+    "platform_id",
+    "ad_id"
+  ]
+}

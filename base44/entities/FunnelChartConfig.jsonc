@@ -1,0 +1,28 @@
+{
+  "name": "FunnelChartConfig",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "stage_index": {
+      "type": "number",
+      "description": "\u00cdndice do est\u00e1gio no funnel"
+    },
+    "color": {
+      "type": "string",
+      "description": "Cor em hex (ex: #3B82F6)"
+    },
+    "opacity": {
+      "type": "number",
+      "description": "Transpar\u00eancia de 0 a 100%",
+      "default": 100
+    }
+  },
+  "required": [
+    "unit_id",
+    "stage_index",
+    "color"
+  ]
+}

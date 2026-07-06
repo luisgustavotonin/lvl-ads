@@ -1,0 +1,46 @@
+{
+  "name": "Profile",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "level": {
+      "type": "number",
+      "description": "N\u00edvel hier\u00e1rquico (1 = mais alto)"
+    },
+    "description": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Objeto com categorias e permiss\u00f5es"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active"
+    },
+    "default_period": {
+      "type": "string",
+      "description": "Per\u00edodo pr\u00e9-selecionado ao abrir relat\u00f3rios/dashboard"
+    },
+    "allowed_periods": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Filtros de per\u00edodo vis\u00edveis para este perfil. Se vazio, todos s\u00e3o exibidos."
+    }
+  },
+  "required": [
+    "name",
+    "level"
+  ]
+}

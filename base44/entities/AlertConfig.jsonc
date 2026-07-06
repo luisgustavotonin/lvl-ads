@@ -1,0 +1,64 @@
+{
+  "name": "AlertConfig",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS"
+      ],
+      "default": "META"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "phone_number": {
+      "type": "string",
+      "description": "N\u00famero de WhatsApp para alertas (formato: 5511999999999)"
+    },
+    "alert_frequency": {
+      "type": "string",
+      "enum": [
+        "immediate",
+        "daily"
+      ],
+      "default": "daily"
+    },
+    "schedule_time": {
+      "type": "string",
+      "description": "Hor\u00e1rio de execu\u00e7\u00e3o (HH:MM) para daily"
+    },
+    "severity_filter": {
+      "type": "string",
+      "enum": [
+        "high_only",
+        "medium_high",
+        "all"
+      ],
+      "default": "medium_high"
+    },
+    "include_top_ads": {
+      "type": "boolean",
+      "default": true
+    },
+    "top_ads_quantity": {
+      "type": "number",
+      "default": 3
+    },
+    "webhook_url": {
+      "type": "string",
+      "description": "URL do webhook para envio (ex: n8n)"
+    }
+  },
+  "required": [
+    "unit_id",
+    "provider"
+  ]
+}

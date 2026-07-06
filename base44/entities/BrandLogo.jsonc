@@ -1,0 +1,27 @@
+{
+  "name": "BrandLogo",
+  "type": "object",
+  "properties": {
+    "network": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ],
+      "description": "Rede/plataforma"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "URL do logo oficial"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "network"
+  ]
+}

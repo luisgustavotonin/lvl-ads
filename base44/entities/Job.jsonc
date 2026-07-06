@@ -1,0 +1,86 @@
+{
+  "name": "Job",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "description": "UUID \u00fanico do job"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "ID do RUN pai (FK obrigat\u00f3rio)"
+    },
+    "unit_id": {
+      "type": "string",
+      "description": "ID da unidade"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ]
+    },
+    "job_type": {
+      "type": "string",
+      "enum": [
+        "META_DAILY",
+        "META_CAMPAIGNS",
+        "META_INSIGHTS_BASE",
+        "META_BREAKDOWN_DEVICE",
+        "META_BREAKDOWN_AGE",
+        "META_BREAKDOWN_GENDER",
+        "META_BREAKDOWN_PLACEMENT",
+        "META_BREAKDOWN_CREATIVE"
+      ],
+      "description": "Tipo de job"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "success",
+        "failed"
+      ],
+      "default": "queued",
+      "description": "Status do job"
+    },
+    "records_processed": {
+      "type": "number",
+      "default": 0,
+      "description": "Registros processados"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Mensagem de erro se falhou"
+    },
+    "error_stack": {
+      "type": "string",
+      "description": "Stack trace do erro"
+    },
+    "started_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando iniciou (UTC)"
+    },
+    "finished_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando finalizou (UTC)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Metadados do job"
+    }
+  },
+  "required": [
+    "job_id",
+    "run_id",
+    "unit_id",
+    "platform",
+    "job_type"
+  ]
+}

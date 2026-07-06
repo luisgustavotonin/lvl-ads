@@ -1,0 +1,43 @@
+{
+  "name": "WebhookLog",
+  "type": "object",
+  "properties": {
+    "integration_id": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "n8n",
+        "meta",
+        "google",
+        "tiktok",
+        "other"
+      ],
+      "default": "n8n"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error",
+        "warning"
+      ],
+      "default": "success"
+    },
+    "payload_received": {
+      "type": "object",
+      "description": "Payload completo recebido"
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "records_processed": {
+      "type": "object",
+      "description": "Contador de registros processados"
+    }
+  },
+  "required": [
+    "source"
+  ]
+}

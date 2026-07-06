@@ -1,0 +1,108 @@
+{
+  "name": "MetaInsightBase",
+  "type": "object",
+  "properties": {
+    "unique_key": {
+      "type": "string",
+      "description": "account_id:unit_id:ad_id:date"
+    },
+    "job_key": {
+      "type": "string"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "unit_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "campaign_name": {
+      "type": "string"
+    },
+    "adset_id": {
+      "type": "string"
+    },
+    "adset_name": {
+      "type": "string"
+    },
+    "ad_id": {
+      "type": "string"
+    },
+    "ad_name": {
+      "type": "string"
+    },
+    "spend": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "reach": {
+      "type": "number",
+      "default": 0
+    },
+    "frequency": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "ctr_link": {
+      "type": "number",
+      "default": 0
+    },
+    "cpc_link": {
+      "type": "number",
+      "default": 0
+    },
+    "cpm": {
+      "type": "number",
+      "default": 0
+    },
+    "messaging_conversations_started": {
+      "type": "number",
+      "default": 0
+    },
+    "messaging_conversations_replied": {
+      "type": "number",
+      "default": 0
+    },
+    "leads": {
+      "type": "number",
+      "default": 0
+    },
+    "purchases": {
+      "type": "number",
+      "default": 0
+    },
+    "purchase_value": {
+      "type": "number",
+      "default": 0
+    },
+    "raw": {
+      "type": "object",
+      "description": "Payload bruto da Meta API"
+    }
+  },
+  "required": [
+    "unique_key",
+    "account_id",
+    "unit_id",
+    "date",
+    "ad_id"
+  ]
+}

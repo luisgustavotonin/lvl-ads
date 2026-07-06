@@ -1,0 +1,100 @@
+{
+  "name": "MetricsAccountLevel",
+  "type": "object",
+  "properties": {
+    "unit_id": {
+      "type": "string"
+    },
+    "platform_id": {
+      "type": "string",
+      "enum": [
+        "META",
+        "GOOGLE_ADS",
+        "TIKTOK_ADS",
+        "YOUTUBE"
+      ]
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "ID da conta de an\u00fancios"
+    },
+    "currency": {
+      "type": "string",
+      "default": "BRL"
+    },
+    "spend": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "reach": {
+      "type": "number",
+      "default": 0,
+      "description": "Alcance \u00fanico no n\u00edvel da conta - N\u00c3O SOMAR"
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions_facebook": {
+      "type": "number",
+      "default": 0
+    },
+    "reach_facebook": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions_instagram": {
+      "type": "number",
+      "default": 0
+    },
+    "reach_instagram": {
+      "type": "number",
+      "default": 0
+    },
+    "whatsapp_conversations_started": {
+      "type": "number",
+      "default": 0
+    },
+    "whatsapp_new_contacts": {
+      "type": "number",
+      "default": 0
+    },
+    "whatsapp_total_contacts": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_whatsapp_conversation": {
+      "type": "number",
+      "default": 0
+    },
+    "cost_per_whatsapp_new_contact": {
+      "type": "number",
+      "default": 0
+    },
+    "actions": {
+      "type": "array",
+      "description": "Array bruto de actions do Meta"
+    },
+    "cost_per_action_type": {
+      "type": "array",
+      "description": "Array bruto de cost_per_action_type do Meta"
+    }
+  },
+  "required": [
+    "unit_id",
+    "platform_id",
+    "date"
+  ]
+}

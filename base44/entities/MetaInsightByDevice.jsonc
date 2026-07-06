@@ -1,0 +1,82 @@
+{
+  "name": "MetaInsightByDevice",
+  "type": "object",
+  "properties": {
+    "unique_key": {
+      "type": "string",
+      "description": "account_id:unit_id:ad_id:date:impression_device"
+    },
+    "job_key": {
+      "type": "string"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "unit_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "campaign_id": {
+      "type": "string"
+    },
+    "adset_id": {
+      "type": "string"
+    },
+    "ad_id": {
+      "type": "string"
+    },
+    "impression_device": {
+      "type": "string"
+    },
+    "spend": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    },
+    "reach": {
+      "type": "number",
+      "default": 0
+    },
+    "frequency": {
+      "type": "number",
+      "default": 0
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "link_clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "ctr_link": {
+      "type": "number",
+      "default": 0
+    },
+    "cpc_link": {
+      "type": "number",
+      "default": 0
+    },
+    "cpm": {
+      "type": "number",
+      "default": 0
+    },
+    "raw": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "unique_key",
+    "account_id",
+    "unit_id",
+    "date",
+    "ad_id",
+    "impression_device"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "profile_id": {
+      "type": "string"
+    },
+    "unit_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Unidades que o usu\u00e1rio tem acesso"
+    }
+  },
+  "required": [
+    "user_id",
+    "profile_id"
+  ]
+}
