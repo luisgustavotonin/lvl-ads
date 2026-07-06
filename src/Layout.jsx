@@ -35,19 +35,35 @@ import {
 '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-const navigation = [
-{ name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard, permission: 'view_dashboard' },
-{ name: 'Relatórios', href: 'Reports', icon: FileText, permission: 'view_reports' },
-{ name: 'Unidades', href: 'Units', icon: Building2, permission: 'manage_units' },
-{ name: 'Integrações', href: 'Integrations', icon: Link2, permission: 'manage_integrations' },
-{ name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap, permission: 'run_manual_ingest' },
-{ name: 'Tokens Meta', href: 'MetaTokens', icon: Key, permission: 'manage_data' },
-{ name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell, permission: 'manage_permissions' },
-{ name: 'Perfis', href: 'Profiles', icon: Shield, permission: 'manage_profiles' },
-{ name: 'Usuários', href: 'Users', icon: Users, permission: 'manage_users' },
-{ name: 'Agendamentos', href: 'IngestSchedules', icon: Clock, permission: 'manage_schedules' },
-{ name: 'Gestão de Dados', href: 'DataManagement', icon: Database, permission: 'manage_data' },
-{ name: 'Configurações', href: 'Settings', icon: Settings, permission: 'admin_only' }];
+const NAV_SECTIONS = [
+  {
+    label: 'Início',
+    items: [
+      { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard, permission: 'view_dashboard' },
+      { name: 'Relatórios', href: 'Reports', icon: FileText, permission: 'view_reports' },
+    ],
+  },
+  {
+    label: 'Gestão',
+    items: [
+      { name: 'Unidades', href: 'Units', icon: Building2, permission: 'manage_units' },
+      { name: 'Integrações', href: 'Integrations', icon: Link2, permission: 'manage_integrations' },
+      { name: 'Agendamentos', href: 'IngestSchedules', icon: Clock, permission: 'manage_schedules' },
+      { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap, permission: 'run_manual_ingest' },
+      { name: 'Tokens Meta', href: 'MetaTokens', icon: Key, permission: 'manage_data' },
+    ],
+  },
+  {
+    label: 'Administração',
+    items: [
+      { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell, permission: 'manage_permissions' },
+      { name: 'Perfis', href: 'Profiles', icon: Shield, permission: 'manage_profiles' },
+      { name: 'Usuários', href: 'Users', icon: Users, permission: 'manage_users' },
+      { name: 'Gestão de Dados', href: 'DataManagement', icon: Database, permission: 'manage_data' },
+      { name: 'Configurações', href: 'Settings', icon: Settings, permission: 'admin_only' },
+    ],
+  },
+];
 
 
 export default function Layout({ children, currentPageName }) {
@@ -149,79 +165,92 @@ export default function Layout({ children, currentPageName }) {
     return name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const visibleNav = navigation.filter((item) => canAccess(item.permission));
+  const visibleSections = NAV_SECTIONS
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => canAccess(item.permission)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900 text-white' : 'bg-gray-50'}`}>
+    <div className="min-h-screen bg-background text-foreground">
       {sidebarOpen &&
       <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       }
 
       <aside className={cn(
-        "fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0",
+        "fixed top-0 left-0 z-50 h-full w-64 bg-background border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Brand Header */}
-          <div className="px-4 py-6 border-b border-gray-100">
-            <div className="bg-slate-50 p-4 rounded-lg from-blue-50 to-blue-100 flex items-center gap-3">
-              <div className="w-14 h-14 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-200">
+          <div className="px-5 py-5 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 bg-card rounded-lg flex items-center justify-center flex-shrink-0 border border-border">
                 <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/ede7e1dec_6824a59a24a8cd8416895e42_lvl.png"
                   alt="LVL Logo"
-                  className="w-16 h-12 object-contain" />
-
+                  className="w-7 h-6 object-contain" />
               </div>
               <div>
-                
-                <p className="text-orange-600 text-lg font-bold">Ads</p>
+                <p className="text-base font-bold leading-tight text-foreground">LVL <span className="text-primary">Ads</span></p>
+                <p className="text-[11px] text-muted-foreground leading-tight">by IDK</p>
               </div>
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {loading ?
-            <div className="px-3 py-2 text-sm text-gray-400">Carregando...</div> :
-
-            visibleNav.map((item) => {
-              const isActive = currentPageName === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={createPageUrl(item.href)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    isActive ?
-                    "bg-blue-50 text-blue-600" :
-                    "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                  onClick={() => setSidebarOpen(false)}>
-
-                    <item.icon className={cn("w-5 h-5", isActive ? "text-blue-600" : "text-gray-400")} />
-                    {item.name}
-                  </Link>);
-
-            })
-            }
+          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+            {loading ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground">Carregando...</div>
+            ) : (
+              visibleSections.map((section) => (
+                <div key={section.label} className="mb-5">
+                  <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {section.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const isActive = currentPageName === item.href;
+                      return (
+                        <Link
+                          key={item.name}
+                          to={createPageUrl(item.href)}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                            isActive
+                              ? "bg-muted text-primary"
+                              : "text-foreground/80 hover:bg-muted/60 hover:text-foreground"
+                          )}
+                          onClick={() => setSidebarOpen(false)}
+                        >
+                          <item.icon className={cn("w-[18px] h-[18px]", isActive ? "text-primary" : "text-muted-foreground")} />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
           </nav>
 
           {/* User */}
-          <div className="p-3 border-t border-gray-100 space-y-2">
+          <div className="p-3 border-t border-border space-y-2">
             <div className="flex items-center gap-3 px-2 py-1">
               <Avatar className="w-8 h-8">
-                <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
+                <AvatarFallback className="bg-primary/10 text-primary text-xs">
                   {getInitials(user?.full_name)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || 'Usuário'}</p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                <p className="text-sm font-medium text-foreground truncate">{user?.full_name || 'Usuário'}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
             <Button
               variant="outline"
-              className="w-full gap-2 text-red-600 border-red-200 hover:bg-red-50"
+              className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive/5"
               onClick={() => base44.auth.logout()}>
 
               <LogOut className="w-4 h-4" />
@@ -233,26 +262,26 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Main */}
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
+        <header className="sticky top-0 z-30 bg-background border-b border-border">
           <div className="flex items-center justify-between h-16 px-4 lg:px-6">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="w-5 h-5" />
             </Button>
             {/* Logo centralizado no mobile */}
             <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 lg:hidden">
-              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-sm border border-blue-200">
+              <div className="w-9 h-9 bg-card rounded-lg flex items-center justify-center border border-border">
                 <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6998a1ca3bc0a69a911b90da/ede7e1dec_6824a59a24a8cd8416895e42_lvl.png"
                   alt="LVL Logo"
                   className="w-8 h-7 object-contain"
                 />
               </div>
-              <p className="text-orange-600 text-base font-bold">Ads</p>
+              <p className="text-primary text-base font-bold">Ads</p>
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5 text-gray-500" />
+                <Bell className="w-5 h-5 text-muted-foreground" />
               </Button>
             </div>
           </div>
@@ -265,7 +294,7 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Bottom nav mobile */}
       {!loading &&
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border lg:hidden">
           <div className="flex items-stretch justify-around px-4 max-w-md mx-auto">
           {BOTTOM_NAV.filter((item) => canAccess(item.permission)).map((item) => {
           const isActive = currentPageName === item.href;
@@ -274,9 +303,9 @@ export default function Layout({ children, currentPageName }) {
               key={item.name}
               to={createPageUrl(item.href)}
               className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors ${
-              isActive ? 'text-blue-600' : 'text-gray-500'}`
+              isActive ? 'text-primary' : 'text-muted-foreground'}`
               }>
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <item.icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
                 {item.name}
               </Link>);
         })}
