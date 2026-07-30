@@ -173,12 +173,142 @@ export const META_COST_LABELS = {
   landing_page_view: { label: 'Custo por visualização da página de destino', category: 'Conversões' },
   complete_registration: { label: 'Custo por cadastro concluído', category: 'Conversões' },
   contact: { label: 'Custo por contato', category: 'Contato' },
+  follow: { label: 'Custo por seguidor', category: 'Seguidores e curtidas' },
+  'onsite_conversion.follow': { label: 'Custo por seguidor', category: 'Seguidores e curtidas' },
+  'onsite_conversion.instagram_profile_visits': { label: 'Custo por visita ao perfil do Instagram', category: 'Contato' },
+  'onsite_conversion.profile_visits': { label: 'Custo por visita ao perfil', category: 'Contato' },
+  'onsite_conversion.profile_visit': { label: 'Custo por visita ao perfil', category: 'Contato' },
+  profile_visits: { label: 'Custo por visita ao perfil', category: 'Contato' },
+  post_reaction: { label: 'Custo por reação', category: 'Engajamento' },
+  comment: { label: 'Custo por comentário', category: 'Engajamento' },
+  shares: { label: 'Custo por compartilhamento', category: 'Engajamento' },
+  post_save: { label: 'Custo por salvamento', category: 'Engajamento' },
+  'onsite_conversion.post_save': { label: 'Custo por salvamento', category: 'Engajamento' },
+  video_view: { label: 'Custo por visualização de vídeo', category: 'Vídeo' },
+  video_play: { label: 'Custo por reprodução', category: 'Vídeo' },
+  'onsite_conversion.total_messaging_connection': { label: 'Custo por contato por mensagem', category: 'Mensagens' },
+  get_directions: { label: 'Custo por como chegar', category: 'Contato' },
+  call_now: { label: 'Custo por chamada', category: 'Contato' },
+  message: { label: 'Custo por mensagem', category: 'Contato' },
+  initiate_checkout: { label: 'Custo por início de checkout', category: 'Comércio' },
+  add_to_wishlist: { label: 'Custo por adição à lista de desejos', category: 'Comércio' },
+  search: { label: 'Custo por busca', category: 'Comércio' },
 };
 
 const fmtInt = (v) => new Intl.NumberFormat('pt-BR').format(Math.round(Number(v || 0)));
 const fmtCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
 const fmtPct = (v) => `${Number(v || 0).toFixed(2)}%`;
 const fmtRoas = (v) => `${Number(v || 0).toFixed(2)}`;
+
+// Catálogo PADRÃO fixo — métricas sempre disponíveis (mesmo sem dado ingerido),
+// espelhando o "Personalizar colunas" do Meta onde tudo aparece.
+function actionKpi(type) {
+  const meta = META_ACTION_LABELS[type];
+  return {
+    id: `action:${type}`,
+    actionType: type,
+    source: 'action',
+    label: meta ? meta.label : fallbackLabel(type),
+    category: meta ? meta.category : 'Outros',
+    format: fmtInt,
+  };
+}
+function costKpi(type) {
+  const meta = META_COST_LABELS[type];
+  const base = META_ACTION_LABELS[type];
+  return {
+    id: `cost:${type}`,
+    actionType: type,
+    source: 'cost',
+    label: meta ? meta.label : `Custo por ${base ? base.label.toLowerCase() : fallbackLabel(type).toLowerCase()}`,
+    category: meta ? meta.category : base ? base.category : 'Custo',
+    format: fmtCurrency,
+  };
+}
+function valueKpi(type) {
+  const meta = META_ACTION_VALUE_LABELS[type];
+  const base = META_ACTION_LABELS[type];
+  return {
+    id: `value:${type}`,
+    actionType: type,
+    source: 'value',
+    label: meta ? meta.label : `Valor de ${base ? base.label.toLowerCase() : fallbackLabel(type).toLowerCase()}`,
+    category: meta ? meta.category : 'Comércio',
+    format: fmtCurrency,
+  };
+}
+
+export const META_STANDARD_KPIS = [
+  // Seguidores e curtidas (Instagram)
+  actionKpi('follow'),
+  actionKpi('onsite_conversion.follow'),
+  costKpi('follow'),
+  costKpi('onsite_conversion.follow'),
+  // Visitas ao perfil (Instagram)
+  actionKpi('onsite_conversion.instagram_profile_visits'),
+  actionKpi('onsite_conversion.profile_visits'),
+  actionKpi('onsite_conversion.profile_visit'),
+  actionKpi('profile_visits'),
+  costKpi('onsite_conversion.instagram_profile_visits'),
+  costKpi('onsite_conversion.profile_visits'),
+  // Mensagens
+  actionKpi('onsite_conversion.messaging_conversation_started'),
+  actionKpi('onsite_conversion.messaging_conversation_started_7d'),
+  actionKpi('onsite_conversion.total_messaging_connection'),
+  actionKpi('onsite_conversion.messaging_first_reply'),
+  actionKpi('onsite_conversion.messaging_conversation_replied_7d'),
+  costKpi('onsite_conversion.messaging_conversation_started'),
+  costKpi('onsite_conversion.messaging_first_reply'),
+  // Engajamento
+  actionKpi('post_engagement'),
+  actionKpi('page_engagement'),
+  actionKpi('post_reaction'),
+  actionKpi('comment'),
+  actionKpi('shares'),
+  actionKpi('post_save'),
+  actionKpi('post_interaction_gross'),
+  actionKpi('checkin'),
+  actionKpi('event_responses'),
+  costKpi('post_engagement'),
+  costKpi('page_engagement'),
+  costKpi('post_interaction_gross'),
+  costKpi('event_responses'),
+  // Cliques
+  actionKpi('link_click'),
+  actionKpi('link_click_unique'),
+  actionKpi('outbound_click'),
+  actionKpi('button_click'),
+  actionKpi('photo_view'),
+  // Conversões
+  actionKpi('purchase'),
+  actionKpi('lead'),
+  actionKpi('landing_page_view'),
+  actionKpi('complete_registration'),
+  actionKpi('contact'),
+  actionKpi('add_to_cart'),
+  actionKpi('view_content'),
+  actionKpi('initiate_checkout'),
+  costKpi('purchase'),
+  costKpi('lead'),
+  costKpi('landing_page_view'),
+  costKpi('complete_registration'),
+  costKpi('contact'),
+  costKpi('add_to_cart'),
+  costKpi('view_content'),
+  valueKpi('purchase'),
+  valueKpi('lead'),
+  // Vídeo
+  actionKpi('video_view'),
+  actionKpi('video_play'),
+  actionKpi('video_30s_watched'),
+  actionKpi('video_thruplay_watched'),
+  actionKpi('video_play_p100'),
+  // Contato
+  actionKpi('contact'),
+  actionKpi('get_directions'),
+  actionKpi('call_now'),
+  actionKpi('message'),
+];
 
 // Extrai o mapa {action_type: valor} de um registro (nova ingestion ou fallback do raw)
 export function getActionsMap(record) {
@@ -245,14 +375,25 @@ export function buildDynamicKpiCatalog(records) {
   }
 
   const spend = sumSpend(records);
+  // Catálogo padrão sempre disponível (sem duplicar os descobertos)
+  const seenIds = new Set();
   const out = [];
+  for (const k of META_STANDARD_KPIS) {
+    if (!seenIds.has(k.id)) {
+      seenIds.add(k.id);
+      out.push(k);
+    }
+  }
 
-  // Contagem (action)
+  // Contagem (action) — descobertas, sem duplicar padrão
   const countKeys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
   for (const k of countKeys) {
+    const id = `action:${k}`;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
     const meta = META_ACTION_LABELS[k];
     out.push({
-      id: `action:${k}`,
+      id,
       actionType: k,
       source: 'action',
       label: meta ? meta.label : fallbackLabel(k),
@@ -261,13 +402,16 @@ export function buildDynamicKpiCatalog(records) {
     });
   }
 
-  // Valor monetário (action_values)
+  // Valor monetário (action_values) — descobertas, sem duplicar padrão
   const valueKeys = Object.keys(values).sort((a, b) => values[b] - values[a]);
   for (const k of valueKeys) {
+    const id = `value:${k}`;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
     const meta = META_ACTION_VALUE_LABELS[k];
     const base = META_ACTION_LABELS[k];
     out.push({
-      id: `value:${k}`,
+      id,
       actionType: k,
       source: 'value',
       label: meta ? meta.label : `Valor de ${base ? base.label : fallbackLabel(k)}`,
@@ -276,13 +420,16 @@ export function buildDynamicKpiCatalog(records) {
     });
   }
 
-  // Custo por (spend / contagem) — só quando há contagem > 0
+  // Custo por (spend / contagem) — descobertas, sem duplicar padrão
   for (const k of countKeys) {
     if (counts[k] <= 0) continue;
+    const id = `cost:${k}`;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
     const costMeta = META_COST_LABELS[k];
     const base = META_ACTION_LABELS[k];
     out.push({
-      id: `cost:${k}`,
+      id,
       actionType: k,
       source: 'cost',
       label: costMeta ? costMeta.label : `Custo por ${base ? base.label.toLowerCase() : fallbackLabel(k).toLowerCase()}`,
