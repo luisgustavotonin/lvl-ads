@@ -226,9 +226,12 @@ Deno.serve(async (req) => {
 
     console.log(`[syncMetaCreatives] total=${ads.length} skipped=${skipped} to_mirror=${toMirror.length} no_image=${toCreateNoImage.length}`);
 
-    // Mirror apenas os que precisam (sequencial com delay)
+    // Espelha apenas um lote por execução (sequencial com delay) para respeitar rate limits
+    const MIRROR_CAP = 15;
+    const toMirrorSlice = toMirror.slice(0, MIRROR_CAP);
+
     const mirroredMap = {};
-    for (const a of toMirror.slice(0, 15)) {
+    for (const a of toMirrorSlice) {
       const c = a.creative;
       const adId = a.id || a.ad_id;
       const rawUrl = c.image_url || c.thumbnail_url;
@@ -237,15 +240,27 @@ Deno.serve(async (req) => {
       await sleep(500);
     }
 
-    // Monta rows apenas para o que precisa ser criado/atualizado
-    const toProcess = [...toMirror.slice(0, 15), ...toCreateNoImage];
+    // Monta rows para:
+    //  - Todos os anúncios NOVOS (garantir 1 registro por ad, já com a URL pública do Meta)
+    //  - Anúncios existentes que foram espelhados nesta execução (upgrade p/ URL permanente)
+    // Anúncios existentes ainda não espelhados mantêm o registro atual e são atualizados em execuções futuras.
+    const toProcess = [
+      ...toMirror.filter(a => {
+        const adId = a.id || a.ad_id;
+        return !existingMap[adId] || mirroredMap[adId];
+      }),
+      ...toCreateNoImage,
+    ];
+
     const rows = toProcess
       .filter(a => (a?.id || a?.ad_id) && a?.creative?.id)
       .map(a => {
         const c = a.creative;
         const adId = a.id || a.ad_id;
         const permanentUrl = mirroredMap[adId] || null;
-        const fallbackUrl = c.image_url || c.thumbnail_url || null;
+        // thumbnail_url é a URL pública (CDN) do Meta, carrega no <img> sem access_token;
+        // image_url pode exigir token, então priorizamos thumbnail para exibição no relatório.
+        const fallbackUrl = c.thumbnail_url || c.image_url || null;
         return {
           unique_key: `${accountId}:${unitId}:${adId}:${c.id}`,
           creative_id: c.id,
@@ -265,7 +280,7 @@ Deno.serve(async (req) => {
       });
 
     const written = rows.length > 0 ? await upsertBatch(base44.asServiceRole.entities.MetaAdsCreative, rows) : 0;
-    const remaining = toMirror.length - Math.min(toMirror.length, 15);
+    const remaining = toMirror.length - toMirrorSlice.length;
 
     console.log(`[syncMetaCreatives] skipped=${skipped} written=${written} remaining_for_next_run=${remaining}`);
 
