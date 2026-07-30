@@ -190,6 +190,8 @@ function baseRow(item, accountId, unitId, jobKey) {
     purchases: metricsFromItem(item).purchases,
     purchase_value: metricsFromItem(item).purchase_value,
 
+    actions_map: actionsToMap(item.actions || []),
+    action_values_map: actionsToMap(item.action_values || []),
     raw: item,
   };
 }

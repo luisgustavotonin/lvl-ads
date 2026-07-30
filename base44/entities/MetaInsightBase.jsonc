@@ -93,6 +93,14 @@
       "type": "number",
       "default": 0
     },
+    "actions_map": {
+      "type": "object",
+      "description": "Mapa {action_type: valor} com todas as actions da Meta"
+    },
+    "action_values_map": {
+      "type": "object",
+      "description": "Mapa {action_type: valor monetario} com todos os action_values da Meta"
+    },
     "raw": {
       "type": "object",
       "description": "Payload bruto da Meta API"

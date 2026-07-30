@@ -2,13 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
-import { Settings2, Globe, Monitor, Users, Image, TrendingUp, Download } from 'lucide-react';
+import { Globe, Monitor, Users, Image, TrendingUp, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -24,6 +23,8 @@ import ReportPlatforms from '@/components/report/ReportPlatforms';
 import ReportDevice from '@/components/report/ReportDevice';
 import ReportDemographic from '@/components/report/ReportDemographic';
 import ReportCreatives from '@/components/report/ReportCreatives';
+import KPICustomizer from '@/components/report/KPICustomizer';
+import { buildDynamicKpiCatalog, sumDynamicKpi } from '@/lib/metaActionLabels';
 
 const REPORT_TABS = [
   { id: 'overview', label: 'Insights', icon: TrendingUp, permission: 'reports_tab_overview' },
@@ -366,17 +367,23 @@ export default function Reports() {
     enabled: !!selectedUnit && units.length > 0,
   });
 
-  const current = useMemo(() => {
-    const spend = currentMetrics.reduce((s, m) => s + (m.spend || 0), 0);
-    const impressions = currentMetrics.reduce((s, m) => s + (m.impressions || 0), 0);
-    const reach = currentMetrics.reduce((s, m) => s + (m.reach || 0), 0);
-    const clicks = currentMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
-    const linkClicks = currentMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
-    const conversations = currentMetrics.reduce((s, m) => s + (m.messaging_conversations_started || 0), 0);
-    const totalContact = currentMetrics.reduce((s, m) => s + (m.messaging_conversations_replied || 0), 0);
-    const firstReply = currentMetrics.reduce((s, m) => s + (m.leads || 0), 0);
+  const dynamicKpis = useMemo(
+    () => buildDynamicKpiCatalog([...(currentMetrics || []), ...(previousMetrics || [])]),
+    [currentMetrics, previousMetrics]
+  );
+  const fullKpiCatalog = useMemo(() => [...ALL_KPIS, ...dynamicKpis], [dynamicKpis]);
 
-    return {
+  const buildMetrics = (records) => {
+    const spend = records.reduce((s, m) => s + (m.spend || 0), 0);
+    const impressions = records.reduce((s, m) => s + (m.impressions || 0), 0);
+    const reach = records.reduce((s, m) => s + (m.reach || 0), 0);
+    const clicks = records.reduce((s, m) => s + (m.clicks || 0), 0);
+    const linkClicks = records.reduce((s, m) => s + (m.link_clicks || 0), 0);
+    const conversations = records.reduce((s, m) => s + (m.messaging_conversations_started || 0), 0);
+    const totalContact = records.reduce((s, m) => s + (m.messaging_conversations_replied || 0), 0);
+    const firstReply = records.reduce((s, m) => s + (m.leads || 0), 0);
+
+    const base = {
       spend,
       impressions,
       reach,
@@ -393,36 +400,12 @@ export default function Reports() {
       costPerTotalContact: totalContact > 0 ? spend / totalContact : 0,
       costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
     };
-  }, [currentMetrics]);
+    for (const k of dynamicKpis) base[k.id] = sumDynamicKpi(records, k);
+    return base;
+  };
 
-  const previous = useMemo(() => {
-    const spend = previousMetrics.reduce((s, m) => s + (m.spend || 0), 0);
-    const impressions = previousMetrics.reduce((s, m) => s + (m.impressions || 0), 0);
-    const reach = previousMetrics.reduce((s, m) => s + (m.reach || 0), 0);
-    const clicks = previousMetrics.reduce((s, m) => s + (m.clicks || 0), 0);
-    const linkClicks = previousMetrics.reduce((s, m) => s + (m.link_clicks || 0), 0);
-    const conversations = previousMetrics.reduce((s, m) => s + (m.messaging_conversations_started || 0), 0);
-    const totalContact = previousMetrics.reduce((s, m) => s + (m.messaging_conversations_replied || 0), 0);
-    const firstReply = previousMetrics.reduce((s, m) => s + (m.leads || 0), 0);
-
-    return {
-      spend,
-      impressions,
-      reach,
-      clicks,
-      linkClicks,
-      ctrLink: impressions > 0 ? (linkClicks / impressions) * 100 : 0,
-      cpcLink: linkClicks > 0 ? spend / linkClicks : 0,
-      cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
-      frequency: reach > 0 ? impressions / reach : 0,
-      conversations,
-      totalContact,
-      firstReply,
-      costPerConversation: conversations > 0 ? spend / conversations : 0,
-      costPerTotalContact: totalContact > 0 ? spend / totalContact : 0,
-      costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
-    };
-  }, [previousMetrics]);
+  const current = useMemo(() => buildMetrics(currentMetrics), [currentMetrics, dynamicKpis]);
+  const previous = useMemo(() => buildMetrics(previousMetrics), [previousMetrics, dynamicKpis]);
 
   const enrichedMetrics = useMemo(() => {
     const creativeByAdId = {};
@@ -669,47 +652,12 @@ export default function Reports() {
               )}
 
               {canDo('edit_report_kpis') && (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Settings2 className="w-4 h-4" />
-                    KPIs
-                  </Button>
-                </SheetTrigger>
-
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>Selecionar KPIs</SheetTitle>
-                    <SheetDescription>Escolha quais indicadores exibir</SheetDescription>
-                  </SheetHeader>
-
-                  <div className="mt-6 space-y-4">
-                    {Object.entries(
-                      ALL_KPIS.reduce((acc, kpi) => {
-                        if (!acc[kpi.category]) acc[kpi.category] = [];
-                        acc[kpi.category].push(kpi);
-                        return acc;
-                      }, {})
-                    ).map(([category, kpis]) => (
-                      <div key={category}>
-                        <h4 className="font-semibold text-sm text-gray-700 mb-2">{category}</h4>
-                        {kpis.map((kpi) => (
-                          <div key={kpi.id} className="flex items-center gap-2 mb-2">
-                            <Checkbox
-                              checked={selectedKPIs.includes(kpi.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) setSelectedKPIs([...selectedKPIs, kpi.id]);
-                                else setSelectedKPIs(selectedKPIs.filter((id) => id !== kpi.id));
-                              }}
-                            />
-                            <label className="text-sm">{kpi.label}</label>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </SheetContent>
-              </Sheet>
+                <KPICustomizer
+                  allKpis={fullKpiCatalog}
+                  selectedKPIs={selectedKPIs}
+                  onChange={setSelectedKPIs}
+                  unitId={selectedUnit}
+                />
               )}
             </div>
           </div>
@@ -791,7 +739,7 @@ export default function Reports() {
             <>
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4" data-pdf-section>
                 {selectedKPIs.map((kpiId) => {
-                  const kpi = ALL_KPIS.find((k) => k.id === kpiId);
+                  const kpi = fullKpiCatalog.find((k) => k.id === kpiId);
                   if (!kpi) return null;
 
                   return (
