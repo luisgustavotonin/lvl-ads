@@ -27,22 +27,35 @@ const formatNumber = (value) => {
   return new Intl.NumberFormat('pt-BR').format(value || 0);
 };
 
+const PRESET_ID_MAP = {
+  today: 'today', yesterday: 'yesterday',
+  last_7: 'last_7', last_7_days: 'last_7',
+  last_14: 'last_14', last_14_days: 'last_14',
+  last_28: 'last_28', last_30: 'last_30', last_30_days: 'last_30',
+  mtd: 'mtd', last_month: 'last_month', custom: 'custom',
+};
+
 const getDefaultPeriodDates = (periodKey) => {
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+  let dates;
   switch (periodKey) {
-    case 'today':       return { start: today, end: today };
-    case 'yesterday':   return { start: subDays(today, 1), end: subDays(today, 1) };
-    case 'last_7':      return { start: subDays(today, 6), end: today };
-    case 'last_14':     return { start: subDays(today, 13), end: today };
-    case 'last_28':     return { start: subDays(today, 27), end: today };
-    case 'last_30':     return { start: subDays(today, 29), end: today };
-    case 'mtd':         return { start: startOfMonth, end: today };
-    case 'last_month':  return { start: startOfLastMonth, end: endOfLastMonth };
-    default:            return { start: subDays(today, 6), end: today };
+    case 'today':       dates = { start: today, end: today }; break;
+    case 'yesterday':   dates = { start: subDays(today, 1), end: subDays(today, 1) }; break;
+    case 'last_7':
+    case 'last_7_days': dates = { start: subDays(today, 6), end: today }; break;
+    case 'last_14':
+    case 'last_14_days':dates = { start: subDays(today, 13), end: today }; break;
+    case 'last_28':     dates = { start: subDays(today, 27), end: today }; break;
+    case 'last_30':
+    case 'last_30_days':dates = { start: subDays(today, 29), end: today }; break;
+    case 'mtd':         dates = { start: startOfMonth, end: today }; break;
+    case 'last_month':  dates = { start: startOfLastMonth, end: endOfLastMonth }; break;
+    default:            dates = { start: subDays(today, 6), end: today }; break;
   }
+  return { ...dates, presetId: PRESET_ID_MAP[periodKey] || 'custom' };
 };
 
 export default function Dashboard() {

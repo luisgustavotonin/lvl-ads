@@ -43,6 +43,9 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
   // Detecta o preset ativo com base no value atual (não usa estado interno fixo)
   const activePreset = React.useMemo(() => {
     if (!value) return null;
+    // Prefer the explicitly selected preset id — avoids date collisions
+    // (e.g. on the 30th, "30 dias" and "Mês atual" produce the same range).
+    if (value.presetId) return value.presetId;
     const matched = ALL_PRESETS.find(p => {
       const d = p.getDates();
       return (
@@ -61,13 +64,13 @@ export default function PeriodFilter({ value, onChange, comparisonPeriod, onComp
   const showCustom = !allowedPresets || allowedPresets.length === 0 || allowedPresets.includes('custom');
 
   const handlePreset = (preset) => {
-    onChange(preset.getDates());
+    onChange({ ...preset.getDates(), presetId: preset.id });
   };
 
   const handleMainDate = (field, str) => {
     const date = fromInput(str);
     if (!date) return;
-    onChange({ start: field === 'start' ? date : value.start, end: field === 'end' ? date : value.end });
+    onChange({ start: field === 'start' ? date : value.start, end: field === 'end' ? date : value.end, presetId: 'custom' });
   };
 
   const handleCompDate = (field, str) => {
