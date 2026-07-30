@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GripVertical, X, Save, Settings2, LayoutTemplate } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { base44 } from '@/api/base44Client';
@@ -13,6 +12,7 @@ export default function KPICustomizer({ allKpis, selectedKPIs, onChange, unitId 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState('editor');
   const [templateName, setTemplateName] = useState('');
+  const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
 
   const { data: templates = [] } = useQuery({
@@ -165,24 +165,55 @@ export default function KPICustomizer({ allKpis, selectedKPIs, onChange, unitId 
 
             {/* Adicionar */}
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Adicionar KPI</h4>
-              <Select value="" onValueChange={addKpi}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um indicador" />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {Object.entries(availableGrouped).map(([cat, kpis]) => (
-                    <div key={cat}>
-                      <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase">{cat}</div>
-                      {kpis.map((k) => (
-                        <SelectItem key={k.id} value={k.id}>
-                          {k.label}
-                        </SelectItem>
-                      ))}
-                    </div>
-                  ))}
-                </SelectContent>
-              </Select>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                Adicionar KPI <span className="text-xs font-normal text-gray-400">({available.length} disponíveis)</span>
+              </h4>
+              <Input
+                placeholder="Buscar indicador..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="mb-2"
+              />
+              {available.length === 0 ? (
+                <p className="text-xs text-gray-400 py-4 text-center">
+                  {search ? 'Nenhum KPI encontrado para a busca.' : 'Todos os KPIs já estão ativos.'}
+                </p>
+              ) : (
+                <div className="border rounded-lg max-h-72 overflow-y-auto divide-y divide-gray-100">
+                  {Object.entries(availableGrouped)
+                    .filter(([cat, kpis]) =>
+                      !search ||
+                      cat.toLowerCase().includes(search.toLowerCase()) ||
+                      kpis.some((k) => k.label.toLowerCase().includes(search.toLowerCase()))
+                    )
+                    .map(([cat, kpis]) => {
+                      const filtered = !search
+                        ? kpis
+                        : kpis.filter((k) => k.label.toLowerCase().includes(search.toLowerCase()));
+                      if (!filtered.length) return null;
+                      return (
+                        <div key={cat}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase sticky top-0 bg-white">
+                            {cat}
+                          </div>
+                          {filtered.map((k) => (
+                            <button
+                              key={k.id}
+                              onClick={() => addKpi(k.id)}
+                              className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                            >
+                              <span className="flex-1">{k.label}</span>
+                              <span className="text-xs text-blue-500 font-medium">+ Adicionar</span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+              <p className="text-[11px] text-gray-400 mt-1.5">
+                KPIs dinâmicos são descobertos automaticamente a partir dos dados da Meta.
+              </p>
             </div>
           </div>
         )}

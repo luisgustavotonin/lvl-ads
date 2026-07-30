@@ -76,6 +76,37 @@ export const META_ACTION_LABELS = {
   subscribe: { label: 'Inscrições', category: 'Conversão', kind: 'int' },
   download: { label: 'Downloads', category: 'Conversão', kind: 'int' },
   landing_page_view: { label: 'Visualizações da Página de Destino', category: 'Conversão', kind: 'int' },
+  'omni_landing_page_view': { label: 'Visualizações da Página (Omni)', category: 'Conversão', kind: 'int' },
+
+  // Visitas ao perfil / Instagram
+  'onsite_conversion.profile_visits': { label: 'Visitas ao Perfil', category: 'Contato', kind: 'int' },
+  'onsite_conversion.instagram_profile_visits': { label: 'Visitas ao Perfil do Instagram', category: 'Contato', kind: 'int' },
+  'onsite_conversion.profile_visit': { label: 'Visitas ao Perfil', category: 'Contato', kind: 'int' },
+  'instagram_profile_visits': { label: 'Visitas ao Perfil do Instagram', category: 'Contato', kind: 'int' },
+  profile_visits: { label: 'Visitas ao Perfil', category: 'Contato', kind: 'int' },
+
+  // Interações com publicação
+  post_interaction_gross: { label: 'Interações (Brutas)', category: 'Engajamento', kind: 'int' },
+  post_interaction_net: { label: 'Interações (Líquidas)', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_net_like': { label: 'Curtidas Líquidas', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_unlike': { label: 'Descurtidas', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_save': { label: 'Publicações Salvas', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_net_save': { label: 'Saves Líquidos', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_unsave': { label: 'Remoções de Save', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_net_comment': { label: 'Comentários Líquidos', category: 'Engajamento', kind: 'int' },
+
+  // Leads Meta (formulários/CRM)
+  'offsite_complete_registration_add_meta_leads': { label: 'Cadastros (Leads Meta)', category: 'Conversão', kind: 'int' },
+  'offsite_search_add_meta_leads': { label: 'Buscas (Leads Meta)', category: 'Comércio', kind: 'int' },
+  'offsite_content_view_add_meta_leads': { label: 'Visitas (Leads Meta)', category: 'Comércio', kind: 'int' },
+  'onsite_conversion.lead_grouped': { label: 'Leads Agrupados', category: 'Conversão', kind: 'int' },
+
+  // Mensagens avançadas
+  'onsite_conversion.messaging_conversation_replied_7d': { label: 'Conversas Respondidas (7d)', category: 'Conversão', kind: 'int' },
+  'onsite_conversion.messaging_block': { label: 'Bloqueios de Mensagem', category: 'Conversão', kind: 'int' },
+  'onsite_conversion.messaging_user_depth_2_message_send': { label: 'Mensagens (Profundidade 2)', category: 'Conversão', kind: 'int' },
+  'onsite_conversion.messaging_user_depth_3_message_send': { label: 'Mensagens (Profundidade 3)', category: 'Conversão', kind: 'int' },
+  'onsite_conversion.messaging_user_depth_5_message_send': { label: 'Mensagens (Profundidade 5)', category: 'Conversão', kind: 'int' },
 };
 
 // Mapa de action_types cujo valor é monetário (action_values) e merece rótulo amigável
