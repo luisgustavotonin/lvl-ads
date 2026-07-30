@@ -39,7 +39,7 @@ const ALL_KPIS = [
     id: 'spend',
     label: 'Valor usado',
     format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0),
-    category: 'Resultados e investimento',
+    category: 'Resultado e investimento',
   },
   {
     id: 'impressions',
@@ -93,37 +93,37 @@ const ALL_KPIS = [
     id: 'conversations',
     label: 'Conversas por mensagem iniciadas',
     format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v || 0)),
-    category: 'Mensagens',
+    category: 'Conversões',
   },
   {
     id: 'totalContact',
     label: 'Contatos por mensagem que retornam',
     format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v || 0)),
-    category: 'Mensagens',
+    category: 'Conversões',
   },
   {
     id: 'firstReply',
     label: 'Conversas por mensagem respondidas',
     format: (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v || 0)),
-    category: 'Mensagens',
+    category: 'Conversões',
   },
   {
     id: 'costPerConversation',
     label: 'Custo por conversa por mensagem iniciada',
     format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0),
-    category: 'Mensagens',
+    category: 'Conversões',
   },
   {
     id: 'costPerTotalContact',
     label: 'Custo por contato por mensagem',
     format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0),
-    category: 'Mensagens',
+    category: 'Conversões',
   },
   {
     id: 'costPerFirstReply',
     label: 'Custo por conversa por mensagem respondida',
     format: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0),
-    category: 'Mensagens',
+    category: 'Conversões',
   },
 ];
 

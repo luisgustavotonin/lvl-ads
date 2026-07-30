@@ -61,6 +61,16 @@ export default function KPICustomizer({ allKpis, selectedKPIs, onChange, unitId 
     },
   });
 
+  // Ordem dos grupos = mesma do Gerenciador de Anúncios da Meta
+  const CATEGORY_ORDER = [
+    'Resultado e investimento',
+    'Distribuição',
+    'Reconhecimento',
+    'Engajamento',
+    'Conversões',
+    'Por Plataforma',
+  ];
+
   // KPIs disponíveis (não selecionados), agrupados por categoria
   const selectedSet = new Set(selectedKPIs);
   const available = allKpis.filter((k) => !selectedSet.has(k.id));
@@ -68,6 +78,14 @@ export default function KPICustomizer({ allKpis, selectedKPIs, onChange, unitId 
     (acc[k.category] = acc[k.category] || []).push(k);
     return acc;
   }, {});
+  const availableCategories = Object.keys(availableGrouped).sort((a, b) => {
+    const ia = CATEGORY_ORDER.indexOf(a);
+    const ib = CATEGORY_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 
   // KPIs selecionados na ordem correta
   const selectedList = selectedKPIs
@@ -180,7 +198,8 @@ export default function KPICustomizer({ allKpis, selectedKPIs, onChange, unitId 
                 </p>
               ) : (
                 <div className="border rounded-lg max-h-72 overflow-y-auto divide-y divide-gray-100">
-                  {Object.entries(availableGrouped)
+                  {availableCategories
+                    .map((cat) => [cat, availableGrouped[cat]])
                     .filter(([cat, kpis]) =>
                       !search ||
                       cat.toLowerCase().includes(search.toLowerCase()) ||
