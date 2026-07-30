@@ -1,128 +1,184 @@
 // Dicionário de action_types da Meta → nomes amigáveis em PT-BR.
+// Nomenclatura IDÊNTICA ao "Personalizar colunas" do Gerenciador de Anúncios da Meta.
 // Cada entrada: { label, category, kind }
 //   kind: 'int' (contagem) ou 'currency' (valor monetário, de action_values)
-// Categorias: Investimento, Volume, Engajamento, Vídeo, Comércio, Conversão, Contato, Outros
+// Categorias seguem o agrupamento do Meta Ads Manager.
 
 export const META_ACTION_LABELS = {
-  // Cliques / Engajamento básico
-  link_click: { label: 'Cliques no Link', category: 'Engajamento', kind: 'int' },
-  outbound_click: { label: 'Cliques de Saída', category: 'Engajamento', kind: 'int' },
-  button_click: { label: 'Cliques no Botão', category: 'Engajamento', kind: 'int' },
-  page_engagement: { label: 'Engajamento da Página', category: 'Engajamento', kind: 'int' },
-  post_engagement: { label: 'Engajamento da Publicação', category: 'Engajamento', kind: 'int' },
-  post_reaction: { label: 'Reações', category: 'Engajamento', kind: 'int' },
+  // Engajamento → Cliques
+  link_click: { label: 'Cliques no link', category: 'Engajamento', kind: 'int' },
+  link_click_unique: { label: 'Cliques no link únicos', category: 'Engajamento', kind: 'int' },
+  outbound_click: { label: 'Cliques de saída', category: 'Engajamento', kind: 'int' },
+  outbound_click_unique: { label: 'Cliques de saída únicos', category: 'Engajamento', kind: 'int' },
+  button_click: { label: 'Cliques no botão', category: 'Engajamento', kind: 'int' },
+  photo_view: { label: 'Cliques na foto', category: 'Engajamento', kind: 'int' },
+  click_onsite: { label: 'Cliques na loja', category: 'Engajamento', kind: 'int' },
+  clicks: { label: 'Cliques (todos)', category: 'Engajamento', kind: 'int' },
+  unique_clicks: { label: 'Cliques únicos (todos)', category: 'Engajamento', kind: 'int' },
+
+  // Engajamento
+  page_engagement: { label: 'Engajamento com a Página', category: 'Engajamento', kind: 'int' },
+  post_engagement: { label: 'Engajamentos com o post', category: 'Engajamento', kind: 'int' },
+  post_reaction: { label: 'Reações ao post', category: 'Engajamento', kind: 'int' },
   post: { label: 'Publicações', category: 'Engajamento', kind: 'int' },
   like: { label: 'Curtidas', category: 'Engajamento', kind: 'int' },
-  comment: { label: 'Comentários', category: 'Engajamento', kind: 'int' },
-  shares: { label: 'Compartilhamentos', category: 'Engajamento', kind: 'int' },
-  photo_view: { label: 'Visualizações de Foto', category: 'Engajamento', kind: 'int' },
-  follow: { label: 'Novos Seguidores', category: 'Engajamento', kind: 'int' },
-  page_likes: { label: 'Curtidas na Página', category: 'Engajamento', kind: 'int' },
-  event_responses: { label: 'Respostas a Eventos', category: 'Engajamento', kind: 'int' },
+  comment: { label: 'Comentários no post', category: 'Engajamento', kind: 'int' },
+  shares: { label: 'Compartilhamentos do post', category: 'Engajamento', kind: 'int' },
   checkin: { label: 'Check-ins', category: 'Engajamento', kind: 'int' },
+  post_save: { label: 'Salvamentos do post', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_save': { label: 'Salvamentos do post', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_net_save': { label: 'Saves líquidos', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_unsave': { label: 'Remoções de save', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_net_like': { label: 'Curtidas líquidas', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_unlike': { label: 'Descurtidas', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.post_net_comment': { label: 'Comentários líquidos', category: 'Engajamento', kind: 'int' },
+  post_interaction_gross: { label: 'Interações', category: 'Engajamento', kind: 'int' },
+  post_interaction_net: { label: 'Interações líquidas', category: 'Engajamento', kind: 'int' },
+  event_reminder_set: { label: 'Lembretes de rede ativados', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.event_reminder_set': { label: 'Lembretes de rede ativados', category: 'Engajamento', kind: 'int' },
+  event_responses: { label: 'Participações no evento', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.rsvp': { label: 'Participações no evento', category: 'Engajamento', kind: 'int' },
+
+  // Seguidores e curtidas
+  follow: { label: 'Seguidores no Instagram', category: 'Seguidores e curtidas', kind: 'int' },
+  'onsite_conversion.follow': { label: 'Seguidores no Instagram', category: 'Seguidores e curtidas', kind: 'int' },
+  page_likes: { label: 'Curtidas na Página', category: 'Seguidores e curtidas', kind: 'int' },
+  'onsite_conversion.page_like': { label: 'Curtidas na Página', category: 'Seguidores e curtidas', kind: 'int' },
+  'onsite_conversion.page_unlike': { label: 'Descurtidas da Página', category: 'Seguidores e curtidas', kind: 'int' },
+  'onsite_conversion.page_net_likes': { label: 'Curtidas líquidas na Página', category: 'Seguidores e curtidas', kind: 'int' },
 
   // Vídeo
-  video_view: { label: 'Visualizações de Vídeo', category: 'Vídeo', kind: 'int' },
-  video_play: { label: 'Reproduções de Vídeo', category: 'Vídeo', kind: 'int' },
-  video_play_p75: { label: 'Reproduções 75%', category: 'Vídeo', kind: 'int' },
-  video_play_p50: { label: 'Reproduções 50%', category: 'Vídeo', kind: 'int' },
-  video_play_p25: { label: 'Reproduções 25%', category: 'Vídeo', kind: 'int' },
-  video_play_p95: { label: 'Reproduções 95%', category: 'Vídeo', kind: 'int' },
-  video_play_p100: { label: 'Reproduções Completas', category: 'Vídeo', kind: 'int' },
-  video_10s_watched: { label: 'Visualizações 10s', category: 'Vídeo', kind: 'int' },
-  video_15s_watched: { label: 'Visualizações 15s', category: 'Vídeo', kind: 'int' },
-  video_30s_watched: { label: 'Visualizações 30s', category: 'Vídeo', kind: 'int' },
-  video_avg_time_watched: { label: 'Tempo Médio de Visualização', category: 'Vídeo', kind: 'int' },
-  video_view_3s: { label: 'Visualizações 3s', category: 'Vídeo', kind: 'int' },
+  video_view: { label: 'Visualizações de vídeo', category: 'Vídeo', kind: 'int' },
+  video_play: { label: 'Reproduções de vídeo', category: 'Vídeo', kind: 'int' },
+  video_play_p25: { label: 'Reproduções a 25%', category: 'Vídeo', kind: 'int' },
+  video_play_p50: { label: 'Reproduções a 50%', category: 'Vídeo', kind: 'int' },
+  video_play_p75: { label: 'Reproduções a 75%', category: 'Vídeo', kind: 'int' },
+  video_play_p95: { label: 'Reproduções a 95%', category: 'Vídeo', kind: 'int' },
+  video_play_p100: { label: 'Reproduções completas', category: 'Vídeo', kind: 'int' },
+  video_10s_watched: { label: 'Visualizações de 10s', category: 'Vídeo', kind: 'int' },
+  video_15s_watched: { label: 'Visualizações de 15s', category: 'Vídeo', kind: 'int' },
+  video_30s_watched: { label: 'Visualizações de 30s', category: 'Vídeo', kind: 'int' },
+  video_avg_time_watched: { label: 'Tempo médio de visualização', category: 'Vídeo', kind: 'int' },
+  video_view_3s: { label: 'Visualizações de 3s', category: 'Vídeo', kind: 'int' },
   video_thruplay_watched: { label: 'ThruPlays', category: 'Vídeo', kind: 'int' },
+  view_opens: { label: 'Visualizações', category: 'Vídeo', kind: 'int' },
+  'onsite_conversion.video_view_opens': { label: 'Visualizações', category: 'Vídeo', kind: 'int' },
+  unique_video_views: { label: 'Visualizadores', category: 'Vídeo', kind: 'int' },
+  'onsite_conversion.unique_video_views': { label: 'Visualizadores', category: 'Vídeo', kind: 'int' },
 
-  // Mensagens / WhatsApp
-  'onsite_conversion.messaging_conversation_started_7d': { label: 'Conversas Iniciadas (7d)', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.messaging_conversation_started': { label: 'Conversas Iniciadas', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.total_messaging_connection': { label: 'Conexões de Mensagem', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.messaging_first_reply': { label: 'Primeira Resposta', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.messaging_referral_reply': { label: 'Respostas por Referência', category: 'Conversão', kind: 'int' },
-  whatsapp_opened: { label: 'WhatsApp Aberto', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.booking': { label: 'Reservas', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.appointment_update': { label: 'Agendamentos', category: 'Conversão', kind: 'int' },
+  // Mensagens
+  'onsite_conversion.messaging_conversation_started_7d': { label: 'Conversas por mensagem iniciadas', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_conversation_started': { label: 'Conversas por mensagem iniciadas', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.total_messaging_connection': { label: 'Contatos por mensagem que retornam', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_first_reply': { label: 'Conversas por mensagem respondidas', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_conversation_replied_7d': { label: 'Conversas por mensagem respondidas', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_referral_reply': { label: 'Respostas por referência', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_block': { label: 'Bloqueios de mensagem', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_user_depth_2_message_send': { label: 'Mensagens (profundidade 2)', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_user_depth_3_message_send': { label: 'Mensagens (profundidade 3)', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.messaging_user_depth_5_message_send': { label: 'Mensagens (profundidade 5)', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.welcome_message_opened': { label: 'Visualizações da mensagem de boas-vindas', category: 'Mensagens', kind: 'int' },
+  whatsapp_opened: { label: 'WhatsApp aberto', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.booking': { label: 'Reservas', category: 'Mensagens', kind: 'int' },
+  'onsite_conversion.appointment_update': { label: 'Agendamentos', category: 'Mensagens', kind: 'int' },
 
-  // Leads / Formulários
-  lead: { label: 'Leads', category: 'Conversão', kind: 'int' },
-  leadgen_other: { label: 'Leads (Outros)', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.lead_group': { label: 'Leads (Grupo)', category: 'Conversão', kind: 'int' },
-  'offsite_conversion.lead': { label: 'Leads (Pixel)', category: 'Conversão', kind: 'int' },
-  'offsite_conversion.fb_pixel_lead': { label: 'Leads (Pixel)', category: 'Conversão', kind: 'int' },
-  complete_registration: { label: 'Cadastros Concluídos', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.lead_gen_form_view': { label: 'Visualizações de Formulário', category: 'Conversão', kind: 'int' },
+  // Conversões → Eventos padrão
+  purchase: { label: 'Compras', category: 'Conversões', kind: 'int' },
+  'offsite_conversion.purchase': { label: 'Compras', category: 'Conversões', kind: 'int' },
+  'offsite_conversion.fb_pixel_purchase': { label: 'Compras', category: 'Conversões', kind: 'int' },
+  lead: { label: 'Leads', category: 'Conversões', kind: 'int' },
+  leadgen_other: { label: 'Leads', category: 'Conversões', kind: 'int' },
+  'offsite_conversion.lead': { label: 'Leads', category: 'Conversões', kind: 'int' },
+  'offsite_conversion.fb_pixel_lead': { label: 'Leads', category: 'Conversões', kind: 'int' },
+  'onsite_conversion.lead_group': { label: 'Leads', category: 'Conversões', kind: 'int' },
+  'onsite_conversion.lead_grouped': { label: 'Leads', category: 'Conversões', kind: 'int' },
+  complete_registration: { label: 'Cadastros concluídos', category: 'Conversões', kind: 'int' },
+  'onsite_conversion.lead_gen_form_view': { label: 'Visualizações de formulário', category: 'Conversões', kind: 'int' },
+  landing_page_view: { label: 'Visualizações da página de destino', category: 'Conversões', kind: 'int' },
+  'omni_landing_page_view': { label: 'Visualizações da página de destino', category: 'Conversões', kind: 'int' },
+  start_trial: { label: 'Inícios de teste', category: 'Conversões', kind: 'int' },
+  subscribe: { label: 'Inscrições', category: 'Conversões', kind: 'int' },
+  download: { label: 'Downloads', category: 'Conversões', kind: 'int' },
 
   // Comércio / Pixel
-  'offsite_conversion.fb_pixel_purchase': { label: 'Compras (Pixel)', category: 'Comércio', kind: 'int' },
-  'offsite_conversion.purchase': { label: 'Compras', category: 'Comércio', kind: 'int' },
-  purchase: { label: 'Compras', category: 'Comércio', kind: 'int' },
-  add_to_cart: { label: 'Adicionar ao Carrinho', category: 'Comércio', kind: 'int' },
-  'offsite_conversion.fb_pixel_add_to_cart': { label: 'Adicionar ao Carrinho (Pixel)', category: 'Comércio', kind: 'int' },
-  add_to_wishlist: { label: 'Lista de Desejos', category: 'Comércio', kind: 'int' },
-  initiate_checkout: { label: 'Iniciar Checkout', category: 'Comércio', kind: 'int' },
-  view_content: { label: 'Visualizações de Conteúdo', category: 'Comércio', kind: 'int' },
-  'offsite_conversion.fb_pixel_view_content': { label: 'Visualizações de Conteúdo (Pixel)', category: 'Comércio', kind: 'int' },
+  add_to_cart: { label: 'Adições ao carrinho', category: 'Comércio', kind: 'int' },
+  'offsite_conversion.fb_pixel_add_to_cart': { label: 'Adições ao carrinho', category: 'Comércio', kind: 'int' },
+  add_to_wishlist: { label: 'Adições à lista de desejos', category: 'Comércio', kind: 'int' },
+  initiate_checkout: { label: 'Inícios de checkout', category: 'Comércio', kind: 'int' },
+  'offsite_conversion.initiate_checkout': { label: 'Inícios de checkout', category: 'Comércio', kind: 'int' },
+  view_content: { label: 'Visualizações de conteúdo', category: 'Comércio', kind: 'int' },
+  'offsite_conversion.fb_pixel_view_content': { label: 'Visualizações de conteúdo', category: 'Comércio', kind: 'int' },
+  'offsite_conversion.view_content': { label: 'Visualizações de conteúdo', category: 'Comércio', kind: 'int' },
   search: { label: 'Buscas', category: 'Comércio', kind: 'int' },
-  'offsite_conversion.fb_pixel_search': { label: 'Buscas (Pixel)', category: 'Comércio', kind: 'int' },
+  'offsite_conversion.fb_pixel_search': { label: 'Buscas', category: 'Comércio', kind: 'int' },
+
+  // Contato
   contact: { label: 'Contatos', category: 'Contato', kind: 'int' },
-  get_directions: { label: 'Como Chegar', category: 'Contato', kind: 'int' },
-  find_location: { label: 'Buscar Localização', category: 'Contato', kind: 'int' },
-  call_now: { label: 'Ligar Agora', category: 'Contato', kind: 'int' },
+  get_directions: { label: 'Como chegar', category: 'Contato', kind: 'int' },
+  find_location: { label: 'Buscas de localização', category: 'Contato', kind: 'int' },
+  call_now: { label: 'Chamadas', category: 'Contato', kind: 'int' },
+  'onsite_conversion.call_now': { label: 'Chamadas', category: 'Contato', kind: 'int' },
   message: { label: 'Mensagens', category: 'Contato', kind: 'int' },
-  start_trial: { label: 'Iniciar Teste', category: 'Conversão', kind: 'int' },
-  subscribe: { label: 'Inscrições', category: 'Conversão', kind: 'int' },
-  download: { label: 'Downloads', category: 'Conversão', kind: 'int' },
-  landing_page_view: { label: 'Visualizações da Página de Destino', category: 'Conversão', kind: 'int' },
-  'omni_landing_page_view': { label: 'Visualizações da Página (Omni)', category: 'Conversão', kind: 'int' },
+  'onsite_conversion.message_send': { label: 'Mensagens', category: 'Contato', kind: 'int' },
 
   // Visitas ao perfil / Instagram
-  'onsite_conversion.profile_visits': { label: 'Visitas ao Perfil', category: 'Contato', kind: 'int' },
-  'onsite_conversion.instagram_profile_visits': { label: 'Visitas ao Perfil do Instagram', category: 'Contato', kind: 'int' },
-  'onsite_conversion.profile_visit': { label: 'Visitas ao Perfil', category: 'Contato', kind: 'int' },
-  'instagram_profile_visits': { label: 'Visitas ao Perfil do Instagram', category: 'Contato', kind: 'int' },
-  profile_visits: { label: 'Visitas ao Perfil', category: 'Contato', kind: 'int' },
-
-  // Interações com publicação
-  post_interaction_gross: { label: 'Interações (Brutas)', category: 'Engajamento', kind: 'int' },
-  post_interaction_net: { label: 'Interações (Líquidas)', category: 'Engajamento', kind: 'int' },
-  'onsite_conversion.post_net_like': { label: 'Curtidas Líquidas', category: 'Engajamento', kind: 'int' },
-  'onsite_conversion.post_unlike': { label: 'Descurtidas', category: 'Engajamento', kind: 'int' },
-  'onsite_conversion.post_save': { label: 'Publicações Salvas', category: 'Engajamento', kind: 'int' },
-  'onsite_conversion.post_net_save': { label: 'Saves Líquidos', category: 'Engajamento', kind: 'int' },
-  'onsite_conversion.post_unsave': { label: 'Remoções de Save', category: 'Engajamento', kind: 'int' },
-  'onsite_conversion.post_net_comment': { label: 'Comentários Líquidos', category: 'Engajamento', kind: 'int' },
+  'onsite_conversion.profile_visits': { label: 'Visitas ao perfil', category: 'Contato', kind: 'int' },
+  'onsite_conversion.instagram_profile_visits': { label: 'Visitas ao perfil do Instagram', category: 'Contato', kind: 'int' },
+  'onsite_conversion.profile_visit': { label: 'Visitas ao perfil', category: 'Contato', kind: 'int' },
+  'instagram_profile_visits': { label: 'Visitas ao perfil do Instagram', category: 'Contato', kind: 'int' },
+  profile_visits: { label: 'Visitas ao perfil', category: 'Contato', kind: 'int' },
 
   // Leads Meta (formulários/CRM)
-  'offsite_complete_registration_add_meta_leads': { label: 'Cadastros (Leads Meta)', category: 'Conversão', kind: 'int' },
+  'offsite_complete_registration_add_meta_leads': { label: 'Cadastros (Leads Meta)', category: 'Conversões', kind: 'int' },
   'offsite_search_add_meta_leads': { label: 'Buscas (Leads Meta)', category: 'Comércio', kind: 'int' },
   'offsite_content_view_add_meta_leads': { label: 'Visitas (Leads Meta)', category: 'Comércio', kind: 'int' },
-  'onsite_conversion.lead_grouped': { label: 'Leads Agrupados', category: 'Conversão', kind: 'int' },
-
-  // Mensagens avançadas
-  'onsite_conversion.messaging_conversation_replied_7d': { label: 'Conversas Respondidas (7d)', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.messaging_block': { label: 'Bloqueios de Mensagem', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.messaging_user_depth_2_message_send': { label: 'Mensagens (Profundidade 2)', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.messaging_user_depth_3_message_send': { label: 'Mensagens (Profundidade 3)', category: 'Conversão', kind: 'int' },
-  'onsite_conversion.messaging_user_depth_5_message_send': { label: 'Mensagens (Profundidade 5)', category: 'Conversão', kind: 'int' },
 };
 
-// Mapa de action_types cujo valor é monetário (action_values) e merece rótulo amigável
+// Rótulos exatos para a coluna de VALOR (action_values) — "Valor de ..." no Meta
 export const META_ACTION_VALUE_LABELS = {
-  'offsite_conversion.fb_pixel_purchase': { label: 'Valor de Compras', category: 'Comércio' },
-  'offsite_conversion.purchase': { label: 'Valor de Compras', category: 'Comércio' },
-  purchase: { label: 'Valor de Compras', category: 'Comércio' },
-  'offsite_conversion.fb_pixel_add_to_cart': { label: 'Valor no Carrinho', category: 'Comércio' },
-  add_to_cart: { label: 'Valor no Carrinho', category: 'Comércio' },
-  'offsite_conversion.fb_pixel_view_content': { label: 'Valor de Conteúdo Visto', category: 'Comércio' },
-  'offsite_conversion.fb_pixel_lead': { label: 'Valor de Leads', category: 'Conversão' },
-  'offsite_conversion.lead': { label: 'Valor de Leads', category: 'Conversão' },
+  'offsite_conversion.fb_pixel_purchase': { label: 'Valor de compras', category: 'Conversões' },
+  'offsite_conversion.purchase': { label: 'Valor de compras', category: 'Conversões' },
+  purchase: { label: 'Valor de compras', category: 'Conversões' },
+  'offsite_conversion.fb_pixel_add_to_cart': { label: 'Valor de adições ao carrinho', category: 'Comércio' },
+  add_to_cart: { label: 'Valor de adições ao carrinho', category: 'Comércio' },
+  'offsite_conversion.fb_pixel_view_content': { label: 'Valor de visualizações de conteúdo', category: 'Comércio' },
+  view_content: { label: 'Valor de visualizações de conteúdo', category: 'Comércio' },
+  'offsite_conversion.fb_pixel_lead': { label: 'Valor de leads', category: 'Conversões' },
+  'offsite_conversion.lead': { label: 'Valor de leads', category: 'Conversões' },
+  lead: { label: 'Valor de leads', category: 'Conversões' },
+};
+
+// Rótulos exatos para "Custo por ..." (derivado: spend / count) — espelha o Meta
+export const META_COST_LABELS = {
+  'onsite_conversion.messaging_conversation_started': { label: 'Custo por conversa por mensagem iniciada', category: 'Mensagens' },
+  'onsite_conversion.messaging_conversation_started_7d': { label: 'Custo por conversa por mensagem iniciada', category: 'Mensagens' },
+  'onsite_conversion.messaging_first_reply': { label: 'Custo por conversa por mensagem respondida', category: 'Mensagens' },
+  'onsite_conversion.messaging_conversation_replied_7d': { label: 'Custo por conversa por mensagem respondida', category: 'Mensagens' },
+  page_engagement: { label: 'Custo por engajamento com a Página', category: 'Engajamento' },
+  post_engagement: { label: 'Custo por engajamento com o post', category: 'Engajamento' },
+  post_interaction_gross: { label: 'Custo por interação', category: 'Engajamento' },
+  event_responses: { label: 'Custo por participação no evento', category: 'Engajamento' },
+  'onsite_conversion.rsvp': { label: 'Custo por participação no evento', category: 'Engajamento' },
+  link_click: { label: 'CPC (custo por clique no link)', category: 'Engajamento' },
+  link_click_unique: { label: 'Custo por clique único (todos)', category: 'Engajamento' },
+  purchase: { label: 'Custo por compra', category: 'Conversões' },
+  'offsite_conversion.purchase': { label: 'Custo por compra', category: 'Conversões' },
+  'offsite_conversion.fb_pixel_purchase': { label: 'Custo por compra', category: 'Conversões' },
+  lead: { label: 'Custo por lead', category: 'Conversões' },
+  'offsite_conversion.lead': { label: 'Custo por lead', category: 'Conversões' },
+  'offsite_conversion.fb_pixel_lead': { label: 'Custo por lead', category: 'Conversões' },
+  add_to_cart: { label: 'Custo por adição ao carrinho', category: 'Comércio' },
+  'offsite_conversion.fb_pixel_add_to_cart': { label: 'Custo por adição ao carrinho', category: 'Comércio' },
+  view_content: { label: 'Custo por visualização de conteúdo', category: 'Comércio' },
+  landing_page_view: { label: 'Custo por visualização da página de destino', category: 'Conversões' },
+  complete_registration: { label: 'Custo por cadastro concluído', category: 'Conversões' },
+  contact: { label: 'Custo por contato', category: 'Contato' },
 };
 
 const fmtInt = (v) => new Intl.NumberFormat('pt-BR').format(Math.round(Number(v || 0)));
 const fmtCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
+const fmtPct = (v) => `${Number(v || 0).toFixed(2)}%`;
+const fmtRoas = (v) => `${Number(v || 0).toFixed(2)}`;
 
 // Extrai o mapa {action_type: valor} de um registro (nova ingestion ou fallback do raw)
 export function getActionsMap(record) {
@@ -165,10 +221,17 @@ function fallbackLabel(actionType) {
     .replace(/Fb Pixel/gi, 'Pixel');
 }
 
+// Soma total de spend de um conjunto de registros (para derivar custo por)
+function sumSpend(records) {
+  let total = 0;
+  for (const r of records || []) total += Number(r.spend || 0);
+  return total;
+}
+
 // Constrói o catálogo dinâmico de KPIs a partir dos registros retornados pela API.
-// Retorna entradas no mesmo formato dos KPIs fixos (id, label, category, format, kind, actionType).
+// Gera: contagem (action), valor (value), custo por (cost) e ROAS — espelhando o Meta.
 export function buildDynamicKpiCatalog(records) {
-  const counts = {}; // action_type -> total (só pra descobrir quais existem)
+  const counts = {};
   const values = {};
   for (const r of records || []) {
     const am = getActionsMap(r);
@@ -181,15 +244,15 @@ export function buildDynamicKpiCatalog(records) {
     }
   }
 
+  const spend = sumSpend(records);
   const out = [];
 
-  // Counts
-  const countKeys = Object.keys(counts).sort((a, b) => (counts[b] - counts[a]));
+  // Contagem (action)
+  const countKeys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
   for (const k of countKeys) {
     const meta = META_ACTION_LABELS[k];
-    const id = `action:${k}`;
     out.push({
-      id,
+      id: `action:${k}`,
       actionType: k,
       source: 'action',
       label: meta ? meta.label : fallbackLabel(k),
@@ -198,19 +261,63 @@ export function buildDynamicKpiCatalog(records) {
     });
   }
 
-  // Values (monetários)
-  const valueKeys = Object.keys(values).sort((a, b) => (values[b] - values[a]));
+  // Valor monetário (action_values)
+  const valueKeys = Object.keys(values).sort((a, b) => values[b] - values[a]);
   for (const k of valueKeys) {
     const meta = META_ACTION_VALUE_LABELS[k];
-    const id = `value:${k}`;
     const base = META_ACTION_LABELS[k];
     out.push({
-      id,
+      id: `value:${k}`,
       actionType: k,
       source: 'value',
-      label: meta ? meta.label : `Valor · ${base ? base.label : fallbackLabel(k)}`,
+      label: meta ? meta.label : `Valor de ${base ? base.label : fallbackLabel(k)}`,
       category: meta ? meta.category : 'Comércio',
       format: fmtCurrency,
+    });
+  }
+
+  // Custo por (spend / contagem) — só quando há contagem > 0
+  for (const k of countKeys) {
+    if (counts[k] <= 0) continue;
+    const costMeta = META_COST_LABELS[k];
+    const base = META_ACTION_LABELS[k];
+    out.push({
+      id: `cost:${k}`,
+      actionType: k,
+      source: 'cost',
+      label: costMeta ? costMeta.label : `Custo por ${base ? base.label.toLowerCase() : fallbackLabel(k).toLowerCase()}`,
+      category: costMeta ? costMeta.category : base ? base.category : 'Custo',
+      format: fmtCurrency,
+      spend,
+    });
+  }
+
+  // ROAS de resultados (quando há valor de compras)
+  const purchaseValue =
+    (values['offsite_conversion.fb_pixel_purchase'] || 0) ||
+    (values['offsite_conversion.purchase'] || 0) ||
+    (values['purchase'] || 0);
+  if (spend > 0 && purchaseValue > 0) {
+    out.push({
+      id: 'roas:results',
+      source: 'roas',
+      label: 'ROAS de resultados',
+      category: 'Resultados e investimento',
+      format: fmtRoas,
+      spend,
+      purchaseValue,
+    });
+  }
+
+  // Valor dos resultados (soma de valores de conversão)
+  if (purchaseValue > 0) {
+    out.push({
+      id: 'value:results',
+      source: 'fixedValue',
+      label: 'Valor dos resultados',
+      category: 'Resultados e investimento',
+      format: fmtCurrency,
+      value: purchaseValue,
     });
   }
 
@@ -219,11 +326,43 @@ export function buildDynamicKpiCatalog(records) {
 
 // Soma um KPI dinâmico sobre um conjunto de registros
 export function sumDynamicKpi(records, kpi) {
-  if (!kpi || !kpi.actionType || !records) return 0;
+  if (!kpi) return 0;
+  if (kpi.source === 'roas') {
+    const spend = sumSpend(records);
+    if (spend <= 0) return 0;
+    const purchaseValue =
+      sumActionValue(records, 'offsite_conversion.fb_pixel_purchase') ||
+      sumActionValue(records, 'offsite_conversion.purchase') ||
+      sumActionValue(records, 'purchase');
+    return purchaseValue / spend;
+  }
+  if (kpi.source === 'fixedValue') return kpi.value || 0;
+  if (!kpi.actionType || !records) return 0;
+  if (kpi.source === 'cost') {
+    const spend = sumSpend(records);
+    const count = sumActionCount(records, kpi.actionType);
+    return count > 0 ? spend / count : 0;
+  }
+  if (kpi.source === 'value') {
+    return sumActionValue(records, kpi.actionType);
+  }
+  return sumActionCount(records, kpi.actionType);
+}
+
+function sumActionCount(records, actionType) {
   let total = 0;
-  for (const r of records) {
-    const map = kpi.source === 'value' ? getActionValuesMap(r) : getActionsMap(r);
-    total += map[kpi.actionType] || 0;
+  for (const r of records || []) {
+    const map = getActionsMap(r);
+    total += map[actionType] || 0;
+  }
+  return total;
+}
+
+function sumActionValue(records, actionType) {
+  let total = 0;
+  for (const r of records || []) {
+    const map = getActionValuesMap(r);
+    total += map[actionType] || 0;
   }
   return total;
 }
