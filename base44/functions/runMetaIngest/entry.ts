@@ -701,7 +701,7 @@ Deno.serve(async (req) => {
       time_range: JSON.stringify({ since: date_from, until: date_to }),
       fields:
         'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,' +
-        'spend,impressions,reach,frequency,clicks,unique_clicks,inline_link_clicks,unique_inline_link_clicks,unique_impressions,cpm,actions,action_values,date_start,date_stop',
+        'spend,impressions,reach,frequency,clicks,inline_link_clicks,cpm,actions,action_values,date_start,date_stop',
       level: 'ad',
       time_increment: '1',
     };
