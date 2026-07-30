@@ -24,6 +24,7 @@ import ReportDevice from '@/components/report/ReportDevice';
 import ReportDemographic from '@/components/report/ReportDemographic';
 import ReportCreatives from '@/components/report/ReportCreatives';
 import KPICustomizer from '@/components/report/KPICustomizer';
+import PlatformSummaryCards from '@/components/report/PlatformSummaryCards';
 import { buildDynamicKpiCatalog, sumDynamicKpi, buildPlatformKpiCatalog, sumPlatformKpi } from '@/lib/metaActionLabels';
 
 const REPORT_TABS = [
@@ -822,6 +823,14 @@ export default function Reports() {
                   <FunnelChartNew current={current} previous={previous} stages={funnelStages} unitId={selectedUnit} />
                 </div>
               </Card>
+
+              {/* Cards por plataforma (Instagram / Facebook / etc.) */}
+              {currentPlatformMetrics.length > 0 && (
+                <PlatformSummaryCards
+                  currentPlatformData={currentPlatformMetrics}
+                  previousPlatformData={previousPlatformMetrics}
+                />
+              )}
 
               {/* Espaço garantido antes dos gráficos */}
               <div className="h-4" />
