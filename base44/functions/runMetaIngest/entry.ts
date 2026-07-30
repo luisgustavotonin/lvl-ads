@@ -776,6 +776,43 @@ Deno.serve(async (req) => {
         { bulkChunkSize: BULK_CHUNK_BREAKDOWN }
       );
 
+      // ---- Diagnóstico: confirma captura de métricas específicas por plataforma ----
+      const instagramActions = {
+        'onsite_conversion.instagram_profile_visits': 0,
+        'onsite_conversion.profile_visits': 0,
+        'onsite_conversion.profile_visit': 0,
+        'instagram_profile_visits': 0,
+        'profile_visits': 0,
+        'follow': 0,
+        'onsite_conversion.follow': 0,
+        'onsite_conversion.total_messaging_connection': 0,
+        'onsite_conversion.messaging_conversation_started_7d': 0,
+      };
+      let instagramRows = 0;
+      let facebookRows = 0;
+      let rowsWithActions = 0;
+
+      for (const row of rows) {
+        if (row.publisher_platform === 'instagram') instagramRows++;
+        if (row.publisher_platform === 'facebook') facebookRows++;
+        const am = row.actions_map || {};
+        const hasAnyAction = Object.keys(am).length > 0;
+        if (hasAnyAction) rowsWithActions++;
+        for (const key of Object.keys(instagramActions)) {
+          if (am[key]) {
+            instagramActions[key] += parseNum(am[key]);
+          }
+        }
+      }
+
+      console.log('[Meta Ingest] Diagnóstico Plataformas:', {
+        total_rows: rows.length,
+        instagram_rows: instagramRows,
+        facebook_rows: facebookRows,
+        rows_with_actions: rowsWithActions,
+        instagram_specific_actions: instagramActions,
+      });
+
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 2,
         rows_written: totalRows,
