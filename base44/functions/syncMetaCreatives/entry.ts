@@ -11,16 +11,18 @@ const MAX_RETRIES = 8;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Download a URL and re-upload to permanent storage
+// Baixa a imagem e retorna como data URI (base64). Thumbnails do Meta são 64x64 (~1-3KB),
+// então isso é leve e carrega no <img>/PDF sem precisar de auth nem proxy.
 async function mirrorImage(base44, url, accessToken) {
   if (!url) return null;
   try {
-    const headers = {};
-    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    const isGraphUrl = url.includes('graph.facebook.com');
+    const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' };
+    if (accessToken && isGraphUrl) headers['Authorization'] = `Bearer ${accessToken}`;
     let resp = await fetch(url, { headers });
-    if (!resp.ok && accessToken) {
+    if (!resp.ok && accessToken && isGraphUrl) {
       const urlWithToken = url.includes('?') ? `${url}&access_token=${accessToken}` : `${url}?access_token=${accessToken}`;
-      resp = await fetch(urlWithToken);
+      resp = await fetch(urlWithToken, { headers });
     }
     if (!resp.ok) {
       console.warn(`[mirrorImage] HTTP ${resp.status} for ${url}`);
@@ -31,23 +33,8 @@ async function mirrorImage(base44, url, accessToken) {
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
     const base64 = btoa(binary);
-
-    // Upload com retry em caso de rate limit
-    for (let attempt = 0; attempt < 4; attempt++) {
-      try {
-        const result = await base44.asServiceRole.integrations.Core.UploadFile({ file: base64 });
-        return result?.file_url || null;
-      } catch (e) {
-        if (e?.message?.includes('Rate limit') || e?.status === 429) {
-          const wait = 3000 * Math.pow(2, attempt);
-          console.warn(`[mirrorImage] rate limit, retry ${attempt + 1} em ${wait}ms`);
-          await sleep(wait);
-        } else {
-          throw e;
-        }
-      }
-    }
-    return null;
+    const contentType = resp.headers.get('content-type') || 'image/jpeg';
+    return `data:${contentType};base64,${base64}`;
   } catch (e) {
     console.warn(`[mirrorImage] failed to mirror ${url}: ${e.message}`);
     return null;
@@ -196,7 +183,7 @@ Deno.serve(async (req) => {
       if (ec.ad_id) existingMap[ec.ad_id] = ec;
     }
 
-    const isPermanent = (url) => url && (url.includes('supabase') || url.includes('base44'));
+    const isPermanent = (url) => url && (url.includes('supabase') || url.includes('base44') || url.startsWith('data:'));
 
     // Separa: já completos (pula), precisam de mirror, novos sem imagem
     const toMirrorExisting = []; // já no banco mas sem URL permanente (prioridade)
@@ -212,7 +199,7 @@ Deno.serve(async (req) => {
         skipped++;
         continue; // já tem URL permanente, pula completamente
       }
-      const rawUrl = a.creative?.image_url || a.creative?.thumbnail_url || null;
+      const rawUrl = a.creative?.thumbnail_url || a.creative?.image_url || null;
       if (rawUrl) {
         if (existing) toMirrorExisting.push(a); // já no banco, prioridade
         else toMirrorNew.push(a);
@@ -227,14 +214,14 @@ Deno.serve(async (req) => {
     console.log(`[syncMetaCreatives] total=${ads.length} skipped=${skipped} to_mirror=${toMirror.length} no_image=${toCreateNoImage.length}`);
 
     // Espelha apenas um lote por execução (sequencial com delay) para respeitar rate limits
-    const MIRROR_CAP = 15;
+    const MIRROR_CAP = 50;
     const toMirrorSlice = toMirror.slice(0, MIRROR_CAP);
 
     const mirroredMap = {};
     for (const a of toMirrorSlice) {
       const c = a.creative;
       const adId = a.id || a.ad_id;
-      const rawUrl = c.image_url || c.thumbnail_url;
+      const rawUrl = c.thumbnail_url || c.image_url;
       const mirrored = await mirrorImage(base44, rawUrl, meta_token);
       if (mirrored) mirroredMap[adId] = mirrored;
       await sleep(500);
