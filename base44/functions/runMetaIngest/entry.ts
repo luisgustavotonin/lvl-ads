@@ -227,6 +227,10 @@ function platformRow(item, accountId, unitId, jobKey) {
     ctr_link: m.ctr_link,
     cpc_link: m.cpc_link,
     cpm: m.cpm,
+
+    actions_map: actionsToMap(item.actions || []),
+    action_values_map: actionsToMap(item.action_values || []),
+    raw: item,
   };
 }
 

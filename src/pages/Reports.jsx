@@ -24,7 +24,7 @@ import ReportDevice from '@/components/report/ReportDevice';
 import ReportDemographic from '@/components/report/ReportDemographic';
 import ReportCreatives from '@/components/report/ReportCreatives';
 import KPICustomizer from '@/components/report/KPICustomizer';
-import { buildDynamicKpiCatalog, sumDynamicKpi } from '@/lib/metaActionLabels';
+import { buildDynamicKpiCatalog, sumDynamicKpi, buildPlatformKpiCatalog, sumPlatformKpi } from '@/lib/metaActionLabels';
 
 const REPORT_TABS = [
   { id: 'overview', label: 'Insights', icon: TrendingUp, permission: 'reports_tab_overview' },
@@ -367,13 +367,49 @@ export default function Reports() {
     enabled: !!selectedUnit && units.length > 0,
   });
 
+  const { data: currentPlatformMetrics = [] } = useQuery({
+    queryKey: ['currentPlatformMetrics', selectedUnit, period?.start, period?.end, selectedPlatforms],
+    queryFn: async () => {
+      if (!selectedUnit || !period || !selectedPlatforms.includes('META')) return [];
+      const unit = units.find((u) => u.id === selectedUnit);
+      if (!unit || !unit.account_id) return [];
+      const data = await base44.entities.MetaInsightByPlatformPosition.filter(
+        { account_id: unit.account_id, date: { $gte: format(period.start, 'yyyy-MM-dd'), $lte: format(period.end, 'yyyy-MM-dd') } },
+        '-date',
+        10000
+      );
+      return data || [];
+    },
+    enabled: !!selectedUnit && units.length > 0 && !!period,
+  });
+
+  const { data: previousPlatformMetrics = [] } = useQuery({
+    queryKey: ['previousPlatformMetrics', selectedUnit, previousPeriod.start, previousPeriod.end, selectedPlatforms],
+    queryFn: async () => {
+      if (!selectedUnit || !period || !selectedPlatforms.includes('META')) return [];
+      const unit = units.find((u) => u.id === selectedUnit);
+      if (!unit || !unit.account_id) return [];
+      const data = await base44.entities.MetaInsightByPlatformPosition.filter(
+        { account_id: unit.account_id, date: { $gte: format(previousPeriod.start, 'yyyy-MM-dd'), $lte: format(previousPeriod.end, 'yyyy-MM-dd') } },
+        '-date',
+        10000
+      );
+      return data || [];
+    },
+    enabled: !!selectedUnit && units.length > 0 && !!period,
+  });
+
   const dynamicKpis = useMemo(
     () => buildDynamicKpiCatalog([...(currentMetrics || []), ...(previousMetrics || [])]),
     [currentMetrics, previousMetrics]
   );
-  const fullKpiCatalog = useMemo(() => [...ALL_KPIS, ...dynamicKpis], [dynamicKpis]);
+  const platformKpis = useMemo(
+    () => buildPlatformKpiCatalog([...(currentPlatformMetrics || []), ...(previousPlatformMetrics || [])]),
+    [currentPlatformMetrics, previousPlatformMetrics]
+  );
+  const fullKpiCatalog = useMemo(() => [...ALL_KPIS, ...dynamicKpis, ...platformKpis], [dynamicKpis, platformKpis]);
 
-  const buildMetrics = (records) => {
+  const buildMetrics = (records, platformRecords) => {
     const spend = records.reduce((s, m) => s + (m.spend || 0), 0);
     const impressions = records.reduce((s, m) => s + (m.impressions || 0), 0);
     const reach = records.reduce((s, m) => s + (m.reach || 0), 0);
@@ -401,11 +437,18 @@ export default function Reports() {
       costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
     };
     for (const k of dynamicKpis) base[k.id] = sumDynamicKpi(records, k);
+    for (const k of platformKpis) base[k.id] = sumPlatformKpi(platformRecords, k);
     return base;
   };
 
-  const current = useMemo(() => buildMetrics(currentMetrics), [currentMetrics, dynamicKpis]);
-  const previous = useMemo(() => buildMetrics(previousMetrics), [previousMetrics, dynamicKpis]);
+  const current = useMemo(
+    () => buildMetrics(currentMetrics, currentPlatformMetrics),
+    [currentMetrics, currentPlatformMetrics, dynamicKpis, platformKpis]
+  );
+  const previous = useMemo(
+    () => buildMetrics(previousMetrics, previousPlatformMetrics),
+    [previousMetrics, previousPlatformMetrics, dynamicKpis, platformKpis]
+  );
 
   const enrichedMetrics = useMemo(() => {
     const creativeByAdId = {};

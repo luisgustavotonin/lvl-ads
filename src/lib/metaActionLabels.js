@@ -227,3 +227,68 @@ export function sumDynamicKpi(records, kpi) {
   }
   return total;
 }
+
+// -----------------------
+// KPIs por plataforma (breakdown publisher_platform)
+// -----------------------
+export const PLATFORM_LABELS = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  messenger: 'Messenger',
+  audience_network: 'Audience Network',
+  whatsapp: 'WhatsApp',
+};
+
+export function platformLabel(p) {
+  if (!p) return 'Plataforma';
+  return PLATFORM_LABELS[p] || (p.charAt(0).toUpperCase() + p.slice(1));
+}
+
+// Descobre action_types por publisher_platform nos registros de breakdown.
+export function buildPlatformKpiCatalog(platformRecords) {
+  const byPlatform = {};
+  for (const r of platformRecords || []) {
+    const platform = r.publisher_platform;
+    if (!platform) continue;
+    const am = getActionsMap(r);
+    if (!byPlatform[platform]) byPlatform[platform] = {};
+    for (const k of Object.keys(am)) {
+      if (am[k]) byPlatform[platform][k] = (byPlatform[platform][k] || 0) + am[k];
+    }
+  }
+
+  const order = { instagram: 0, facebook: 1, messenger: 2, audience_network: 3, whatsapp: 4 };
+  const platforms = Object.keys(byPlatform).sort((a, b) => (order[a] ?? 9) - (order[b] ?? 9));
+
+  const out = [];
+  for (const platform of platforms) {
+    const actions = byPlatform[platform];
+    const sorted = Object.entries(actions).sort((a, b) => b[1] - a[1]);
+    for (const [actionType] of sorted) {
+      const meta = META_ACTION_LABELS[actionType];
+      const baseLabel = meta ? meta.label : fallbackLabel(actionType);
+      out.push({
+        id: `action:${platform}:${actionType}`,
+        actionType,
+        platform,
+        source: 'action',
+        label: `${baseLabel} · ${platformLabel(platform)}`,
+        category: 'Por Plataforma',
+        format: fmtInt,
+      });
+    }
+  }
+  return out;
+}
+
+// Soma um KPI por plataforma (filtra registros pelo publisher_platform)
+export function sumPlatformKpi(platformRecords, kpi) {
+  if (!kpi || !kpi.actionType || !kpi.platform || !platformRecords) return 0;
+  let total = 0;
+  for (const r of platformRecords) {
+    if (r.publisher_platform !== kpi.platform) continue;
+    const map = getActionsMap(r);
+    total += map[kpi.actionType] || 0;
+  }
+  return total;
+}
