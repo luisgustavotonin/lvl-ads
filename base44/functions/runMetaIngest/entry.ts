@@ -493,22 +493,17 @@ function buildPeriodFilter(ctx) {
 async function deleteByPeriod(entity, ctx) {
   const filter = buildPeriodFilter(ctx);
 
+  // deleteMany remove todos os registros correspondentes em uma única chamada server-side,
+  // evitando o rate limit do SDK que ocorria com milhares de entity.delete() individuais
+  // ao forçar re-execução de períodos grandes (ex: um mês inteiro).
+  // Loop de segurança caso exista um limite interno de registros por chamada.
   while (true) {
-    const list = await entity.filter(filter, null, DELETE_BATCH);
-
-    if (!list || !list.length) {
+    const remaining = await entity.filter(filter, null, 1);
+    if (!remaining || !remaining.length) {
       break;
     }
-
-    await runWithConcurrency(
-      list,
-      async function (row) {
-        await entity.delete(row.id);
-      },
-      DELETE_CONCURRENCY
-    );
-
-    await sleep(50);
+    await entity.deleteMany(filter);
+    await sleep(100);
   }
 }
 
