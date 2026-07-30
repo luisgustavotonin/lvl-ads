@@ -5,9 +5,10 @@ const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
 const PAGE_LIMIT = 100;
 const CHUNK_SIZE = 25;
-const DELAY_BETWEEN_PAGES = 2000;
+const DELAY_BETWEEN_PAGES = 3000;
 const DELAY_BETWEEN_CHUNKS = 1500;
-const MAX_RETRIES = 8;
+const MAX_RETRIES = 6;
+const MAX_BACKOFF_MS = 60000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -91,14 +92,14 @@ async function fetchAllPages(url) {
         res = await fetch(next);
         data = await res.json();
         if (res.ok && !data.error) break;
-        // Rate limit or server error — wait and retry com backoff exponencial
-        const baseWait = data?.error?.code === 17 || res.status === 429 ? 60000 : 10000;
-        const waitMs = baseWait * Math.pow(2, attempt);
+        // Rate limit or server error — wait and retry com backoff exponencial (com teto)
+        const baseWait = data?.error?.code === 17 || res.status === 429 ? 30000 : 10000;
+        const waitMs = Math.min(baseWait * Math.pow(2, attempt), MAX_BACKOFF_MS);
         console.warn(`[fetchAllPages] attempt ${attempt + 1} failed (${res.status}): ${data?.error?.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
         await sleep(waitMs);
         attempt++;
       } catch (e) {
-        const waitMs = 10000 * Math.pow(2, attempt);
+        const waitMs = Math.min(10000 * Math.pow(2, attempt), MAX_BACKOFF_MS);
         console.warn(`[fetchAllPages] attempt ${attempt + 1} network error: ${e.message}. Retrying in ${(waitMs/1000).toFixed(1)}s...`);
         await sleep(waitMs);
         attempt++;

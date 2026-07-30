@@ -6,9 +6,9 @@ const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 // -----------------------
 // Tuning
 // -----------------------
-const PAGE_LIMIT = 250;
-const DELAY_BETWEEN_PAGES = 2000;
-const DELAY_BETWEEN_MODES = 6000;
+const PAGE_LIMIT = 200;
+const DELAY_BETWEEN_PAGES = 3500;
+const DELAY_BETWEEN_MODES = 8000;
 
 const CHUNK_SIZE = 200;
 const BULK_CHUNK_BASE = 200;
@@ -18,9 +18,28 @@ const DELETE_CONCURRENCY = 10;
 
 const META_TIMEOUT_MS = 120000;
 const META_MAX_RETRIES = 6;
+const MAX_BACKOFF_MS = 60000; // cap em 60s para não esperar 4+ minutos
+const MIN_GAP_BETWEEN_REQUESTS_MS = 1500; // espaçamento mínimo entre quaisquer 2 chamadas à Meta
+const DAILY_CALL_BUDGET = 50000; // teto de segurança de chamadas por execução
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const jitter = (ms) => ms + Math.floor(Math.random() * 250);
+
+// Rate limiter global: garante espaçamento mínimo entre TODAS as chamadas à API Meta
+let _lastMetaCallTs = 0;
+let _totalCallsThisRun = 0;
+async function respectRateLimit() {
+  _totalCallsThisRun++;
+  if (_totalCallsThisRun > DAILY_CALL_BUDGET) {
+    throw new Error(`Limite de segurança de chamadas à Meta atingido (${DAILY_CALL_BUDGET}). Abortando para evitar bloqueio por rate limit.`);
+  }
+  const now = Date.now();
+  const elapsed = now - _lastMetaCallTs;
+  if (_lastMetaCallTs > 0 && elapsed < MIN_GAP_BETWEEN_REQUESTS_MS) {
+    await sleep(MIN_GAP_BETWEEN_REQUESTS_MS - elapsed);
+  }
+  _lastMetaCallTs = Date.now();
+}
 
 // -----------------------
 // Basic helpers
@@ -356,6 +375,7 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
     let responseData = null;
 
     for (let attempt = 0; attempt <= META_MAX_RETRIES; attempt++) {
+      await respectRateLimit();
       const fetched = await fetchJsonWithTimeout(url, META_TIMEOUT_MS);
       const res = fetched.res;
       const data = fetched.data;
@@ -375,12 +395,16 @@ async function fetchAllPagesInsights(actId, metaToken, params) {
         (code ? ` | code=${code}` : '') +
         (subcode ? ` | sub=${subcode}` : '');
 
-      if (!isTransientMetaError(res, data) || attempt === META_MAX_RETRIES) {
-        throw new Error(fullMessage);
+      // Em caso de 429 (rate limit explícito), espera mais e lê Retry-After se houver
+      const httpStatus = res ? res.status : 0;
+      let backoff;
+      if (httpStatus === 429) {
+        const retryAfter = res && res.headers ? Number(res.headers.get('retry-after') || 0) : 0;
+        backoff = retryAfter > 0 ? retryAfter * 1000 : Math.min(jitter(30000 * Math.pow(2, attempt)), MAX_BACKOFF_MS);
+      } else {
+        backoff = Math.min(jitter(8000 * Math.pow(2, attempt)), MAX_BACKOFF_MS);
       }
-
-      const backoff = jitter(8000 * Math.pow(2, attempt));
-      console.warn(`Meta transient error. Retry ${attempt + 1}/${META_MAX_RETRIES + 1} em ${(backoff / 1000).toFixed(1)}s -> ${fullMessage}`);
+      console.warn(`Meta transient error (HTTP ${httpStatus}). Retry ${attempt + 1}/${META_MAX_RETRIES + 1} em ${(backoff / 1000).toFixed(1)}s -> ${fullMessage}`);
       await sleep(backoff);
     }
 
