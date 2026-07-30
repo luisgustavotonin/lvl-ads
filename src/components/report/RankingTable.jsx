@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Settings2, ChevronDown, ChevronUp, GripVertical, Save, Check } from 'lucide-react';
+import { Settings2, ChevronDown, ChevronUp, GripVertical, Save, Check, Layers } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const STATUS_COLORS = {
@@ -336,7 +336,7 @@ export default function RankingTable({
                 item.thumbnail ?
                 <img src={item.thumbnail} alt="Criativo" className="w-16 h-16 object-cover rounded flex-shrink-0 border border-gray-200" /> :
 
-                <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs flex-shrink-0">N/D</div>)
+                <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0"><Layers className="w-6 h-6" /></div>)
 
                 }
                 <div className="flex-1 min-w-0">
@@ -398,7 +398,7 @@ export default function RankingTable({
                       {item.thumbnail ?
                   <img src={item.thumbnail} alt="Criativo" className="w-20 h-20 object-cover rounded border border-gray-200" /> :
 
-                  <div className="w-20 h-20 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">N/D</div>
+                  <div className="w-20 h-20 bg-gray-200 rounded flex items-center justify-center text-gray-400"><Layers className="w-7 h-7" /></div>
                   }
                     </td>
                   }

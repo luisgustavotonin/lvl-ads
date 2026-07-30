@@ -118,6 +118,53 @@ async function fetchAllPages(url) {
   return results;
 }
 
+async function fetchJson(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+// Mapa image_hash -> URL pública, construído a partir do edge adimages da conta.
+async function buildAdImagesHashMap(actId, accessToken) {
+  const map = {};
+  let url = `${META_BASE}/act_${actId}/adimages?fields=hash,url&limit=200&access_token=${encodeURIComponent(accessToken)}`;
+  let pages = 0;
+  while (url && pages < 25) {
+    const json = await fetchJson(url);
+    const data = json?.data || [];
+    for (const img of data) {
+      if (img.hash && img.url) map[img.hash] = img.url;
+    }
+    url = json?.paging?.next || null;
+    pages++;
+    if (url) await sleep(500);
+  }
+  return map;
+}
+
+// Resolve a URL de imagem de um criativo (carrossel/link/photo) quando não há thumbnail_url direta.
+async function resolveCreativeImageUrl(creativeId, actId, accessToken, hashMap) {
+  const url = `${META_BASE}/${creativeId}?fields=object_type,object_story_spec,thumbnail_url,image_url&access_token=${encodeURIComponent(accessToken)}`;
+  const c = await fetchJson(url);
+  if (!c) return null;
+  if (c.thumbnail_url || c.image_url) return c.thumbnail_url || c.image_url;
+  const oss = c.object_story_spec || {};
+  const children = oss.carousel_children || [];
+  for (const child of children) {
+    if (child.image_hash && hashMap[child.image_hash]) return hashMap[child.image_hash];
+    if (child.image_url) return child.image_url;
+  }
+  const linkData = oss.link_data || {};
+  if (linkData.image_hash && hashMap[linkData.image_hash]) return hashMap[linkData.image_hash];
+  if (linkData.image_url) return linkData.image_url;
+  const photoData = oss.photo_data || {};
+  if (photoData.image_hash && hashMap[photoData.image_hash]) return hashMap[photoData.image_hash];
+  if (photoData.url) return photoData.url;
+  return null;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -214,7 +261,7 @@ Deno.serve(async (req) => {
     console.log(`[syncMetaCreatives] total=${ads.length} skipped=${skipped} to_mirror=${toMirror.length} no_image=${toCreateNoImage.length}`);
 
     // Espelha apenas um lote por execução (sequencial com delay) para respeitar rate limits
-    const MIRROR_CAP = 50;
+    const MIRROR_CAP = 120;
     const toMirrorSlice = toMirror.slice(0, MIRROR_CAP);
 
     const mirroredMap = {};
@@ -224,7 +271,28 @@ Deno.serve(async (req) => {
       const rawUrl = c.thumbnail_url || c.image_url;
       const mirrored = await mirrorImage(base44, rawUrl, meta_token);
       if (mirrored) mirroredMap[adId] = mirrored;
-      await sleep(500);
+      await sleep(150);
+    }
+
+    // Resolve thumbnails para anúncios sem URL direta (carrosséis, etc.):
+    // busca o detalhe do criativo e extrai a imagem do primeiro card via hash -> adimages.
+    if (toCreateNoImage.length > 0) {
+      const RESOLVE_CAP = 40;
+      const hashMap = await buildAdImagesHashMap(actId, meta_token).catch(() => ({}));
+      let resolved = 0;
+      for (const a of toCreateNoImage) {
+        if (resolved >= RESOLVE_CAP) break;
+        const c = a.creative;
+        const adId = a.id || a.ad_id;
+        if (!c?.id) continue;
+        const resolvedUrl = await resolveCreativeImageUrl(c.id, actId, meta_token, hashMap);
+        if (resolvedUrl) {
+          const mirrored = await mirrorImage(base44, resolvedUrl, meta_token);
+          if (mirrored) { mirroredMap[adId] = mirrored; resolved++; }
+        }
+        await sleep(300);
+      }
+      console.log(`[syncMetaCreatives] no_image=${toCreateNoImage.length} resolved+mirrored=${resolved}`);
     }
 
     // Monta rows para:
