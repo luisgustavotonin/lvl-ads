@@ -336,7 +336,10 @@ export const ACTION_TYPE_TO_CANONICAL = (() => {
 // Extrai o mapa {action_type: valor} de um registro (nova ingestion ou fallback do raw)
 export function getActionsMap(record) {
   if (!record) return {};
-  if (record.actions_map && typeof record.actions_map === 'object') return record.actions_map;
+  // Só usa o actions_map salvo se ele NÃO for vazio. Um {} é truthy mas não tem
+  // dados — sem este check os registros antigos (actions_map vazio) nunca caíam
+  // no fallback do raw e o catálogo dinâmico ficava zerado.
+  if (record.actions_map && typeof record.actions_map === 'object' && Object.keys(record.actions_map).length > 0) return record.actions_map;
   const raw = record.raw;
   if (!raw) return {};
   const arr = Array.isArray(raw.actions) ? raw.actions : Array.isArray(raw.action_values) ? raw.action_values : null;
@@ -350,7 +353,7 @@ export function getActionsMap(record) {
 
 export function getActionValuesMap(record) {
   if (!record) return {};
-  if (record.action_values_map && typeof record.action_values_map === 'object') return record.action_values_map;
+  if (record.action_values_map && typeof record.action_values_map === 'object' && Object.keys(record.action_values_map).length > 0) return record.action_values_map;
   const raw = record.raw;
   if (!raw) return {};
   const arr = Array.isArray(raw.action_values) ? raw.action_values : null;
