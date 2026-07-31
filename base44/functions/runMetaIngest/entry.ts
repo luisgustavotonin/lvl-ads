@@ -145,9 +145,13 @@ function metricsFromItem(item) {
   const spend = parseNum(item.spend);
   const impressions = parseNum(item.impressions);
 
+  // Ads Manager "Cliques no link" = action 'link_click' (após a mudança de atribuição
+  // da Meta em mar/2026, só link_clicks contam). inline_link_clicks é o clique imediato
+  // (1 dia) e fica MENOR que o Ads Manager — por isso cliques/CTR não batiam.
+  // Usamos o link_click da action como fonte principal, com fallback p/ inline.
   const inlineLinkClicks = parseNum(item.inline_link_clicks);
   const linkClicksFromActions = fromMap(actionsMap, 'link_click');
-  const link_clicks = inlineLinkClicks || linkClicksFromActions;
+  const link_clicks = linkClicksFromActions || inlineLinkClicks;
 
   const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
   const cpc_link = link_clicks > 0 ? spend / link_clicks : 0;

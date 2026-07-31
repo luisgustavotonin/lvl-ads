@@ -249,14 +249,20 @@ export const META_CANONICAL_METRICS = [
     costLabel: 'Custo por busca' },
 
   // -- Conversões (contato / mensagem) --
+  // Usa SOMENTE a variante _7d — é a coluna oficial "Conversas por mensagem iniciadas"
+  // do Gerenciador de Anúncios. A variante sem _7d tem janela de atribuição diferente
+  // e a Meta retorna as duas no mesmo payload; somá-las duplica a contagem (ex: 37 vs 32).
   { key: 'messaging_conversation_started', label: 'Conversas por mensagem iniciadas', category: 'Conversões',
-    actionTypes: ['onsite_conversion.messaging_conversation_started', 'onsite_conversion.messaging_conversation_started_7d'],
+    actionTypes: ['onsite_conversion.messaging_conversation_started_7d'],
     costLabel: 'Custo por conversa por mensagem iniciada' },
   { key: 'total_messaging_connection', label: 'Contatos por mensagem que retornam', category: 'Conversões',
     actionTypes: ['onsite_conversion.total_messaging_connection'],
     costLabel: 'Custo por contato por mensagem' },
+  // Usa SOMENTE a variante _7d — é a coluna oficial "Conversas por mensagem respondidas"
+  // do Gerenciador de Anúncios. messaging_first_reply tem janela de atribuição diferente
+  // e somá-las duplica a contagem.
   { key: 'messaging_first_reply', label: 'Conversas por mensagem respondidas', category: 'Conversões',
-    actionTypes: ['onsite_conversion.messaging_first_reply', 'onsite_conversion.messaging_conversation_replied_7d'],
+    actionTypes: ['onsite_conversion.messaging_conversation_replied_7d'],
     costLabel: 'Custo por conversa por mensagem respondida' },
   { key: 'contact', label: 'Contatos', category: 'Conversões',
     actionTypes: ['contact'], costLabel: 'Custo por contato' },
