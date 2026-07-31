@@ -252,18 +252,20 @@ export const META_CANONICAL_METRICS = [
   // Usa SOMENTE a variante _7d — é a coluna oficial "Conversas por mensagem iniciadas"
   // do Gerenciador de Anúncios. A variante sem _7d tem janela de atribuição diferente
   // e a Meta retorna as duas no mesmo payload; somá-las duplica a contagem (ex: 37 vs 32).
+  // messagingOnly: só soma em adsets de mensagem (WhatsApp/Messenger) — igual ao Ads Manager,
+  // que não exibe "Conversas iniciadas" em adsets de formulário (atribuição cruzada _7d).
   { key: 'messaging_conversation_started', label: 'Conversas por mensagem iniciadas', category: 'Conversões',
     actionTypes: ['onsite_conversion.messaging_conversation_started_7d'],
-    costLabel: 'Custo por conversa por mensagem iniciada' },
+    costLabel: 'Custo por conversa por mensagem iniciada', messagingOnly: true },
   { key: 'total_messaging_connection', label: 'Contatos por mensagem que retornam', category: 'Conversões',
     actionTypes: ['onsite_conversion.total_messaging_connection'],
-    costLabel: 'Custo por contato por mensagem' },
+    costLabel: 'Custo por contato por mensagem', messagingOnly: true },
   // Usa SOMENTE a variante _7d — é a coluna oficial "Conversas por mensagem respondidas"
   // do Gerenciador de Anúncios. messaging_first_reply tem janela de atribuição diferente
   // e somá-las duplica a contagem.
   { key: 'messaging_first_reply', label: 'Conversas por mensagem respondidas', category: 'Conversões',
     actionTypes: ['onsite_conversion.messaging_conversation_replied_7d'],
-    costLabel: 'Custo por conversa por mensagem respondida' },
+    costLabel: 'Custo por conversa por mensagem respondida', messagingOnly: true },
   { key: 'contact', label: 'Contatos', category: 'Conversões',
     actionTypes: ['contact'], costLabel: 'Custo por contato' },
   { key: 'get_directions', label: 'Como chegar', category: 'Conversões',
@@ -382,6 +384,23 @@ function sumSpend(records) {
   let total = 0;
   for (const r of records || []) total += Number(r.spend || 0);
   return total;
+}
+
+// O Ads Manager só atribui métricas de mensagem a adsets de mensagem (WhatsApp/
+// Messenger/Instagram Direct). Adsets de formulário recebem atribuição cruzada
+// _7d que o Ads Manager NÃO exibe. Usado para filtrar KPIs marcados messagingOnly.
+const MESSAGING_OPT_GOALS_FE = new Set([
+  'CONVERSATIONS', 'MESSAGING_CONVERSATIONS', 'APPOINTMENT_CONVERSATIONS', 'MESSAGING_APPOINTMENT_CONVERSATIONS',
+]);
+const MESSAGING_DEST_TYPES_FE = new Set([
+  'WHATSAPP', 'MESSENGER', 'INSTAGRAM_DIRECT', 'MESSENGER_OR_INSTAGRAM_DIRECT',
+]);
+export function isMessagingDestination(record) {
+  if (!record) return true;
+  const o = String(record.adset_optimization_goal || '').toUpperCase();
+  const d = String(record.adset_destination_type || '').toUpperCase();
+  if (!o && !d) return true; // sem info (registro antigo): conta p/ não zerar
+  return MESSAGING_OPT_GOALS_FE.has(o) || MESSAGING_DEST_TYPES_FE.has(d);
 }
 
 // Constrói o catálogo de KPIs a partir dos registros.
@@ -554,18 +573,21 @@ export function sumDynamicKpi(records, kpi) {
     return purchaseValue / spend;
   }
   if (kpi.source === 'fixedValue') return kpi.value || 0;
-  if (!records) return 0;
+  // KPIs marcados messagingOnly só somam em adsets de mensagem (WhatsApp/Messenger),
+  // igual ao Ads Manager.
+  const effRecords = kpi.messagingOnly ? (records || []).filter(isMessagingDestination) : records;
+  if (!effRecords) return 0;
   const types = kpiActionTypes(kpi);
   if (!types.length) return 0;
   if (kpi.source === 'cost') {
-    const spend = sumSpend(records);
-    const count = sumActionCountMany(records, types);
+    const spend = sumSpend(effRecords);
+    const count = sumActionCountMany(effRecords, types);
     return count > 0 ? spend / count : 0;
   }
   if (kpi.source === 'value') {
-    return sumActionValueMany(records, types);
+    return sumActionValueMany(effRecords, types);
   }
-  return sumActionCountMany(records, types);
+  return sumActionCountMany(effRecords, types);
 }
 
 function sumActionCount(records, actionType) {

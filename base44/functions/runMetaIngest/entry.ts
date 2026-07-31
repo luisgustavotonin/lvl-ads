@@ -86,6 +86,60 @@ function sumActionsContaining(actionsMap, keyword) {
   return total;
 }
 
+// O Ads Manager só atribui "Conversas por mensagem iniciadas" (e respondidas) a
+// adsets cujo destino é mensagem (WhatsApp/Messenger/Instagram Direct). Adsets de
+// formulário (destination_type=ON_AD, optimization_goal=QUALITY_LEAD/LEAD_GENERATION)
+// recebem atribuição cruzada de messaging_conversation_started_7d que o Ads Manager
+// NÃO exibe — somar tudo infla o total (ex: 37 vs 32). Usamos o destino/objetivo do
+// adset para filtrar, igual ao Ads Manager.
+const MESSAGING_OPT_GOALS = new Set([
+  'CONVERSATIONS',
+  'MESSAGING_CONVERSATIONS',
+  'APPOINTMENT_CONVERSATIONS',
+  'MESSAGING_APPOINTMENT_CONVERSATIONS',
+]);
+const MESSAGING_DEST_TYPES = new Set([
+  'WHATSAPP',
+  'MESSENGER',
+  'INSTAGRAM_DIRECT',
+  'MESSENGER_OR_INSTAGRAM_DIRECT',
+]);
+
+function isMessagingAdset(optGoal, destType) {
+  const o = String(optGoal || '').toUpperCase();
+  const d = String(destType || '').toUpperCase();
+  // Sem informação de adset (registro antigo não backfill): assume messaging para
+  // não zerar conversas válidas. O backfill preenche o campo e o filtro passa a valer.
+  if (!o && !d) return true;
+  return MESSAGING_OPT_GOALS.has(o) || MESSAGING_DEST_TYPES.has(d);
+}
+
+// Busca destination_type/optimization_goal de TODOS os adsets da conta (uma vez).
+// Retorna mapa { adset_id: { destination_type, optimization_goal } }.
+async function fetchAdsetDestinations(actId, metaToken) {
+  const map = {};
+  let url = `${META_BASE}/act_${actId}/adsets?fields=id,destination_type,optimization_goal&limit=${PAGE_LIMIT}&access_token=${encodeURIComponent(metaToken)}`;
+
+  while (url) {
+    await respectRateLimit();
+    const fetched = await fetchJsonWithTimeout(url, META_TIMEOUT_MS);
+    const data = fetched.data || {};
+    const rows = Array.isArray(data.data) ? data.data : [];
+    for (const a of rows) {
+      if (a && a.id) {
+        map[a.id] = {
+          destination_type: a.destination_type || '',
+          optimization_goal: a.optimization_goal || '',
+        };
+      }
+    }
+    url = data.paging && data.paging.next ? data.paging.next : null;
+    if (url) await sleep(DELAY_BETWEEN_PAGES);
+  }
+
+  return map;
+}
+
 function getDate(item) {
   return item.date_start || item.date_stop || '';
 }
@@ -138,7 +192,7 @@ function splitDateRange(dateFrom, dateTo, chunkDays) {
 // -----------------------
 // Metrics
 // -----------------------
-function metricsFromItem(item) {
+function metricsFromItem(item, adsetInfo) {
   const actionsMap = actionsToMap(item.actions || []);
   const actionValuesMap = actionsToMap(item.action_values || []);
 
@@ -156,6 +210,12 @@ function metricsFromItem(item) {
   const ctr_link = impressions > 0 ? (link_clicks / impressions) * 100 : 0;
   const cpc_link = link_clicks > 0 ? spend / link_clicks : 0;
 
+  // Só conta métricas de mensagem em adsets de mensagem (WhatsApp/Messenger).
+  const isMessaging = isMessagingAdset(
+    adsetInfo && adsetInfo.optimization_goal,
+    adsetInfo && adsetInfo.destination_type
+  );
+
   return {
     spend: spend,
     impressions: impressions,
@@ -167,9 +227,9 @@ function metricsFromItem(item) {
     cpc_link: cpc_link,
     cpm: parseNum(item.cpm),
 
-    messaging_conversations_started: fromMap(actionsMap, 'onsite_conversion.messaging_conversation_started_7d'),
-    messaging_conversations_replied: fromMap(actionsMap, 'onsite_conversion.total_messaging_connection'),
-    leads: fromMap(actionsMap, 'onsite_conversion.messaging_first_reply'),
+    messaging_conversations_started: isMessaging ? fromMap(actionsMap, 'onsite_conversion.messaging_conversation_started_7d') : 0,
+    messaging_conversations_replied: isMessaging ? fromMap(actionsMap, 'onsite_conversion.total_messaging_connection') : 0,
+    leads: isMessaging ? fromMap(actionsMap, 'onsite_conversion.messaging_first_reply') : 0,
 
     purchases: sumActionsContaining(actionsMap, 'purchase'),
     purchase_value: sumActionsContaining(actionValuesMap, 'purchase'),
@@ -179,10 +239,12 @@ function metricsFromItem(item) {
 // -----------------------
 // Row builders
 // -----------------------
-function baseRow(item, accountId, unitId, jobKey) {
+function baseRow(item, accountId, unitId, jobKey, adsetMap) {
   const date = getDate(item);
   const adId = item.ad_id || '';
   const unique_key = `${accountId}:${unitId}:${adId}:${date}`;
+  const adsetInfo = adsetMap && item.adset_id ? adsetMap[item.adset_id] : null;
+  const m = metricsFromItem(item, adsetInfo);
 
   return {
     unique_key: unique_key,
@@ -197,21 +259,23 @@ function baseRow(item, accountId, unitId, jobKey) {
     adset_name: item.adset_name || null,
     ad_id: adId || null,
     ad_name: item.ad_name || null,
+    adset_destination_type: adsetInfo ? adsetInfo.destination_type || null : null,
+    adset_optimization_goal: adsetInfo ? adsetInfo.optimization_goal || null : null,
 
-    spend: metricsFromItem(item).spend,
-    impressions: metricsFromItem(item).impressions,
-    reach: metricsFromItem(item).reach,
-    frequency: metricsFromItem(item).frequency,
-    clicks: metricsFromItem(item).clicks,
-    link_clicks: metricsFromItem(item).link_clicks,
-    ctr_link: metricsFromItem(item).ctr_link,
-    cpc_link: metricsFromItem(item).cpc_link,
-    cpm: metricsFromItem(item).cpm,
-    messaging_conversations_started: metricsFromItem(item).messaging_conversations_started,
-    messaging_conversations_replied: metricsFromItem(item).messaging_conversations_replied,
-    leads: metricsFromItem(item).leads,
-    purchases: metricsFromItem(item).purchases,
-    purchase_value: metricsFromItem(item).purchase_value,
+    spend: m.spend,
+    impressions: m.impressions,
+    reach: m.reach,
+    frequency: m.frequency,
+    clicks: m.clicks,
+    link_clicks: m.link_clicks,
+    ctr_link: m.ctr_link,
+    cpc_link: m.cpc_link,
+    cpm: m.cpm,
+    messaging_conversations_started: m.messaging_conversations_started,
+    messaging_conversations_replied: m.messaging_conversations_replied,
+    leads: m.leads,
+    purchases: m.purchases,
+    purchase_value: m.purchase_value,
 
     actions_map: actionsToMap(item.actions || []),
     action_values_map: actionsToMap(item.action_values || []),
@@ -803,11 +867,23 @@ Deno.serve(async (req) => {
 
     let totalRows = 0;
 
+    // Pré-busca o destino/objetivo de cada adset da conta (uma vez). O Ads Manager
+    // só atribui "Conversas por mensagem iniciadas" a adsets de mensagem (WhatsApp/
+    // Messenger); adsets de formulário recebem atribuição cruzada que inflaciona o
+    // total. Sem esse mapa não dá para filtrar.
+    let adsetMap = {};
+    try {
+      adsetMap = await fetchAdsetDestinations(actId, meta_token);
+      console.log(`[Meta Ingest] adsets mapeados: ${Object.keys(adsetMap).length}`);
+    } catch (e) {
+      console.warn(`[Meta Ingest] falha ao buscar destinos dos adsets: ${e && e.message ? e.message : e}`);
+    }
+
     // BASE
     if (!effectiveMode || effectiveMode === 'base') {
       const items = await fetchAllPagesInsights(actId, meta_token, baseParams);
       const rows = items.map(function (item) {
-        return baseRow(item, account_id, effectiveUnitId, job_key);
+        return baseRow(item, account_id, effectiveUnitId, job_key, adsetMap);
       });
 
       totalRows += await saveMode(

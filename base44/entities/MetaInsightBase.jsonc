@@ -37,6 +37,14 @@
     "ad_name": {
       "type": "string"
     },
+    "adset_destination_type": {
+      "type": "string",
+      "description": "destination_type do adset (WHATSAPP, MESSENGER, ON_AD, ...). Define se conta m\u00e9tricas de mensagem."
+    },
+    "adset_optimization_goal": {
+      "type": "string",
+      "description": "optimization_goal do adset (CONVERSATIONS, QUALITY_LEAD, ...). Define se conta m\u00e9tricas de mensagem."
+    },
     "spend": {
       "type": "number",
       "default": 0
