@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 
 const PERIOD_PRESETS = [
   { id: 'today', label: 'Hoje', days: 0 },
@@ -40,7 +41,7 @@ export default function ReporteiFilters({
     setPeriodPreset(presetId);
     if (presetId !== 'custom') {
       const preset = PERIOD_PRESETS.find(p => p.id === presetId);
-      const end = new Date();
+      const end = getBrasiliaToday();
       const start = subDays(end, preset.days);
       onPeriodChange({ start, end });
     }

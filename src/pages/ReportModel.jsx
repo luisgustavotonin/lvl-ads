@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 import { ArrowUp, ArrowDown, Facebook, Instagram } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,7 @@ import UnitSelector from '@/components/report/UnitSelector';
 import PeriodSelector from '@/components/report/PeriodSelector';
 
 export default function ReportModel() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getBrasiliaToday();
 
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [period, setPeriod] = useState({

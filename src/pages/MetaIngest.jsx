@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 import {
   Play, RefreshCw, CheckCircle2, XCircle, Clock, Loader2,
   ChevronDown, ChevronUp, Image, StopCircle, Trash2, ListOrdered, Layers, CalendarClock, User
@@ -30,7 +31,7 @@ const INSIGHT_TYPES = [
 ];
 
 const yesterday = () => {
-  const d = new Date();
+  const d = getBrasiliaToday();
   d.setDate(d.getDate() - 1);
   return d.toISOString().split('T')[0];
 };

@@ -5,6 +5,7 @@ import ReporteiStyleFunnel from '../unified/ReporteiStyleFunnel';
 import UnifiedWhatsAppCards from '../unified/UnifiedWhatsAppCards';
 import BrandLogo from './BrandLogo';
 import { format, subDays } from 'date-fns';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 
 export default function MetaFunnelSection({ unitId, period = 'last_7_days', customStartDate, customEndDate }) {
   const { currentPeriod, previousPeriod } = useMemo(() => {
@@ -14,11 +15,11 @@ export default function MetaFunnelSection({ unitId, period = 'last_7_days', cust
       start = new Date(customStartDate);
       end = new Date(customEndDate);
     } else if (period === 'yesterday') {
-      end = subDays(new Date(), 1);
+      end = subDays(getBrasiliaToday(), 1);
       start = end;
     } else {
       // last_7_days (default)
-      end = new Date();
+      end = getBrasiliaToday();
       start = subDays(end, 6);
     }
 

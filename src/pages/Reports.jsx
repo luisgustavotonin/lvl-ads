@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 import { Globe, Monitor, Users, Image, TrendingUp, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -173,7 +174,7 @@ export default function Reports() {
   };
 
   const getDefaultPeriodDates = (periodKey) => {
-    const today = new Date();
+    const today = getBrasiliaToday();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
@@ -332,7 +333,7 @@ export default function Reports() {
   });
 
   const previousPeriod = useMemo(() => {
-    if (!period) return { start: subDays(new Date(), 59), end: subDays(new Date(), 30) };
+    if (!period) return { start: subDays(getBrasiliaToday(), 59), end: subDays(getBrasiliaToday(), 30) };
     const days = differenceInDays(period.end, period.start) + 1;
     return { start: subDays(period.start, days), end: subDays(period.start, 1) };
   }, [period]);

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Play, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 
 const DATE_MODES = [
   { value: 'TODAY', label: 'Hoje' },
@@ -134,7 +135,7 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
                   type="date"
                   value={since}
                   onChange={(e) => setSince(e.target.value)}
-                  max={until || format(new Date(), 'yyyy-MM-dd')}
+                  max={until || format(getBrasiliaToday(), 'yyyy-MM-dd')}
                 />
               </div>
               <div className="space-y-2">
@@ -145,7 +146,7 @@ export default function ExecutionModal({ open, onClose, integration, onExecute }
                   value={until}
                   onChange={(e) => setUntil(e.target.value)}
                   min={since}
-                  max={format(new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })), 'yyyy-MM-dd')}
+                  max={format(getBrasiliaToday(), 'yyyy-MM-dd')}
                 />
               </div>
             </div>

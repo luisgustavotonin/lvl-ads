@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import MetaFunnelSection from '@/components/dashboard/MetaFunnelSection';
 import PeriodFilter, { ALL_PRESETS } from '@/components/report/PeriodFilter';
@@ -36,7 +37,7 @@ const PRESET_ID_MAP = {
 };
 
 const getDefaultPeriodDates = (periodKey) => {
-  const today = new Date();
+  const today = getBrasiliaToday();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);

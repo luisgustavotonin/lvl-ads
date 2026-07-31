@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { CalendarDays, ChevronDown } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getBrasiliaToday } from '@/lib/brasiliaDate';
 
 const PERIOD_OPTIONS = [
   { id: 'today', label: 'Hoje' },
@@ -18,8 +19,7 @@ const PERIOD_OPTIONS = [
 ];
 
 const getPeriodDates = (periodId) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getBrasiliaToday();
   
   switch (periodId) {
     case 'today':
