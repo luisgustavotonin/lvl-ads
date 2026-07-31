@@ -611,6 +611,19 @@ async function safeBulkCreate(entity, rows, bulkChunkSize) {
   }
 }
 
+async function bulkUpdateChunked(entity, updates, chunkSize) {
+  let written = 0;
+  for (let i = 0; i < updates.length; i += chunkSize) {
+    const chunk = updates.slice(i, i + chunkSize);
+    await entity.bulkUpdate(chunk);
+    written += chunk.length;
+    if (i + chunkSize < updates.length) {
+      await sleep(30);
+    }
+  }
+  return written;
+}
+
 async function saveMode(entity, rows, ctx, options) {
   const deduped = dedupByUniqueKey(rows);
 
@@ -628,12 +641,34 @@ async function saveMode(entity, rows, ctx, options) {
     return await safeBulkCreate(entity, deduped, options.bulkChunkSize);
   }
 
-  const existingSet = new Set(existing.map((item) => item.unique_key));
-  const toCreate = deduped.filter((row) => !existingSet.has(row.unique_key));
+  // UPSERT: atualiza registros já existentes com os novos valores e cria os novos.
+  // Antes a re-ingestão sem force só criava registros novos e IGNORAVA os existentes,
+  // então os valores antigos (link_clicks, conversas, CTR) nunca eram atualizados —
+  // por isso "re-rodou a ingestão e continuou errado".
+  const existingMap = new Map();
+  for (const item of existing) {
+    if (item && item.unique_key) existingMap.set(item.unique_key, item.id);
+  }
 
-  if (!toCreate.length) return 0;
+  const toCreate = [];
+  const toUpdate = [];
+  for (const row of deduped) {
+    const existingId = existingMap.get(row.unique_key);
+    if (existingId) {
+      toUpdate.push(Object.assign({ id: existingId }, row));
+    } else {
+      toCreate.push(row);
+    }
+  }
 
-  return await safeBulkCreate(entity, toCreate, options.bulkChunkSize);
+  let written = 0;
+  if (toCreate.length) {
+    written += await safeBulkCreate(entity, toCreate, options.bulkChunkSize);
+  }
+  if (toUpdate.length) {
+    written += await bulkUpdateChunked(entity, toUpdate, options.bulkChunkSize);
+  }
+  return written;
 }
 
 // -----------------------
