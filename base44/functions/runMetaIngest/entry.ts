@@ -713,6 +713,31 @@ Deno.serve(async (req) => {
     const date_to = job.date_to;
     const actId = normalizeActId(account_id);
 
+    // Detecta o fuso horário configurado na conta Meta para explicar
+    // discrepâncias de 3h entre o relatório e o Ads Manager.
+    // A Meta agrupa os dados diários pelo fuso da CONTA, não pelo fuso do
+    // solicitante. Se a conta estiver em UTC, "hoje" (2026-07-31) vira
+    // 00:00 UTC = 21:00 de ontem em Brasília → puxa 3h do dia anterior.
+    try {
+      await respectRateLimit();
+      const accRes = await fetch(`${META_BASE}/act_${actId}?fields=timezone_name,timezone_offset_hours_utc&access_token=${encodeURIComponent(meta_token)}`, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(15000),
+      });
+      const accJson = await accRes.json();
+      if (accJson && accJson.timezone_name) {
+        const tzName = accJson.timezone_name;
+        const offsetH = accJson.timezone_offset_hours_utc;
+        const isBrasilia = tzName === 'America/Sao_Paulo' || offsetH === -3 || offsetH === '-3' || offsetH === '-03';
+        console.log(`🕒 Conta Meta ${account_id} | timezone=${tzName} | offset_utc=${offsetH} | é Brasília? ${isBrasilia}`);
+        if (!isBrasilia) {
+          console.warn(`⚠️  ATENÇÃO: A conta Meta está em "${tzName}" (offset ${offsetH}), NÃO em America/Sao_Paulo (UTC-3). A Meta agrupa os dados diários pelo fuso da conta, então a data "hoje" puxará horas que pertencem ao dia anterior em Brasília. Para o relatório bater EXATAMENTE com o Ads Manager, altere o fuso da conta para America/Sao_Paulo nas Configurações do Gerenciador de Anúncios da Meta. Não há como corrigir isso por código — a API usa obrigatoriamente o fuso da conta.`);
+        }
+      }
+    } catch (tzErr) {
+      console.warn(`Não foi possível detectar o fuso da conta Meta: ${tzErr.message}`);
+    }
+
     const ctx = {
       account_id: account_id,
       unit_id: effectiveUnitId,
