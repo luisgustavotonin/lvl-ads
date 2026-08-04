@@ -182,7 +182,6 @@ export default function RankingTable({
           ctr_link_sum: 0,
           cpc_link_sum: 0,
           cpm_sum: 0,
-          cost_per_conversation_sum: 0,
           count: 0
         };
       }
@@ -201,7 +200,6 @@ export default function RankingTable({
        groups[key].ctr_link_sum += item.ctr_link || 0;
        groups[key].cpc_link_sum += item.cpc_link || 0;
        groups[key].cpm_sum += item.cpm || 0;
-       groups[key].cost_per_conversation_sum += item.cost_per_conversation || 0;
        groups[key].count += 1;
     });
 
@@ -209,7 +207,8 @@ export default function RankingTable({
       g.ctr_link = g.count > 0 ? g.ctr_link_sum / g.count : 0;
       g.cpc_link = g.count > 0 ? g.cpc_link_sum / g.count : 0;
       g.cpm = g.count > 0 ? g.cpm_sum / g.count : 0;
-      g.cost_per_conversation = g.count > 0 ? g.cost_per_conversation_sum / g.count : 0;
+      // Custo por conversa = investimento total / conversas iniciadas (por grupo)
+      g.cost_per_conversation = g.conversations > 0 ? g.spend / g.conversations : 0;
     });
 
     let filtered = Object.values(groups);
