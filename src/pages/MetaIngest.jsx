@@ -105,6 +105,12 @@ export default function MetaIngest() {
 
   const isAdmin = user?.role === 'admin';
 
+  // Unidades ativas (inativas não aparecem no filtro de seleção)
+  const activeUnits = useMemo(
+    () => units.filter(u => u.status !== 'inactive'),
+    [units]
+  );
+
   // IDs das unidades que o usuário tem acesso (para filtrar jobs)
   const allowedUnitIds = useMemo(() => {
     if (!user) return [];
@@ -572,7 +578,7 @@ export default function MetaIngest() {
               <Label>Unidade(s) *</Label>
               <div className="flex gap-2 text-xs">
                 <button
-                  onClick={() => setForm(f => ({ ...f, unit_ids: units.map(u => u.id) }))}
+                  onClick={() => setForm(f => ({ ...f, unit_ids: activeUnits.map(u => u.id) }))}
                   className="text-blue-600 hover:underline"
                 >Todas</button>
                 <button
@@ -589,7 +595,7 @@ export default function MetaIngest() {
               className="text-sm"
             />
             <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-              {[...units]
+              {[...activeUnits]
                 .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
                 .filter(u => u.name.toLowerCase().includes(unitSearch.toLowerCase()))
                 .map(u => {
