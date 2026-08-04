@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { subDays, format, differenceInDays } from 'date-fns';
 import { getBrasiliaToday } from '@/lib/brasiliaDate';
@@ -141,6 +141,7 @@ export default function Reports() {
   const [showLabels, setShowLabels] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [exportOpen, setExportOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
     queryKey: ['currentUser'],
@@ -268,15 +269,46 @@ export default function Reports() {
   const { data: preference } = useQuery({
     queryKey: ['reportPreference', selectedUnit],
     queryFn: () =>
-      selectedUnit ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then((d) => d[0]) : null,
+      selectedUnit
+        ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then((d) =>
+            d && d.length > 0 ? d[0] : null
+          )
+        : null,
     enabled: !!selectedUnit,
   });
 
+  // Mantém o id do registro de preferência da unidade atual (evita criar
+  // duplicatas quando ainda não houve refetch após um create).
+  const prefIdRef = useRef(null);
+  // Guarda a unidade para a qual os KPIs já foram inicializados a partir da
+  // preferência carregada — bloqueia autosave com valores "herdados" de outra
+  // unidade antes que a preferência da unidade atual tenha sido carregada.
+  const kpisReadyForUnit = useRef(null);
+
   React.useEffect(() => {
-    if (preference && preference.selected_kpis && preference.selected_kpis.length > 0) {
-      setSelectedKPIs(preference.selected_kpis);
+    if (preference && preference.id) {
+      prefIdRef.current = preference.id;
+    } else if (preference === null) {
+      prefIdRef.current = null;
     }
   }, [preference]);
+
+  React.useEffect(() => {
+    if (!selectedUnit) {
+      kpisReadyForUnit.current = null;
+      return;
+    }
+    // Aguarda a preferência da unidade atual ser resolvida (objeto ou null),
+    // distinguindo de "ainda carregando" (undefined).
+    if (preference === undefined) return;
+    if (kpisReadyForUnit.current === selectedUnit) return;
+    kpisReadyForUnit.current = selectedUnit;
+    if (preference && preference.selected_kpis && preference.selected_kpis.length > 0) {
+      setSelectedKPIs(preference.selected_kpis);
+    } else {
+      setSelectedKPIs(ALL_KPIS.map((k) => k.id));
+    }
+  }, [preference, selectedUnit]);
 
   const [funnelStages, setFunnelStages] = useState([
     { key: 'impressions', label: 'Impressões' },
@@ -562,18 +594,32 @@ export default function Reports() {
   });
 
   React.useEffect(() => {
-    if (selectedUnit && selectedKPIs.length > 0) {
-      const savePreference = async () => {
-        if (preference && preference.id) {
-          await base44.entities.ReportPreference.update(preference.id, { selected_kpis: selectedKPIs });
+    if (!selectedUnit) return;
+    // Só persiste depois que os KPIs foram inicializados para esta unidade,
+    // evitando gravar a seleção de outra unidade sobre a atual.
+    if (kpisReadyForUnit.current !== selectedUnit) return;
+    if (selectedKPIs.length === 0) return;
+
+    const savePreference = async () => {
+      try {
+        const id = prefIdRef.current;
+        if (id) {
+          await base44.entities.ReportPreference.update(id, { selected_kpis: selectedKPIs });
         } else {
-          await base44.entities.ReportPreference.create({ unit_id: selectedUnit, selected_kpis: selectedKPIs });
+          const created = await base44.entities.ReportPreference.create({
+            unit_id: selectedUnit,
+            selected_kpis: selectedKPIs,
+          });
+          if (created && created.id) prefIdRef.current = created.id;
         }
-      };
-      const timeoutId = setTimeout(savePreference, 500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [selectedKPIs, selectedUnit, preference]);
+        queryClient.invalidateQueries({ queryKey: ['reportPreference', selectedUnit] });
+      } catch (e) {
+        console.error('[Reports] erro ao salvar KPIs:', e);
+      }
+    };
+    const timeoutId = setTimeout(savePreference, 500);
+    return () => clearTimeout(timeoutId);
+  }, [selectedKPIs, selectedUnit, queryClient]);
 
   const getKpiLabel = (kpi) => {
     const customLabel = cardLabels.find((cl) => cl.card_key === kpi.id);
