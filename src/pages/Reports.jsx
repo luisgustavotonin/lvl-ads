@@ -264,10 +264,14 @@ export default function Reports() {
     return REPORT_TABS.filter(tab => canDo(tab.permission));
   }, [userPermissions]);
 
-  const { data: preference } = useQuery({
+  const { data: preference, isSuccess: preferenceLoaded } = useQuery({
     queryKey: ['reportPreference', selectedUnit],
     queryFn: () =>
-      selectedUnit ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then((d) => d[0]) : null,
+      selectedUnit ? base44.entities.ReportPreference.filter({ unit_id: selectedUnit }).then((d) => {
+        if (!d || d.length === 0) return null;
+        // Prefere o registro que tem selected_kpis (evita ler duplicata só com ranking config)
+        return d.find(r => r.selected_kpis && r.selected_kpis.length) || d[0];
+      }) : null,
     enabled: !!selectedUnit,
   });
 
@@ -548,18 +552,19 @@ export default function Reports() {
   });
 
   React.useEffect(() => {
-    if (selectedUnit && selectedKPIs.length > 0) {
+    if (selectedUnit && selectedKPIs.length > 0 && preferenceLoaded) {
       const savePreference = async () => {
         if (preference && preference.id) {
           await base44.entities.ReportPreference.update(preference.id, { selected_kpis: selectedKPIs });
         } else {
+          // Só cria se a query já carregou e confirmou que não há registro
           await base44.entities.ReportPreference.create({ unit_id: selectedUnit, selected_kpis: selectedKPIs });
         }
       };
       const timeoutId = setTimeout(savePreference, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [selectedKPIs, selectedUnit, preference]);
+  }, [selectedKPIs, selectedUnit, preference, preferenceLoaded]);
 
   const getKpiLabel = (kpi) => {
     const customLabel = cardLabels.find((cl) => cl.card_key === kpi.id);

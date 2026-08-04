@@ -88,15 +88,23 @@ export default function RankingTable({
 
   // Carregar configurações salvas
    const { data: config } = useQuery({
-     queryKey: ['rankingTableConfig', unitId, groupKey],
-     queryFn: () => {
-       if (!unitId) return null;
-       return base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
-     },
-     enabled: !!unitId,
-     refetchInterval: 3000,
-     staleTime: 1000
-   });
+      queryKey: ['rankingTableConfig', unitId, groupKey],
+      queryFn: () => {
+        if (!unitId) return null;
+        return base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => {
+          if (!d || d.length === 0) return null;
+          // Prefere o registro que já tem config de colunas deste grupo (evita
+          // ler um registro duplicado só com selected_kpis e perder a config)
+          return (
+            d.find(r => r.ranking_table_configs && r.ranking_table_configs[groupKey]) ||
+            d.find(r => r.ranking_table_configs) ||
+            d[0]
+          );
+        });
+      },
+      enabled: !!unitId,
+      staleTime: 5000
+    });
 
   // Carregar configurações salvas (apenas uma vez por unitId/groupKey)
   useEffect(() => {
@@ -117,7 +125,12 @@ export default function RankingTable({
   const handleSaveConfig = async () => {
     if (!unitId || !canEditColumns) return;
     try {
-      const existing = await base44.entities.ReportPreference.filter({ unit_id: unitId }).then(d => d[0]);
+      const all = await base44.entities.ReportPreference.filter({ unit_id: unitId });
+      // Prefere o registro que já tem ranking_table_configs; senão o primeiro existente.
+      // Nunca cria um novo se já existe um para a unidade (evita duplicatas).
+      const existing = (all && all.length > 0)
+        ? (all.find(r => r.ranking_table_configs) || all[0])
+        : null;
       const newConfig = {
         ...existing?.ranking_table_configs,
         [groupKey]: { columnOrder, visibleColumns, limit }
