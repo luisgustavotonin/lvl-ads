@@ -245,14 +245,15 @@ export default function Reports() {
     setPeriodInitialized(true);
   }, [user, userProfilesLoaded, allProfilesLoaded, userProfileData, periodInitialized]);
 
-  // Filtra unidades conforme permissão do usuário
+  // Filtra unidades conforme permissão do usuário e status ativo
   const units = useMemo(() => {
-    if (!user) return allUnits;
-    if (user.role === 'admin') return allUnits;
+    const activeUnits = allUnits.filter(u => u.status !== 'inactive');
+    if (!user) return activeUnits;
+    if (user.role === 'admin') return activeUnits;
     if (!userProfiles) return []; // aguarda carregar
     const myProfile = userProfiles.find(up => up.user_id === user.id);
-    if (!myProfile || !myProfile.unit_ids || myProfile.unit_ids.length === 0) return allUnits;
-    return allUnits.filter(u => myProfile.unit_ids.includes(u.id));
+    if (!myProfile || !myProfile.unit_ids || myProfile.unit_ids.length === 0) return activeUnits;
+    return activeUnits.filter(u => myProfile.unit_ids.includes(u.id));
   }, [user, allUnits, userProfiles]);
 
   // Abas visíveis conforme permissões
