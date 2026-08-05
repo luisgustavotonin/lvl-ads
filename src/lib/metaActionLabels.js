@@ -127,6 +127,8 @@ export const META_ACTION_LABELS = {
   'onsite_conversion.profile_visit': { label: 'Visitas ao perfil', category: 'Conversões', kind: 'int' },
   'instagram_profile_visits': { label: 'Visitas ao perfil do Instagram', category: 'Conversões', kind: 'int' },
   profile_visits: { label: 'Visitas ao perfil', category: 'Conversões', kind: 'int' },
+  profile_visit_view: { label: 'Visitas ao perfil do Instagram', category: 'Conversões', kind: 'int' },
+  visit_instagram_profile: { label: 'Visitas ao perfil do Instagram', category: 'Conversões', kind: 'int' },
 
   // Leads Meta (formulários/CRM)
   'offsite_complete_registration_add_meta_leads': { label: 'Cadastros (Leads Meta)', category: 'Conversões', kind: 'int' },
@@ -211,8 +213,8 @@ const fmtRoas = (v) => `${Number(v || 0).toFixed(2)}`;
 export const META_CANONICAL_METRICS = [
   // -- Conversões (Instagram / perfil / contato) --
   { key: 'instagram_profile_visits', label: 'Visitas ao perfil do Instagram', category: 'Conversões',
-    actionTypes: ['onsite_conversion.instagram_profile_visits', 'instagram_profile_visits'],
-    costLabel: 'Custo por visita ao perfil do Instagram' },
+    actionTypes: ['onsite_conversion.instagram_profile_visits', 'instagram_profile_visits', 'profile_visit_view', 'visit_instagram_profile'],
+    costLabel: 'Custo por visita ao perfil do Instagram', profileVisitOnly: true },
   { key: 'profile_visits', label: 'Visitas ao perfil', category: 'Conversões',
     actionTypes: ['onsite_conversion.profile_visits', 'onsite_conversion.profile_visit', 'profile_visits'],
     costLabel: 'Custo por visita ao perfil' },
@@ -226,9 +228,13 @@ export const META_CANONICAL_METRICS = [
   { key: 'purchase', label: 'Compras', category: 'Conversões',
     actionTypes: ['purchase', 'offsite_conversion.purchase', 'offsite_conversion.fb_pixel_purchase'],
     valueLabel: 'Valor de compras', costLabel: 'Custo por compra' },
-  { key: 'lead', label: 'Leads', category: 'Conversões',
-    actionTypes: ['lead', 'leadgen_other', 'offsite_conversion.lead', 'offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead_group', 'onsite_conversion.lead_grouped'],
-    valueLabel: 'Valor de leads', costLabel: 'Custo por lead' },
+  { key: 'lead', label: 'Lead (formulário)', category: 'Conversões',
+    // A Meta devolve `lead` e `onsite_conversion.lead_grouped` para o MESMO envio
+    // de formulário (valores idênticos). Somar ambos duplica a contagem — por isso
+    // usamos apenas `lead` (fonte primária do "Lead (formulário)" no Ads Manager).
+    // Variantes pixel (offsite_conversion.*) são leads de site, não de formulário.
+    actionTypes: ['lead', 'leadgen_other', 'leadgen_grouped'],
+    valueLabel: 'Valor de lead (formulário)', costLabel: 'Custo por lead (formulário)' },
   { key: 'add_to_cart', label: 'Adições ao carrinho', category: 'Conversões',
     actionTypes: ['add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart'],
     valueLabel: 'Valor de adições ao carrinho', costLabel: 'Custo por adição ao carrinho' },
@@ -403,6 +409,18 @@ export function isMessagingDestination(record) {
   return MESSAGING_OPT_GOALS_FE.has(o) || MESSAGING_DEST_TYPES_FE.has(d);
 }
 
+// O Ads Manager exibe "Visitas ao perfil do Instagram" como o Resultado de adsets
+// cujo destination_type=INSTAGRAM_PROFILE / optimization_goal=PROFILE_VISIT. A API
+// NÃO expõe profile_visit_view/visit_instagram_profile no campo actions — esse valor
+// é, na prática, o link_click desses adsets (clicar no anúncio = visitar o perfil).
+// Usado pelo KPI canônico instagram_profile_visits (flag profileVisitOnly).
+export function isProfileVisitDestination(record) {
+  if (!record) return false;
+  const o = String(record.adset_optimization_goal || '').toUpperCase();
+  const d = String(record.adset_destination_type || '').toUpperCase();
+  return o === 'PROFILE_VISIT' || d === 'INSTAGRAM_PROFILE';
+}
+
 // Constrói o catálogo de KPIs a partir dos registros.
 // Usa métricas CANÔNICAS (uma entrada cada, somando variantes) + descoberta de
 // action_types não mapeados. Categorias = grupos do Gerenciador de Anúncios.
@@ -440,6 +458,8 @@ export function buildDynamicKpiCatalog(records) {
       label: c.label,
       category: c.category,
       format: fmtInt,
+      messagingOnly: c.messagingOnly,
+      profileVisitOnly: c.profileVisitOnly,
     });
     if (c.costLabel) {
       add({
@@ -451,6 +471,8 @@ export function buildDynamicKpiCatalog(records) {
         category: c.category,
         format: fmtCurrency,
         spend,
+        messagingOnly: c.messagingOnly,
+        profileVisitOnly: c.profileVisitOnly,
       });
     }
     if (c.valueLabel) {
@@ -462,6 +484,8 @@ export function buildDynamicKpiCatalog(records) {
         label: c.valueLabel,
         category: c.category,
         format: fmtCurrency,
+        messagingOnly: c.messagingOnly,
+        profileVisitOnly: c.profileVisitOnly,
       });
     }
   }
@@ -563,6 +587,18 @@ function kpiActionTypes(kpi) {
 // Soma um KPI dinâmico sobre um conjunto de registros
 export function sumDynamicKpi(records, kpi) {
   if (!kpi) return 0;
+  // "Visitas ao perfil do Instagram": a API devolve como link_click dos adsets
+  // de perfil (destination_type=INSTAGRAM_PROFILE / optimization_goal=PROFILE_VISIT).
+  // Somamos link_clicks desses adsets em vez das actionTypes (sempre vazias).
+  if (kpi.profileVisitOnly) {
+    const profileRecs = (records || []).filter(isProfileVisitDestination);
+    const count = profileRecs.reduce((s, r) => s + (Number(r.link_clicks) || 0), 0);
+    if (kpi.source === 'cost') {
+      const spend = sumSpend(profileRecs);
+      return count > 0 ? spend / count : 0;
+    }
+    return count;
+  }
   if (kpi.source === 'roas') {
     const spend = sumSpend(records);
     if (spend <= 0) return 0;
