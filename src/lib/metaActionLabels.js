@@ -234,6 +234,10 @@ export const META_CANONICAL_METRICS = [
     // usamos apenas `lead` (fonte primária do "Lead (formulário)" no Ads Manager).
     // Variantes pixel (offsite_conversion.*) são leads de site, não de formulário.
     actionTypes: ['lead', 'leadgen_other', 'leadgen_grouped'],
+    // Custo por lead: só conta o spend de campanhas de lead (QUALITY_LEAD /
+    // LEAD_GENERATION), igual ao Ads Manager. Incluir spend de WhatsApp/tráfego
+    // inflaciona o custo por lead.
+    leadOnly: true,
     valueLabel: 'Valor de lead (formulário)', costLabel: 'Custo por lead (formulário)' },
   { key: 'add_to_cart', label: 'Adições ao carrinho', category: 'Conversões',
     actionTypes: ['add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart'],
@@ -421,6 +425,17 @@ export function isProfileVisitDestination(record) {
   return o === 'PROFILE_VISIT' || d === 'INSTAGRAM_PROFILE';
 }
 
+// Adsets de geração de lead (formulário). Usado pelo custo por lead (formulário)
+// para considerar apenas o spend desses adsets, igual ao Ads Manager.
+const LEAD_OPT_GOALS_FE = new Set(['QUALITY_LEAD', 'LEAD_GENERATION', 'LEAD_GEN']);
+export function isLeadDestination(record) {
+  if (!record) return true;
+  const o = String(record.adset_optimization_goal || '').toUpperCase();
+  const d = String(record.adset_destination_type || '').toUpperCase();
+  if (!o && !d) return true; // registro antigo sem info: conta (não zerar)
+  return LEAD_OPT_GOALS_FE.has(o) || d === 'LEAD_GENERATION';
+}
+
 // Constrói o catálogo de KPIs a partir dos registros.
 // Usa métricas CANÔNICAS (uma entrada cada, somando variantes) + descoberta de
 // action_types não mapeados. Categorias = grupos do Gerenciador de Anúncios.
@@ -460,6 +475,7 @@ export function buildDynamicKpiCatalog(records) {
       format: fmtInt,
       messagingOnly: c.messagingOnly,
       profileVisitOnly: c.profileVisitOnly,
+      leadOnly: c.leadOnly,
     });
     if (c.costLabel) {
       add({
@@ -473,6 +489,7 @@ export function buildDynamicKpiCatalog(records) {
         spend,
         messagingOnly: c.messagingOnly,
         profileVisitOnly: c.profileVisitOnly,
+        leadOnly: c.leadOnly,
       });
     }
     if (c.valueLabel) {
@@ -486,6 +503,7 @@ export function buildDynamicKpiCatalog(records) {
         format: fmtCurrency,
         messagingOnly: c.messagingOnly,
         profileVisitOnly: c.profileVisitOnly,
+        leadOnly: c.leadOnly,
       });
     }
   }
@@ -611,11 +629,33 @@ export function sumDynamicKpi(records, kpi) {
   if (kpi.source === 'fixedValue') return kpi.value || 0;
   // KPIs marcados messagingOnly só somam em adsets de mensagem (WhatsApp/Messenger),
   // igual ao Ads Manager.
-  const effRecords = kpi.messagingOnly ? (records || []).filter(isMessagingDestination) : records;
+  // KPIs marcados leadOnly (custo por lead) só consideram spend de adsets de lead.
+  let effRecords = records;
+  if (kpi.messagingOnly) effRecords = (effRecords || []).filter(isMessagingDestination);
+  if (kpi.leadOnly) effRecords = (effRecords || []).filter(isLeadDestination);
   if (!effRecords) return 0;
   const types = kpiActionTypes(kpi);
   if (!types.length) return 0;
   if (kpi.source === 'cost') {
+    // Custo por lead: o Ads Manager agrega por campanha — só conta o spend de
+    // campanhas que de fato geraram leads (campanhas de lead sem resultado no dia
+    // não entram). Somar o spend de TODOS os adsets de lead inflacionaria o custo.
+    if (kpi.leadOnly) {
+      const byCamp = new Map();
+      for (const r of effRecords) {
+        const k = r.campaign_id || r.campaign_name;
+        if (!byCamp.has(k)) byCamp.set(k, { spend: 0, count: 0 });
+        const e = byCamp.get(k);
+        e.spend += Number(r.spend) || 0;
+        const map = getActionsMap(r);
+        for (const t of types) e.count += map[t] || 0;
+      }
+      let spend = 0, count = 0;
+      for (const e of byCamp.values()) {
+        if (e.count > 0) { spend += e.spend; count += e.count; }
+      }
+      return count > 0 ? spend / count : 0;
+    }
     const spend = sumSpend(effRecords);
     const count = sumActionCountMany(effRecords, types);
     return count > 0 ? spend / count : 0;
