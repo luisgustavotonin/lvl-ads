@@ -387,6 +387,30 @@ function demographicRow(item, accountId, unitId, jobKey) {
   };
 }
 
+// Alcance em NÍVEL DE CONTA (deduplicado pela Meta). O Ads Manager mostra o
+// alcance único da conta — somar o reach por anúncio (MetaInsightBase) conta
+// a mesma pessoa uma vez por anúncio e INFLA o total. Este registro guarda o
+// reach já deduplicado pela Meta para o dia todo, batendo com o Ads Manager.
+function accountRow(item, accountId, unitId) {
+  const date = item.date_start || '';
+  const actionsMap = actionsToMap(item.actions || []);
+  const inlineLinkClicks = parseNum(item.inline_link_clicks);
+  const linkClicks = fromMap(actionsMap, 'link_click') || inlineLinkClicks;
+
+  return {
+    unit_id: unitId,
+    platform_id: 'META',
+    date: date,
+    account_id: accountId,
+    currency: item.account_currency || 'BRL',
+    spend: parseNum(item.spend),
+    impressions: parseNum(item.impressions),
+    reach: parseNum(item.reach),
+    clicks: parseNum(item.clicks),
+    link_clicks: linkClicks,
+  };
+}
+
 // -----------------------
 // Meta fetch
 // -----------------------
@@ -735,6 +759,24 @@ async function saveMode(entity, rows, ctx, options) {
   return written;
 }
 
+// Salva o alcance em nível de conta (MetricsAccountLevel). Essa entidade não
+// tem unique_key, então removemos os registros do período e recriamos.
+async function saveAccountLevel(base44, rows, ctx) {
+  if (!rows || !rows.length) return 0;
+  const filter = {
+    account_id: ctx.account_id,
+    unit_id: ctx.unit_id,
+    date: { $gte: ctx.date_from, $lte: ctx.date_to },
+  };
+  while (true) {
+    const remaining = await base44.asServiceRole.entities.MetricsAccountLevel.filter(filter, null, 1);
+    if (!remaining || !remaining.length) break;
+    await base44.asServiceRole.entities.MetricsAccountLevel.deleteMany(filter);
+    await sleep(100);
+  }
+  return await safeBulkCreate(base44.asServiceRole.entities.MetricsAccountLevel, rows, BULK_CHUNK_BASE);
+}
+
 // -----------------------
 // Job helpers
 // -----------------------
@@ -892,6 +934,25 @@ Deno.serve(async (req) => {
         ctx,
         { bulkChunkSize: BULK_CHUNK_BASE }
       );
+
+      // ACCOUNT-LEVEL: alcance deduplicado da conta (bate com Ads Manager).
+      // Roda junto com o base. Falha aqui não derruba a ingestão de base.
+      try {
+        const accParams = {
+          time_range: JSON.stringify({ since: date_from, until: date_to }),
+          fields: 'spend,impressions,reach,clicks,inline_link_clicks,actions,action_values,cost_per_action_type,date_start,date_stop',
+          level: 'account',
+          time_increment: '1',
+        };
+        const accItems = await fetchAllPagesInsights(actId, meta_token, accParams);
+        const accRows = accItems.map(function (item) {
+          return accountRow(item, account_id, effectiveUnitId);
+        });
+        await saveAccountLevel(base44, accRows, ctx);
+        console.log('[Meta Ingest] Account-level (alcance deduplicado): ' + accRows.length + ' dias');
+      } catch (accErr) {
+        console.warn('[Meta Ingest] falha ao buscar account-level: ' + (accErr && accErr.message ? accErr.message : accErr));
+      }
 
       await base44.asServiceRole.entities.MetaIngestRun.update(job.id, {
         progress: 1,

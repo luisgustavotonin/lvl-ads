@@ -439,6 +439,42 @@ export default function Reports() {
     enabled: !!selectedUnit && units.length > 0 && !!period,
   });
 
+  // Alcance em NÍVEL DE CONTA (deduplicado pela Meta) — bate com o Ads Manager.
+  // Somar o reach por anúncio infla o total (mesma pessoa contada em vários ads).
+  const { data: accountLevelMetrics = [] } = useQuery({
+    queryKey: ['accountLevelMetrics', selectedUnit, period?.start, period?.end, selectedPlatforms],
+    queryFn: async () => {
+      if (!selectedUnit || !period) return [];
+      if (!selectedPlatforms.includes('META')) return [];
+      const unit = units.find((u) => u.id === selectedUnit);
+      if (!unit || !unit.account_id) return [];
+      const data = await base44.entities.MetricsAccountLevel.filter(
+        { account_id: unit.account_id, date: { $gte: format(period.start, 'yyyy-MM-dd'), $lte: format(period.end, 'yyyy-MM-dd') } },
+        '-date',
+        10000
+      );
+      return data || [];
+    },
+    enabled: !!selectedUnit && units.length > 0 && !!period,
+  });
+
+  const { data: previousAccountLevelMetrics = [] } = useQuery({
+    queryKey: ['previousAccountLevelMetrics', selectedUnit, previousPeriod.start, previousPeriod.end, selectedPlatforms],
+    queryFn: async () => {
+      if (!selectedUnit || !period) return [];
+      if (!selectedPlatforms.includes('META')) return [];
+      const unit = units.find((u) => u.id === selectedUnit);
+      if (!unit || !unit.account_id) return [];
+      const data = await base44.entities.MetricsAccountLevel.filter(
+        { account_id: unit.account_id, date: { $gte: format(previousPeriod.start, 'yyyy-MM-dd'), $lte: format(previousPeriod.end, 'yyyy-MM-dd') } },
+        '-date',
+        10000
+      );
+      return data || [];
+    },
+    enabled: !!selectedUnit && units.length > 0 && !!period,
+  });
+
   const dynamicKpis = useMemo(
     () => buildDynamicKpiCatalog([...(currentMetrics || []), ...(previousMetrics || [])]),
     [currentMetrics, previousMetrics]
@@ -462,10 +498,14 @@ export default function Reports() {
     return out;
   }, [dynamicKpis, platformKpis]);
 
-  const buildMetrics = (records, platformRecords) => {
+  const buildMetrics = (records, platformRecords, accountLevelRecords) => {
     const spend = records.reduce((s, m) => s + (m.spend || 0), 0);
     const impressions = records.reduce((s, m) => s + (m.impressions || 0), 0);
-    const reach = records.reduce((s, m) => s + (m.reach || 0), 0);
+    // Alcance: usa o valor deduplicado em nível de conta (bater com Ads Manager).
+    // Sem esse dado (ingestão antiga), cai no fallback da soma por anúncio.
+    const reach = (accountLevelRecords && accountLevelRecords.length > 0)
+      ? accountLevelRecords.reduce((s, m) => s + (m.reach || 0), 0)
+      : records.reduce((s, m) => s + (m.reach || 0), 0);
     const clicks = records.reduce((s, m) => s + (m.clicks || 0), 0);
     const linkClicks = records.reduce((s, m) => s + (m.link_clicks || 0), 0);
     const conversations = records.reduce((s, m) => s + (m.messaging_conversations_started || 0), 0);
@@ -503,12 +543,12 @@ export default function Reports() {
   };
 
   const current = useMemo(
-    () => buildMetrics(currentMetrics, currentPlatformMetrics),
-    [currentMetrics, currentPlatformMetrics, dynamicKpis, platformKpis]
+    () => buildMetrics(currentMetrics, currentPlatformMetrics, accountLevelMetrics),
+    [currentMetrics, currentPlatformMetrics, accountLevelMetrics, dynamicKpis, platformKpis]
   );
   const previous = useMemo(
-    () => buildMetrics(previousMetrics, previousPlatformMetrics),
-    [previousMetrics, previousPlatformMetrics, dynamicKpis, platformKpis]
+    () => buildMetrics(previousMetrics, previousPlatformMetrics, previousAccountLevelMetrics),
+    [previousMetrics, previousPlatformMetrics, previousAccountLevelMetrics, dynamicKpis, platformKpis]
   );
 
   const enrichedMetrics = useMemo(() => {
@@ -550,6 +590,13 @@ export default function Reports() {
       byDate[m.date].reach += m.reach || 0;
       byDate[m.date].link_clicks += m.link_clicks || 0;
       byDate[m.date].conversations += m.messaging_conversations_started || 0;
+    });
+
+    // Sobrescreve o alcance diário com o valor deduplicado em nível de conta.
+    const accountReachByDate = {};
+    (accountLevelMetrics || []).forEach((m) => { accountReachByDate[m.date] = m.reach || 0; });
+    Object.keys(byDate).forEach((d) => {
+      if (accountReachByDate[d] != null) byDate[d].reach = accountReachByDate[d];
     });
 
     Object.values(byDate).forEach((day) => {
