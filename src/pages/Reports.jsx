@@ -485,11 +485,19 @@ export default function Reports() {
       conversations,
       totalContact,
       firstReply,
-      costPerConversation: conversations > 0 ? spend / conversations : 0,
-      costPerTotalContact: totalContact > 0 ? spend / totalContact : 0,
-      costPerFirstReply: firstReply > 0 ? spend / firstReply : 0,
     };
     for (const k of dynamicKpis) base[k.id] = sumDynamicKpi(records, k);
+    // Os cards de custo por conversa/contato/resposta (ids fixos do ALL_KPIS) devem
+    // usar a mesma lógica do Ads Manager: só o spend de campanhas de mensagem que
+    // geraram o resultado (agregado por campanha). Pegamos o valor dos KPIs
+    // dinâmicos messagingOnly já calculados acima em vez de dividir o spend total.
+    const dynCost = (canonicalKey) => {
+      const k = dynamicKpis.find((d) => d.canonicalKey === canonicalKey && d.source === 'cost');
+      return k ? base[k.id] : 0;
+    };
+    base.costPerConversation = conversations > 0 ? dynCost('messaging_conversation_started') : 0;
+    base.costPerTotalContact = totalContact > 0 ? dynCost('total_messaging_connection') : 0;
+    base.costPerFirstReply = firstReply > 0 ? dynCost('messaging_first_reply') : 0;
     for (const k of platformKpis) base[k.id] = sumPlatformKpi(platformRecords, k);
     return base;
   };
