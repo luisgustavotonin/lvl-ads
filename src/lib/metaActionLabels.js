@@ -396,6 +396,26 @@ function sumSpend(records) {
   return total;
 }
 
+// Custo por resultado agregado por campanha: só conta o spend de campanhas que
+// geraram o resultado (count>0). Espelha o Ads Manager, que não dilui o custo com
+// campanhas do mesmo objetivo que não converteram no período.
+function campaignLevelCost(records, types) {
+  const byCamp = new Map();
+  for (const r of records || []) {
+    const k = r.campaign_id || r.campaign_name;
+    if (!byCamp.has(k)) byCamp.set(k, { spend: 0, count: 0 });
+    const e = byCamp.get(k);
+    e.spend += Number(r.spend) || 0;
+    const map = getActionsMap(r);
+    for (const t of types) e.count += map[t] || 0;
+  }
+  let spend = 0, count = 0;
+  for (const e of byCamp.values()) {
+    if (e.count > 0) { spend += e.spend; count += e.count; }
+  }
+  return count > 0 ? spend / count : 0;
+}
+
 // O Ads Manager só atribui métricas de mensagem a adsets de mensagem (WhatsApp/
 // Messenger/Instagram Direct). Adsets de formulário recebem atribuição cruzada
 // _7d que o Ads Manager NÃO exibe. Usado para filtrar KPIs marcados messagingOnly.
@@ -637,24 +657,13 @@ export function sumDynamicKpi(records, kpi) {
   const types = kpiActionTypes(kpi);
   if (!types.length) return 0;
   if (kpi.source === 'cost') {
-    // Custo por lead: o Ads Manager agrega por campanha — só conta o spend de
-    // campanhas que de fato geraram leads (campanhas de lead sem resultado no dia
-    // não entram). Somar o spend de TODOS os adsets de lead inflacionaria o custo.
-    if (kpi.leadOnly) {
-      const byCamp = new Map();
-      for (const r of effRecords) {
-        const k = r.campaign_id || r.campaign_name;
-        if (!byCamp.has(k)) byCamp.set(k, { spend: 0, count: 0 });
-        const e = byCamp.get(k);
-        e.spend += Number(r.spend) || 0;
-        const map = getActionsMap(r);
-        for (const t of types) e.count += map[t] || 0;
-      }
-      let spend = 0, count = 0;
-      for (const e of byCamp.values()) {
-        if (e.count > 0) { spend += e.spend; count += e.count; }
-      }
-      return count > 0 ? spend / count : 0;
+    // KPIs de custo por resultado filtrados por objetivo (mensagens/leads) devem
+    // agregar por campanha, igual o Ads Manager: só entra o spend de campanhas
+    // que de fato geraram aquele resultado no período. Somar o spend de TODOS os
+    // adsets daquele objetivo (mesmo os sem resultado) inflaciona o custo.
+    // Ex.: custo por conversa = Σ spend das campanhas de WhatsApp c/ conversas ÷ total de conversas.
+    if (kpi.messagingOnly || kpi.leadOnly) {
+      return campaignLevelCost(effRecords, types);
     }
     const spend = sumSpend(effRecords);
     const count = sumActionCountMany(effRecords, types);
