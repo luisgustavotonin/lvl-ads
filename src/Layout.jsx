@@ -8,7 +8,6 @@ import {
   FileText,
   Settings,
   Building2,
-  Link2,
   Users,
   Shield,
   Database,
@@ -47,7 +46,6 @@ const NAV_SECTIONS = [
     label: 'Gestão',
     items: [
       { name: 'Unidades', href: 'Units', icon: Building2, permission: 'manage_units' },
-      { name: 'Integrações', href: 'Integrations', icon: Link2, permission: 'manage_integrations' },
       { name: 'Agendamentos', href: 'IngestSchedules', icon: Clock, permission: 'manage_schedules' },
       { name: 'Ingestão Meta', href: 'MetaIngest', icon: Zap, permission: 'run_manual_ingest' },
       { name: 'Tokens Meta', href: 'MetaTokens', icon: Key, permission: 'manage_data' },
@@ -56,7 +54,6 @@ const NAV_SECTIONS = [
   {
     label: 'Administração',
     items: [
-      { name: 'Parâmetros & Alertas', href: 'ParametersAlerts', icon: Bell, permission: 'manage_permissions' },
       { name: 'Perfis', href: 'Profiles', icon: Shield, permission: 'manage_profiles' },
       { name: 'Usuários', href: 'Users', icon: Users, permission: 'manage_users' },
       { name: 'Gestão de Dados', href: 'DataManagement', icon: Database, permission: 'manage_data' },

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { Link2, FileText, ArrowUpRight, Building2, DollarSign, MessageCircle, TrendingDown } from 'lucide-react';
+import { Link2, FileText, ArrowUpRight, TrendingUp, DollarSign, MessageCircle, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -148,25 +148,39 @@ export default function Dashboard() {
 
 
 
-  // Calculate totals
+  // Totals do período selecionado (cards)
   const totalSpend = metrics.reduce((sum, m) => sum + (m.spend || 0), 0);
   const totalConversations = metrics.reduce((sum, m) => sum + (m.messaging_conversations_started || 0), 0);
+  const totalImpressions = metrics.reduce((sum, m) => sum + (m.impressions || 0), 0);
   const totalCostPerConversation = totalConversations > 0 ? totalSpend / totalConversations : 0;
-  const activeUnits = units.filter(u => u.status === 'active' || !u.status).length;
 
-  // Prepare chart data
-  const chartData = metrics
-    .reduce((acc, m) => {
-      const existing = acc.find(d => d.date === m.date);
-      if (existing) {
-        existing.spend += m.spend || 0;
-      } else {
-        acc.push({ date: m.date, spend: m.spend || 0 });
-      }
-      return acc;
-    }, [])
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(-14);
+  // Gráfico: sempre traz os últimos 90 dias, independentemente do período
+  // selecionado nos cards — oferece um contexto histórico mais amplo.
+  const { data: chartMetrics = [], isLoading: chartLoading } = useQuery({
+    queryKey: ['dashboardChartMetrics'],
+    queryFn: async () => {
+      const today = getBrasiliaToday();
+      const start = subDays(today, 89);
+      const data = await base44.entities.MetaInsightBase.filter({
+        date: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(today, 'yyyy-MM-dd') }
+      }, '-date', 10000);
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const chartData = useMemo(() => {
+    const byDate = {};
+    for (const m of chartMetrics) {
+      const d = m.date;
+      if (!byDate[d]) byDate[d] = { date: d, spend: 0, conversations: 0, impressions: 0 };
+      byDate[d].spend += m.spend || 0;
+      byDate[d].conversations += m.messaging_conversations_started || 0;
+      byDate[d].impressions += m.impressions || 0;
+    }
+    return Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [chartMetrics]);
 
   if (unitsLoading || !period) {
     return (
@@ -203,7 +217,7 @@ export default function Dashboard() {
           { label: 'Investimento Total', value: formatCurrency(totalSpend), sub: 'Período selecionado', icon: DollarSign, bg: 'bg-blue-50', color: 'text-blue-600' },
           { label: 'Total Conversas', value: formatNumber(totalConversations), sub: 'Período selecionado', icon: MessageCircle, bg: 'bg-green-50', color: 'text-green-600' },
           { label: 'Custo/Conversa', value: formatCurrency(totalCostPerConversation), sub: 'Período selecionado', icon: TrendingDown, bg: 'bg-orange-50', color: 'text-orange-600' },
-          { label: 'Unidades Ativas', value: activeUnits, sub: `Total: ${units.length}`, icon: Building2, bg: 'bg-purple-50', color: 'text-purple-600' },
+          { label: 'Impressões', value: formatNumber(totalImpressions), sub: 'Período selecionado', icon: TrendingUp, bg: 'bg-purple-50', color: 'text-purple-600' },
         ].map(({ label, value, sub, icon: Icon, bg, color }) => (
           <Card key={label} className="border-gray-100">
             <CardContent className="p-4 sm:p-6">
@@ -232,102 +246,58 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Chart and Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart */}
-        <Card className="lg:col-span-2 border-gray-100" style={{ minHeight: 300 }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold">Investimento Recente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 18, right: 16, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(d) => format(new Date(d), 'dd/MM')}
-                      tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                    />
-                    <YAxis
-                      tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(1)}k` : `R$${v.toFixed(0)}`}
-                      tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                    />
-                    <Tooltip
-                      formatter={(value) => [formatCurrency(value), 'Investimento']}
-                      labelFormatter={(date) => format(new Date(date), "dd 'de' MMMM", { locale: ptBR })}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="spend"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
-                      dot={false}
-                      label={({ x, y, value, index }) => {
-                        const anchor = index === 0 ? 'start' : index === chartData.length - 1 ? 'end' : 'middle';
-                        return (
-                          <text x={x} y={y - 6} fontSize={11} fontWeight="400" fill="#9CA3AF" textAnchor={anchor}>
-                            {value >= 1000 ? `R$${(value/1000).toFixed(1)}k` : `R$${value.toFixed(0)}`}
-                          </text>
-                        );
-                      }}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-400">
-                  Nenhum dado disponível
-                </div>
-              )}
+      {/* Chart */}
+      <Card className="border-gray-100" style={{ minHeight: 320 }}>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg font-semibold">Investimento e Conversas — últimos 90 dias</CardTitle>
+            <div className="flex items-center gap-4 text-xs text-gray-500">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-[#3B82F6] inline-block" />Investimento</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-[#10B981] inline-block" />Conversas</span>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Units list */}
-         <div className="space-y-4">
-           <Card className="border-gray-100">
-             <CardHeader className="pb-2">
-               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                 <Building2 className="w-5 h-5 text-gray-400" />
-                 Unidades
-               </CardTitle>
-             </CardHeader>
-             <CardContent>
-               <div className="space-y-2 max-h-64 overflow-y-auto">
-                 {units.slice(0, 5).map((unit) => (
-                   <div key={unit.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
-                     {unit.logo_url ? (
-                       <img 
-                         src={unit.logo_url} 
-                         alt={unit.name}
-                         className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
-                       />
-                     ) : (
-                       <div 
-                         className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-medium flex-shrink-0"
-                         style={{ backgroundColor: unit.color || '#3B82F6' }}
-                       >
-                         {unit.name?.charAt(0)?.toUpperCase()}
-                       </div>
-                     )}
-                     <span className="text-sm font-medium text-gray-900 truncate">{unit.name}</span>
-                   </div>
-                 ))}
-                 {units.length > 5 && (
-                   <div className="text-xs text-gray-400 text-center pt-2 border-t border-gray-100">
-                     +{units.length - 5} unidades
-                   </div>
-                 )}
-               </div>
-             </CardContent>
-           </Card>
-         </div>
-      </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 18, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(d) => format(new Date(d), 'dd/MM')}
+                    tick={{ fontSize: 11, fill: '#9CA3AF' }}
+                    minTickGap={24}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tickFormatter={(v) => v >= 1000 ? `R$${(v/1000).toFixed(1)}k` : `R$${v.toFixed(0)}`}
+                    tick={{ fontSize: 11, fill: '#9CA3AF' }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${v.toFixed(0)}`}
+                    tick={{ fontSize: 11, fill: '#9CA3AF' }}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => name === 'Investimento'
+                      ? [formatCurrency(value), 'Investimento']
+                      : [formatNumber(value), 'Conversas']}
+                    labelFormatter={(date) => format(new Date(date), "dd 'de' MMMM", { locale: ptBR })}
+                  />
+                  <Line yAxisId="left" type="monotone" dataKey="spend" name="Investimento" stroke="#3B82F6" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line yAxisId="right" type="monotone" dataKey="conversations" name="Conversas" stroke="#10B981" strokeWidth={2} dot={false} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-400">
+                {chartLoading ? 'Carregando...' : 'Nenhum dado disponível'}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
