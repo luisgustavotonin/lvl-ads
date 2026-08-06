@@ -842,7 +842,11 @@ Deno.serve(async (req) => {
 
     const meta_token = tokenRecord.token;
 
-    if (job.status === 'running') {
+    // Se o job está 'running' mas o chamador passou force=true (ex: botão
+    // "Tentar novamente" no frontend, que pré-marca como running), prossegue
+    // e reexecuta. Sem isso, o retry returned 'already_running' sem fazer nada
+    // e o job ficava preso em 'running' para sempre.
+    if (job.status === 'running' && !force) {
       return Response.json({ status: 'already_running', job_key: job_key });
     }
 
