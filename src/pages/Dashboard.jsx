@@ -154,6 +154,26 @@ export default function Dashboard() {
   const totalImpressions = metrics.reduce((sum, m) => sum + (m.impressions || 0), 0);
   const totalCostPerConversation = totalConversations > 0 ? totalSpend / totalConversations : 0;
 
+  // Alcance em nível de conta (deduplicado pela Meta). Somar o reach por anúncio
+  // conta a mesma pessoa uma vez por anúncio e infla o total — usamos a entidade
+  // MetricsAccountLevel, que guarda o reach já deduplicado, batendo com o Ads Manager.
+  const { data: accountLevelMetrics = [] } = useQuery({
+    queryKey: ['dashboardAccountLevel', period?.start, period?.end],
+    queryFn: async () => {
+      if (!period) return [];
+      const startDate = format(period.start, 'yyyy-MM-dd');
+      const endDate = format(period.end, 'yyyy-MM-dd');
+      const data = await base44.entities.MetricsAccountLevel.filter({
+        date: { $gte: startDate, $lte: endDate }
+      }, '-date', 5000);
+      return data || [];
+    },
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+    enabled: !!period,
+  });
+  const totalReach = accountLevelMetrics.reduce((sum, m) => sum + (m.reach || 0), 0);
+
   // Gráfico: sempre traz os últimos 90 dias, independentemente do período
   // selecionado nos cards — oferece um contexto histórico mais amplo.
   const { data: chartMetrics = [], isLoading: chartLoading } = useQuery({
@@ -218,6 +238,7 @@ export default function Dashboard() {
           { label: 'Total Conversas', value: formatNumber(totalConversations), sub: 'Período selecionado', icon: MessageCircle, bg: 'bg-green-50', color: 'text-green-600' },
           { label: 'Custo/Conversa', value: formatCurrency(totalCostPerConversation), sub: 'Período selecionado', icon: TrendingDown, bg: 'bg-orange-50', color: 'text-orange-600' },
           { label: 'Impressões', value: formatNumber(totalImpressions), sub: 'Período selecionado', icon: TrendingUp, bg: 'bg-purple-50', color: 'text-purple-600' },
+          { label: 'Alcance', value: formatNumber(totalReach), sub: 'Período selecionado', icon: TrendingUp, bg: 'bg-indigo-50', color: 'text-indigo-600' },
         ].map(({ label, value, sub, icon: Icon, bg, color }) => (
           <Card key={label} className="border-gray-100">
             <CardContent className="p-4 sm:p-6">
