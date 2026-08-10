@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { getBrasiliaToday } from '@/lib/brasiliaDate';
+import { getBrasiliaToday, parseUtcDate } from '@/lib/brasiliaDate';
 import {
   Play, RefreshCw, CheckCircle2, XCircle, Clock, Loader2,
   ChevronDown, ChevronUp, Image, StopCircle, Trash2, ListOrdered, Layers, CalendarClock, User
@@ -914,7 +914,7 @@ export default function MetaIngest() {
                     <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
                        <span>Rows: <strong>{job.rows_written || 0}</strong></span>
                        <span className="text-gray-300">·</span>
-                       <span>{new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                       <span>{parseUtcDate(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
                        {job.error_message && job.status !== 'done' && (
                          <span className="text-red-500 truncate max-w-xs">{job.error_message}</span>
                        )}
@@ -952,7 +952,7 @@ export default function MetaIngest() {
                     <p><strong>origem:</strong> {isScheduled ? `Agendamento — ${job.schedule_name || ''}` : 'Manual'}</p>
                     <p><strong>status:</strong> {job.status}</p>
                     {job.error_message && <p className="text-red-500"><strong>erro:</strong> {job.error_message}</p>}
-                    <p><strong>criado em:</strong> {new Date(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
+                    <p><strong>criado em:</strong> {parseUtcDate(job.created_date).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
                   </div>
                 )}
               </CardContent>
