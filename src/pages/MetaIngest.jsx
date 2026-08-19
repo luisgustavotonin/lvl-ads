@@ -103,6 +103,12 @@ export default function MetaIngest() {
     enabled: !!user && user.role !== 'admin',
   });
 
+  const { data: profiles = [] } = useQuery({
+    queryKey: ['profilesIngest'],
+    queryFn: () => base44.entities.Profile.list(),
+    enabled: !!user && user.role !== 'admin',
+  });
+
   const isAdmin = user?.role === 'admin';
 
   // Unidades ativas (inativas não aparecem no filtro de seleção)
@@ -118,6 +124,19 @@ export default function MetaIngest() {
     const myProfile = userProfiles.find(up => up.user_id === user.id);
     return myProfile?.unit_ids || [];
   }, [user, userProfiles]);
+
+  // Permissões do perfil do usuário — desbloqueia os controles de ingestão
+  // que antes eram exclusivos do admin (tipos de dado, forçar, criativos).
+  const userPermissions = useMemo(() => {
+    if (!user || isAdmin) return {};
+    const myUserProfile = userProfiles.find(up => up.user_id === user.id);
+    if (!myUserProfile?.profile_id) return {};
+    const myProfile = profiles.find(p => p.id === myUserProfile.profile_id);
+    return myProfile?.permissions || {};
+  }, [user, isAdmin, userProfiles, profiles]);
+
+  const canRunIngest = isAdmin || !!userPermissions?.run_manual_ingest;
+  const canRefresh = isAdmin || !!userPermissions?.refresh_data;
 
   const { data: jobs = [], refetch } = useQuery({
     queryKey: ['metaIngestRuns'],
@@ -643,8 +662,8 @@ export default function MetaIngest() {
             </div>
           </div>
 
-          {/* Type selector — only for admin */}
-          {isAdmin && (
+          {/* Type selector — liberado para perfis com run_manual_ingest */}
+          {canRunIngest && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Tipo de Dado *</Label>
@@ -696,8 +715,8 @@ export default function MetaIngest() {
             </div>
           )}
 
-          {/* Force re-run — only for admin */}
-          {isAdmin && (
+          {/* Force re-run — liberado para perfis com refresh_data */}
+          {canRefresh && (
             <div className="flex items-center gap-2">
               <Checkbox
                 id="force"
@@ -724,12 +743,12 @@ export default function MetaIngest() {
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Play className="w-4 h-4 mr-2" />
-                {isAdmin && (form.unit_ids.length > 1 || selectedTypes.length > 1)
+                {canRunIngest && (form.unit_ids.length > 1 || selectedTypes.length > 1)
                   ? `Executar Fila (${form.unit_ids.length * selectedTypes.length} jobs)`
                   : 'Executar'}
               </Button>
             )}
-            {isAdmin && (
+            {canRunIngest && (
               runningCreativesQueue ? (
                 <Button onClick={() => { runningCreativesRef.current = false; setRunningCreativesQueue(false); setCreativesQueue(prev => prev.map(q => q.status === 'queued' ? { ...q, status: 'skipped' } : q)); toast('Fila de criativos interrompida', { icon: '⏹' }); }} variant="destructive">
                   <StopCircle className="w-4 h-4 mr-2" />
