@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import {
-  RefreshCw, Loader2, Database, AlertTriangle, Download, Trash2, Layers, Zap
+  RefreshCw, Loader2, Database, AlertTriangle, Download, Trash2, Layers, Zap, Columns3
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import DeleteProgressOverlay from '@/components/datamanagement/DeleteProgressOverlay';
 import RowDetail from '@/components/datamanagement/RowDetail';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { getActionsMap, META_ACTION_LABELS } from '@/lib/metaActionLabels';
 
 const PAGE_SIZE_OPTIONS = [50, 100, 500, 1000, 'Todos'];
 const DEFAULT_PAGE_SIZE = 50;
@@ -169,6 +171,15 @@ export default function DataManagement() {
   const [deletingOldCreatives, setDeletingOldCreatives] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [expandedRow, setExpandedRow] = useState(null);
+  // Colunas de actions (actions_map) selecionadas por tab, para auditoria.
+  // Default: "Visualizações da página de destino" no tab Insights.
+  const [actionColsByTab, setActionColsByTab] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('dmActionCols') || 'null');
+      if (saved) return saved;
+    } catch {}
+    return { base: ['landing_page_view'] };
+  });
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -211,11 +222,39 @@ export default function DataManagement() {
   });
 
   const cols = COLUMNS[activeTab] || [];
+  const selectedActionKeys = actionColsByTab[activeTab] || [];
+
+  // Action types disponíveis nos registros carregados (para o seletor de colunas)
+  const availableActionKeys = useMemo(() => {
+    const keys = new Set();
+    tabData.forEach(r => Object.keys(getActionsMap(r)).forEach(k => keys.add(k)));
+    return [...keys].sort();
+  }, [tabData]);
+
+  // Achata os valores das actions selecionadas nas linhas, para ordenar/somar/exportar
+  const dataWithActions = useMemo(() => {
+    const sel = actionColsByTab[activeTab] || [];
+    if (!sel.length) return tabData;
+    return tabData.map(r => {
+      const am = getActionsMap(r);
+      const extra = {};
+      sel.forEach(k => { extra[`action_${k}`] = am[k] || 0; });
+      return { ...r, ...extra };
+    });
+  }, [tabData, actionColsByTab, activeTab]);
+
+  const actionCols = selectedActionKeys.map(k => ({
+    key: `action_${k}`,
+    label: META_ACTION_LABELS[k]?.label || k,
+    render: r => fmtNum(r[`action_${k}`]),
+  }));
+  const allCols = [...cols, ...actionCols];
+
   const effectivePageSize = pageSize === 'Todos' ? tabData.length : pageSize;
   
   // Apply sorting
   const sortedData = useMemo(() => {
-    let sorted = [...tabData];
+    let sorted = [...dataWithActions];
     if (sortConfig.key) {
       sorted.sort((a, b) => {
         const aVal = a[sortConfig.key];
@@ -229,14 +268,14 @@ export default function DataManagement() {
       });
     }
     return sorted;
-  }, [tabData, sortConfig]);
+  }, [dataWithActions, sortConfig]);
   
   const totalPages = effectivePageSize > 0 ? Math.ceil(sortedData.length / effectivePageSize) : 1;
   const pageData = sortedData.slice((currentPage - 1) * effectivePageSize, currentPage * effectivePageSize);
 
   // Totals row (numeric columns only)
   const numericKeys = cols.filter(c => {
-    const sample = tabData.find(r => r[c.key] !== undefined && r[c.key] !== null);
+    const sample = dataWithActions.find(r => r[c.key] !== undefined && r[c.key] !== null);
     return sample && typeof sample[c.key] === 'number';
   }).map(c => c.key);
 
@@ -250,6 +289,16 @@ export default function DataManagement() {
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
+  };
+
+  const toggleActionCol = (actionKey) => {
+    setActionColsByTab(prev => {
+      const cur = prev[activeTab] || [];
+      const next = cur.includes(actionKey) ? cur.filter(k => k !== actionKey) : [...cur, actionKey];
+      const updated = { ...prev, [activeTab]: next };
+      localStorage.setItem('dmActionCols', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleTabChange = (id) => {
@@ -455,6 +504,32 @@ export default function DataManagement() {
                   </span>
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
+                  {availableActionKeys.length > 0 && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-1">
+                          <Columns3 className="w-4 h-4" />
+                          Actions
+                          {selectedActionKeys.length > 0 && (
+                            <span className="text-[10px] bg-blue-600 text-white rounded-full px-1.5 leading-4">{selectedActionKeys.length}</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 max-h-80 overflow-y-auto p-2" align="end">
+                        <p className="text-xs font-semibold text-gray-500 mb-1">Colunas de actions (auditoria)</p>
+                        <p className="text-[10px] text-gray-400 mb-2">Métricas do actions_map que não aparecem nas colunas fixas</p>
+                        {availableActionKeys.map(k => (
+                          <label key={k} className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm" title={k}>
+                            <Checkbox
+                              checked={selectedActionKeys.includes(k)}
+                              onCheckedChange={() => toggleActionCol(k)}
+                            />
+                            <span className="truncate flex-1">{META_ACTION_LABELS[k]?.label || k}</span>
+                          </label>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                  )}
                   {/* Page size selector */}
                   <div className="flex items-center gap-1 text-xs text-gray-500">
                     <span>Mostrar:</span>
@@ -482,7 +557,7 @@ export default function DataManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => exportCSV(sortedData, cols.filter(c => c.key !== 'thumbnail_url'), `${activeTab}_export.csv`)}
+                      onClick={() => exportCSV(sortedData, allCols.filter(c => c.key !== 'thumbnail_url'), `${activeTab}_export.csv`)}
                     >
                       <Download className="w-4 h-4 mr-1" />
                       CSV
@@ -529,7 +604,7 @@ export default function DataManagement() {
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 border-b">
                         <tr>
-                          {cols.map(col => (
+                          {allCols.map(col => (
                             <th key={col.key} className="px-3 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap cursor-pointer hover:bg-gray-100" onClick={() => handleSort(col.key)}>
                               <div className="flex items-center gap-1">
                                 {col.label}
@@ -549,7 +624,7 @@ export default function DataManagement() {
                               onClick={() => setExpandedRow(expandedRow === row.id ? null : row.id)}
                               title="Clique para ver todos os campos (auditoria)"
                             >
-                              {cols.map(col => (
+                              {allCols.map(col => (
                                 <td key={col.key} className="px-3 py-2 text-gray-700 whitespace-nowrap">
                                   {col.render(row)}
                                 </td>
@@ -557,7 +632,7 @@ export default function DataManagement() {
                             </tr>
                             {expandedRow === row.id && (
                               <tr>
-                                <td colSpan={cols.length} className="p-0">
+                                <td colSpan={allCols.length} className="p-0">
                                   <RowDetail row={row} />
                                 </td>
                               </tr>
@@ -569,7 +644,7 @@ export default function DataManagement() {
                        {numericKeys.length > 0 && (
                          <tfoot className="sticky bottom-0 bg-yellow-50 border-t-2 border-yellow-300">
                            <tr>
-                             {cols.map((col, idx) => (
+                             {allCols.map((col, idx) => (
                                <td key={col.key} className="px-3 py-2 text-xs font-bold text-gray-800 whitespace-nowrap">
                                  {numericKeys.includes(col.key)
                                    ? col.render({ [col.key]: totals[col.key] })
