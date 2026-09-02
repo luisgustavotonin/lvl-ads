@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import DeleteProgressOverlay from '@/components/datamanagement/DeleteProgressOverlay';
+import RowDetail from '@/components/datamanagement/RowDetail';
 
 const PAGE_SIZE_OPTIONS = [50, 100, 500, 1000, 'Todos'];
 const DEFAULT_PAGE_SIZE = 50;
@@ -167,6 +168,7 @@ export default function DataManagement() {
   const [bulkProgress, setBulkProgress] = useState(null); // {progress, total, currentLabel}
   const [deletingOldCreatives, setDeletingOldCreatives] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [expandedRow, setExpandedRow] = useState(null);
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -541,13 +543,26 @@ export default function DataManagement() {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {pageData.map(row => (
-                          <tr key={row.id} className="hover:bg-gray-50">
-                            {cols.map(col => (
-                              <td key={col.key} className="px-3 py-2 text-gray-700 whitespace-nowrap">
-                                {col.render(row)}
-                              </td>
-                            ))}
-                          </tr>
+                          <React.Fragment key={row.id}>
+                            <tr
+                              className="hover:bg-gray-50 cursor-pointer"
+                              onClick={() => setExpandedRow(expandedRow === row.id ? null : row.id)}
+                              title="Clique para ver todos os campos (auditoria)"
+                            >
+                              {cols.map(col => (
+                                <td key={col.key} className="px-3 py-2 text-gray-700 whitespace-nowrap">
+                                  {col.render(row)}
+                                </td>
+                              ))}
+                            </tr>
+                            {expandedRow === row.id && (
+                              <tr>
+                                <td colSpan={cols.length} className="p-0">
+                                  <RowDetail row={row} />
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                       {/* Sticky totals row */}
